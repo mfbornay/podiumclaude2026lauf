@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const sb = createClient(
@@ -66,7 +66,7 @@ html,body{background:#0E0A07;height:100%}
 .card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:15px;margin-bottom:10px}
 
 /* NAV */
-.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(14,10,7,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(4,1fr);padding:9px 0 20px;z-index:100}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(14,10,7,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);padding:9px 0 20px;z-index:100}
 .nb{background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 0}
 .nbi{font-size:19px;transition:transform .2s}
 .nbl{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -183,6 +183,29 @@ html,body{background:#0E0A07;height:100%}
 .my-pick{background:rgba(240,168,50,.08);border-radius:10px;padding:8px;font-size:12px;color:var(--amber);text-align:center;margin-top:4px;display:flex;justify-content:center;align-items:center}
 .new-bet-btn{width:100%;background:none;border:1px dashed var(--muted2);border-radius:14px;padding:14px;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'DM Sans',sans-serif}
 .new-bet-btn:hover{border-color:var(--amber);color:var(--amber)}
+
+/* CHAT */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 200px);padding-bottom:80px}
+.chat-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:8px 0}
+.chat-empty{text-align:center;color:var(--muted);font-size:12px;padding:20px;font-style:italic}
+.msg{display:flex;align-items:flex-end;gap:8px;max-width:85%}
+.msg.me{align-self:flex-end;flex-direction:row-reverse}
+.msg-avi{width:28px;height:28px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.msg-body{display:flex;flex-direction:column;gap:3px;min-width:0}
+.msg.me .msg-body{align-items:flex-end}
+.msg-meta{font-size:10px;color:var(--muted);display:flex;gap:6px;padding:0 4px}
+.msg-name{font-weight:600;color:var(--amber)}
+.msg-bubble{background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:8px 12px;font-size:13px;line-height:1.4;word-wrap:break-word;white-space:pre-wrap}
+.msg.me .msg-bubble{background:rgba(240,168,50,.15);border-color:rgba(240,168,50,.3)}
+.msg-photo{max-width:220px;max-height:280px;border-radius:12px;border:1px solid var(--border);display:block;cursor:pointer}
+.chat-input-bar{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(14,10,7,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);padding:10px 15px;display:flex;gap:8px;align-items:center;z-index:99}
+.chat-input{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:9px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none}
+.chat-input:focus{border-color:var(--amber)}
+.chat-photo-btn{background:var(--s2);border:1px solid var(--border);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;flex-shrink:0}
+.chat-photo-btn:hover{border-color:var(--amber)}
+.chat-send{background:var(--amber);color:#0E0A07;border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;font-weight:700;flex-shrink:0}
+.chat-send:disabled{opacity:.4;cursor:not-allowed}
+.chat-sending{font-size:11px;color:var(--muted);text-align:center;padding:4px}
 `;
 
 /* ══════════════════════════════════════════
@@ -448,6 +471,179 @@ function JoinScreen({ userId, onJoin }: { userId: string; onJoin: (g: any) => vo
             <button className="btn-ghost" onClick={() => setC(false)}>← Volver</button>
           </>
       }
+    </div>
+  );
+}
+
+/* ═════════════════════════════════════════
+   CHAT TAB
+═════════════════════════════════════════ */
+type ChatMsg = {
+  id: number;
+  group_id: string;
+  user_id: string;
+  text: string | null;
+  photo_url: string | null;
+  created_at: string;
+};
+
+function ChatTab({ user, group, profile }: { user: any; group: any; profile: any }) {
+  const [msgs, setMsgs] = useState<ChatMsg[]>([]);
+  const [members, setMembers] = useState<Record<string, { name: string; avatar: string }>>({});
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!group?.id) return;
+    (async () => {
+      const { data: gm } = await sb.from("group_members").select("user_id").eq("group_id", group.id);
+      const ids = (gm || []).map((r: any) => r.user_id);
+      if (!ids.length) return;
+      const { data: us } = await sb.from("users").select("id,name,avatar").in("id", ids);
+      const map: Record<string, { name: string; avatar: string }> = {};
+      (us || []).forEach((u: any) => { map[u.id] = { name: u.name || "?", avatar: u.avatar || "👤" }; });
+      setMembers(map);
+    })();
+  }, [group?.id]);
+
+  useEffect(() => {
+    if (!group?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await sb.from("chat_messages")
+        .select("*").eq("group_id", group.id)
+        .order("created_at", { ascending: false }).limit(100);
+      if (cancelled) return;
+      setMsgs((data || []).reverse() as ChatMsg[]);
+      setTimeout(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; }, 50);
+    })();
+
+    const channel = sb.channel("chat:" + group.id)
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_messages", filter: "group_id=eq." + group.id },
+        (payload: any) => {
+          setMsgs(prev => [...prev, payload.new as ChatMsg]);
+          setTimeout(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; }, 50);
+        })
+      .subscribe();
+
+    return () => { cancelled = true; sb.removeChannel(channel); };
+  }, [group?.id]);
+
+  async function send() {
+    const t = text.trim();
+    if (!t || sending) return;
+    setSending(true);
+    const { error } = await sb.from("chat_messages").insert({
+      group_id: group.id,
+      user_id: user.id,
+      text: t,
+    });
+    setSending(false);
+    if (!error) setText("");
+    else alert("Error enviando mensaje: " + error.message);
+  }
+
+  async function sendPhoto(file: File) {
+    if (!file || uploading) return;
+    setUploading(true);
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = group.id + "/" + user.id + "-" + Date.now() + "." + ext;
+      const { error: upErr } = await sb.storage.from("chat-photos").upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type || "image/jpeg",
+      });
+      if (upErr) { alert("Error subiendo foto: " + upErr.message); return; }
+      const { data: pub } = sb.storage.from("chat-photos").getPublicUrl(path);
+      const { error: insErr } = await sb.from("chat_messages").insert({
+        group_id: group.id,
+        user_id: user.id,
+        photo_url: pub.publicUrl,
+      });
+      if (insErr) alert("Error guardando mensaje: " + insErr.message);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  }
+
+  return (
+    <div className="content" key="chat">
+      <div className="chat-wrap">
+        <div className="chat-list" ref={listRef}>
+          {msgs.length === 0 && <div className="chat-empty">Aún no hay mensajes. ¡Sé el primero!</div>}
+          {msgs.map(m => {
+            const mine = m.user_id === user.id;
+            const who = mine
+              ? { name: profile?.name || "Tú", avatar: profile?.avatar || "👤" }
+              : (members[m.user_id] || { name: "?", avatar: "👤" });
+            const t = new Date(m.created_at);
+            const hh = t.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+            return (
+              <div key={m.id} className={"msg" + (mine ? " me" : "")}>
+                <div className="msg-avi">{who.avatar}</div>
+                <div className="msg-body">
+                  <div className="msg-meta">
+                    {!mine && <span className="msg-name">{who.name}</span>}
+                    <span>{hh}</span>
+                  </div>
+                  {m.text && <div className="msg-bubble">{m.text}</div>}
+                  {m.photo_url && (
+                    <img
+                      src={m.photo_url}
+                      alt="foto"
+                      className="msg-photo"
+                      onClick={() => window.open(m.photo_url!, "_blank")}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {uploading && <div className="chat-sending">Subiendo foto…</div>}
+        <div className="chat-input-bar">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) sendPhoto(f); }}
+          />
+          <button
+            className="chat-photo-btn"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            title="Enviar foto"
+          >📷</button>
+          <input
+            className="chat-input"
+            placeholder="Escribe un mensaje…"
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={onKey}
+            disabled={sending}
+          />
+          <button
+            className="chat-send"
+            onClick={send}
+            disabled={sending || !text.trim()}
+            title="Enviar"
+          >➜</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -732,6 +928,10 @@ function MainApp({ user, profile, group, onSignOut }: {
         </div>
       )}
 
+      {tab === "chat" && (
+        <ChatTab user={user} group={group} profile={profile} />
+      )}
+
       {tab === "perfil" && (
         <div className="content" key="perfil">
           <div className="prof-card">
@@ -763,7 +963,7 @@ function MainApp({ user, profile, group, onSignOut }: {
       )}
 
       <nav className="nav">
-        {([["hoy","➕","Hoy"],["rank","🏆","Ranking"],["bets","⚔️","Apuestas"],["perfil","👤","Perfil"]] as [string,string,string][]).map(([id,icon,label]) => (
+        {([["hoy","➕","Hoy"],["rank","🏆","Ranking"],["bets","⚔️","Apuestas"],["chat","💬","Chat"],["perfil","👤","Perfil"]] as [string,string,string][]).map(([id,icon,label]) => (
           <button key={id} className={`nb${tab===id?" on":""}`} onClick={() => setTab(id)}>
             <span className="nbi">{icon}</span>
             <span className="nbl">{label}</span>
