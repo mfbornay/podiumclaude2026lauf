@@ -66,7 +66,7 @@ html,body{background:#0E0A07;height:100%}
 .card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:15px;margin-bottom:10px}
 
 /* NAV */
-.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(14,10,7,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(3,1fr);padding:9px 0 20px;z-index:100}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(14,10,7,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(4,1fr);padding:9px 0 20px;z-index:100}
 .nb{background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 0}
 .nbi{font-size:19px;transition:transform .2s}
 .nbl{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -155,6 +155,34 @@ html,body{background:#0E0A07;height:100%}
 .div{display:flex;align-items:center;gap:12px;margin:4px 0 14px}
 .div-line{flex:1;height:1px;background:var(--s3)}
 .div-txt{font-size:12px;color:var(--muted)}
+
+/* APUESTAS */
+.bets-tabs{display:flex;gap:7px;margin-bottom:14px}
+.btab{flex:1;background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .15s}
+.btab.on{background:rgba(240,168,50,.1);border-color:var(--amber);color:var(--amber)}
+.bet-card{background:var(--s1);border:1px solid var(--border);border-radius:18px;padding:16px;margin-bottom:10px}
+.bet-card.won{border-color:rgba(93,201,138,.25)}
+.bet-card.lost{border-color:rgba(232,98,58,.2)}
+.bet-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.bet-type-lbl{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+.bet-pot{border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700}
+.bet-pot.open{background:rgba(240,168,50,.12);color:var(--amber)}
+.bet-pot.won{background:rgba(93,201,138,.12);color:var(--green)}
+.bet-pot.lost{background:rgba(232,98,58,.12);color:var(--coral)}
+.bet-vs{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.bet-player{text-align:center;flex:1}
+.bet-avi{font-size:28px;margin-bottom:4px}
+.bet-pname{font-size:13px;font-weight:600}
+.bet-pstat{font-size:11px;color:var(--muted)}
+.bet-vs-lbl{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--muted)}
+.bet-actions{display:flex;gap:8px;margin-bottom:8px}
+.bet-btn{flex:1;padding:10px;border-radius:11px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+.bet-btn:hover{border-color:var(--amber);color:var(--amber)}
+.bet-btn.sel{background:var(--amber);color:#0E0A07;border-color:var(--amber)}
+.bet-timer{font-size:11px;color:var(--muted);text-align:center}
+.my-pick{background:rgba(240,168,50,.08);border-radius:10px;padding:8px;font-size:12px;color:var(--amber);text-align:center;margin-top:4px;display:flex;justify-content:center;align-items:center}
+.new-bet-btn{width:100%;background:none;border:1px dashed var(--muted2);border-radius:14px;padding:14px;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'DM Sans',sans-serif}
+.new-bet-btn:hover{border-color:var(--amber);color:var(--amber)}
 `;
 
 /* ══════════════════════════════════════════
@@ -175,6 +203,24 @@ const QUESTIONS = [
   { id:"course",      icon:"📖", name:"Estudio/Curso",   pts:4  },
   { id:"podcast",     icon:"🎧", name:"Podcast educ.",   pts:2  },
   { id:"meditation",  icon:"🧘", name:"Meditación",      pts:2  },
+];
+
+type Bet = {
+  id: number;
+  label: string;
+  p1Name: string; p1Avi: string; p1Pts: number;
+  p2Name: string; p2Avi: string; p2Pts: number;
+  pot: number;
+  ends: string;
+  status: "open" | "won" | "lost" | "cancelled";
+  myPick: 1 | 2 | null;
+};
+
+const BETS_INIT: Bet[] = [
+  { id:1, label:"Duelo semanal · Gym",  p1Name:"Manu",  p1Avi:"🐺", p1Pts:71, p2Name:"Emilio", p2Avi:"🦁", p2Pts:65, pot:8, ends:"2d 14h", status:"open", myPick:null },
+  { id:2, label:"Apuesta de racha",     p1Name:"Pedro", p1Avi:"🐙", p1Pts:62, p2Name:"Mario",  p2Avi:"🐯", p2Pts:58, pot:3, ends:"domingo", status:"open", myPick:null },
+  { id:3, label:"Duelo · Running",      p1Name:"Manu",  p1Avi:"🐺", p1Pts:71, p2Name:"Nacho",  p2Avi:"🐬", p2Pts:47, pot:6, ends:"cerrada", status:"won", myPick:1 },
+  { id:4, label:"Duelo · Sueño",        p1Name:"Jaime", p1Avi:"🐻", p1Pts:60, p2Name:"Álvaro", p2Avi:"🦅", p2Pts:54, pot:4, ends:"cerrada", status:"lost", myPick:2 },
 ];
 
 function todayStr() {
@@ -203,7 +249,7 @@ function Loading({ text = "Cargando..." }: { text?: string }) {
 /* ══════════════════════════════════════════
    AUTH
 ══════════════════════════════════════════ */
-function AuthScreen({ onAuth }: { onAuth: (u: any) => void }) {
+function AuthScreen({ onAuth, bootError }: { onAuth: (u: any) => void; bootError?: string }) {
   const [mode, setMode]     = useState<"login"|"register">("login");
   const [step, setStep]     = useState(0);
   const [email, setEmail]   = useState("");
@@ -218,11 +264,14 @@ function AuthScreen({ onAuth }: { onAuth: (u: any) => void }) {
   function clearMsgs() { setErr(""); setInfo(""); }
 
   async function login() {
-    if (!email || !pass) return;
+    if (\!email || \!pass) return;
     setBusy(true); clearMsgs();
+    console.log("[Podium] login: signInWithPassword", { email });
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+    console.log("[Podium] login: response", { hasUser: \!\!data?.user, error });
     setBusy(false);
     if (error) { setErr(error.message); return; }
+    if (\!data?.user) { setErr("Respuesta inesperada de Supabase (sin usuario)."); return; }
     onAuth(data.user);
   }
 
@@ -233,14 +282,13 @@ function AuthScreen({ onAuth }: { onAuth: (u: any) => void }) {
       setStep(1); return;
     }
     if (step === 1) {
-      if (!name.trim() || !uname.trim()) { setErr("Rellena nombre y username."); return; }
+      if (\!name.trim() || \!uname.trim()) { setErr("Rellena nombre y username."); return; }
       setStep(2); return;
     }
-    // Step 2 — crear cuenta
     setBusy(true);
     const { data: authData, error: authErr } = await sb.auth.signUp({ email, password: pass });
     if (authErr) { setErr(authErr.message); setBusy(false); return; }
-    if (!authData.user) { setErr("Error inesperado al crear cuenta."); setBusy(false); return; }
+    if (\!authData.user) { setErr("Error inesperado al crear cuenta."); setBusy(false); return; }
 
     const { error: profErr } = await sb.from("users").insert({
       id:       authData.user.id,
@@ -251,11 +299,10 @@ function AuthScreen({ onAuth }: { onAuth: (u: any) => void }) {
       role:     "user",
     });
 
-    if (profErr && !profErr.message.includes("duplicate")) {
+    if (profErr && \!profErr.message.includes("duplicate")) {
       setErr(profErr.message); setBusy(false); return;
     }
 
-    // Auto-login
     const { data: loginData, error: loginErr } = await sb.auth.signInWithPassword({ email, password: pass });
     setBusy(false);
     if (loginErr) { setInfo("Cuenta creada. Inicia sesión."); setMode("login"); return; }
@@ -266,6 +313,7 @@ function AuthScreen({ onAuth }: { onAuth: (u: any) => void }) {
     <div className="page">
       <div className="logo">Po<span>d</span>ium</div>
       <div className="tagline">Compite con tus amigos. Mejora cada día.</div>
+      {bootError && <div className="err">⚠️ {bootError}</div>}
       {err  && <div className="err">{err}</div>}
       {info && <div className="ok">{info}</div>}
       <label className="lbl">Email</label>
@@ -276,7 +324,7 @@ function AuthScreen({ onAuth }: { onAuth: (u: any) => void }) {
       <input className="inp" type="password" placeholder="••••••••"
         value={pass} onChange={e => setPass(e.target.value)}
         onKeyDown={e => e.key === "Enter" && login()} />
-      <button className="btn" disabled={!email || !pass || busy} onClick={login}>
+      <button className="btn" disabled={\!email || \!pass || busy} onClick={login}>
         {busy ? "Entrando..." : "Entrar →"}
       </button>
       <div className="switch">
@@ -326,9 +374,9 @@ function AuthScreen({ onAuth }: { onAuth: (u: any) => void }) {
       </>}
 
       <button className="btn"
-        disabled={busy || (step===0 && (!email||!pass)) || (step===1 && (!name||!uname))}
+        disabled={busy || (step===0 && (\!email||\!pass)) || (step===1 && (\!name||\!uname))}
         onClick={register}>
-        {busy ? "Creando..." : step < 2 ? "Siguiente →" : "¡Empezar!"}
+        {busy ? "Creando..." : step < 2 ? "Siguiente →" : "¡Empezar\!"}
       </button>
       <div className="switch" style={{ marginTop:8 }}>
         {step > 0
@@ -355,15 +403,15 @@ function JoinScreen({ userId, onJoin }: { userId: string; onJoin: (g: any) => vo
     setBusy(true); setErr("");
     const { data: group, error } = await sb.from("groups")
       .select("*").eq("invite_code", code.toUpperCase().trim()).maybeSingle();
-    if (error || !group) { setErr("Código no encontrado."); setBusy(false); return; }
+    if (error || \!group) { setErr("Código no encontrado."); setBusy(false); return; }
     const { error: mErr } = await sb.from("group_members")
       .insert({ group_id: group.id, user_id: userId });
-    if (mErr && !mErr.message.includes("duplicate")) { setErr(mErr.message); setBusy(false); return; }
+    if (mErr && \!mErr.message.includes("duplicate")) { setErr(mErr.message); setBusy(false); return; }
     onJoin(group);
   }
 
   async function create() {
-    if (!gname.trim()) return;
+    if (\!gname.trim()) return;
     setBusy(true); setErr("");
     const { data: group, error } = await sb.from("groups").insert({
       name: gname.trim(), created_by: userId,
@@ -387,14 +435,14 @@ function JoinScreen({ userId, onJoin }: { userId: string; onJoin: (g: any) => vo
         {busy ? "Buscando..." : "Unirme →"}
       </button>
       <div className="div"><div className="div-line"/><div className="div-txt">o</div><div className="div-line"/></div>
-      {!creating
+      {\!creating
         ? <button className="btn-ghost" onClick={() => setC(true)}>⚡ Crear un Podium nuevo</button>
         : <>
             <label className="lbl">Nombre del grupo</label>
             <input className="inp" placeholder="Ej: Panas del gym"
               value={gname} onChange={e => setGname(e.target.value)}
               onKeyDown={e => e.key === "Enter" && create()} />
-            <button className="btn" disabled={!gname.trim() || busy} onClick={create}>
+            <button className="btn" disabled={\!gname.trim() || busy} onClick={create}>
               {busy ? "Creando..." : "Crear Podium →"}
             </button>
             <button className="btn-ghost" onClick={() => setC(false)}>← Volver</button>
@@ -418,6 +466,8 @@ function MainApp({ user, profile, group, onSignOut }: {
   const [streak, setStreak]   = useState(0);
   const [loadingRank, setLR]  = useState(false);
   const [modal, setModal]     = useState<string|null>(null);
+  const [bets, setBets]       = useState<Bet[]>(BETS_INIT);
+  const [betsTab, setBT]      = useState<"activas"|"historial">("activas");
 
   const pts        = calcPts(done);
   const anyDone    = Object.values(done).some(Boolean);
@@ -435,7 +485,7 @@ function MainApp({ user, profile, group, onSignOut }: {
     const { data } = await sb.from("daily_logs")
       .select("*").eq("user_id", user.id)
       .eq("group_id", group.id).eq("date", todayStr()).maybeSingle();
-    if (!data) return;
+    if (\!data) return;
     setSaved(true);
     const d: Record<string,boolean> = {};
     QUESTIONS.forEach(q => { if (data[q.id]) d[q.id] = true; });
@@ -456,7 +506,7 @@ function MainApp({ user, profile, group, onSignOut }: {
       .select("date").eq("user_id", user.id)
       .eq("group_id", group.id)
       .order("date", { ascending: false }).limit(60);
-    if (!data?.length) return;
+    if (\!data?.length) return;
     let s = 0;
     const today = new Date(); today.setHours(0,0,0,0);
     const dates = data.map(r => { const d = new Date(r.date); d.setHours(0,0,0,0); return d.getTime(); });
@@ -469,10 +519,10 @@ function MainApp({ user, profile, group, onSignOut }: {
   }
 
   async function saveDay() {
-    if (!anyDone || saved || saving) return;
+    if (\!anyDone || saved || saving) return;
     setSaving(true);
     const payload: any = { user_id: user.id, group_id: group.id, date: todayStr(), total_pts: pts };
-    QUESTIONS.forEach(q => { payload[q.id] = !!done[q.id]; });
+    QUESTIONS.forEach(q => { payload[q.id] = \!\!done[q.id]; });
     const { error } = await sb.from("daily_logs")
       .upsert(payload, { onConflict: "user_id,group_id,date" });
     setSaving(false);
@@ -484,7 +534,15 @@ function MainApp({ user, profile, group, onSignOut }: {
 
   function toggle(id: string) {
     if (saved || saving) return;
-    setDone(d => ({ ...d, [id]: !d[id] }));
+    setDone(d => ({ ...d, [id]: \!d[id] }));
+  }
+
+  function closeBet(betId: number, winner: 1 | 2) {
+    setBets(bs => bs.map(b => b.id === betId ? { ...b, status: "won", myPick: winner } : b));
+  }
+
+  function cancelBet(betId: number) {
+    setBets(bs => bs.map(b => b.id === betId ? { ...b, status: "cancelled" } : b));
   }
 
   const top3 = ranking.slice(0, 3);
@@ -507,7 +565,6 @@ function MainApp({ user, profile, group, onSignOut }: {
         </div>
       </div>
 
-      {/* HOY */}
       {tab === "hoy" && (
         <div className="content" key="hoy">
           <div className="hero">
@@ -547,7 +604,7 @@ function MainApp({ user, profile, group, onSignOut }: {
             ))}
           </div>
 
-          <button className="btn" disabled={!anyDone || saved || saving} onClick={saveDay}>
+          <button className="btn" disabled={\!anyDone || saved || saving} onClick={saveDay}>
             {saving ? "Guardando..." : saved ? "✓ Guardado" : `Guardar · +${Math.max(0,pts)} pts`}
           </button>
 
@@ -559,7 +616,6 @@ function MainApp({ user, profile, group, onSignOut }: {
         </div>
       )}
 
-      {/* RANKING */}
       {tab === "rank" && (
         <div className="content" key="rank">
           <div className="rank-hero">
@@ -568,10 +624,10 @@ function MainApp({ user, profile, group, onSignOut }: {
               <button className="rh-btn" onClick={loadRanking}>{loadingRank ? "..." : "↻ actualizar"}</button>
             </div>
             {loadingRank && <div style={{textAlign:"center",padding:20}}><div className="spin" style={{margin:"0 auto"}}/></div>}
-            {!loadingRank && ranking.length === 0 && (
-              <div className="empty">Nadie ha registrado actividad todavía.<br/>¡Guarda tu primer día!</div>
+            {\!loadingRank && ranking.length === 0 && (
+              <div className="empty">Nadie ha registrado actividad todavía.<br/>¡Guarda tu primer día\!</div>
             )}
-            {!loadingRank && top3.length > 0 && (
+            {\!loadingRank && top3.length > 0 && (
               <div className="podium-row">
                 {top3[1] && <div className="pc">
                   <div className="pavi p2">{top3[1].avatar||"🐺"}</div>
@@ -613,7 +669,69 @@ function MainApp({ user, profile, group, onSignOut }: {
         </div>
       )}
 
-      {/* PERFIL */}
+      {tab === "bets" && (
+        <div className="content" key="bets">
+          <div className="bets-tabs">
+            {([["activas","⚔️ Activas"],["historial","📋 Historial"]] as ["activas"|"historial", string][]).map(([v,l]) => (
+              <div key={v} className={`btab${betsTab===v?" on":""}`} onClick={() => setBT(v)}>{l}</div>
+            ))}
+          </div>
+          {(betsTab==="activas" ? bets.filter(b=>b.status==="open") : bets.filter(b=>b.status\!=="open")).map(b => {
+            const s = b.status;
+            return (
+              <div key={b.id} className={`bet-card ${s\!=="open"?s:""}`}>
+                <div className="bet-header">
+                  <span className="bet-type-lbl">{b.label}</span>
+                  <span className={`bet-pot ${s==="open"?"open":s}`}>
+                    {s==="won"?"✓ Ganaste ":s==="lost"?"✗ Perdiste ":s==="cancelled"?"✗ Anulada ":""}⚡{b.pot} pts
+                  </span>
+                </div>
+                <div className="bet-vs">
+                  <div className="bet-player">
+                    <div className="bet-avi">{b.p1Avi}</div>
+                    <div className="bet-pname">{b.p1Name}</div>
+                    <div className="bet-pstat">{b.p1Pts} pts</div>
+                  </div>
+                  <div className="bet-vs-lbl">VS</div>
+                  <div className="bet-player">
+                    <div className="bet-avi">{b.p2Avi}</div>
+                    <div className="bet-pname">{b.p2Name}</div>
+                    <div className="bet-pstat">{b.p2Pts} pts</div>
+                  </div>
+                </div>
+                {s==="open" && \!b.myPick && (
+                  <div className="bet-actions">
+                    <button className="bet-btn" onClick={() => setBets(bs => bs.map(x => x.id===b.id ? {...x, myPick:1} : x))}>Por {b.p1Name}</button>
+                    <button className="bet-btn" onClick={() => setBets(bs => bs.map(x => x.id===b.id ? {...x, myPick:2} : x))}>Por {b.p2Name}</button>
+                  </div>
+                )}
+                {b.myPick && s==="open" && (
+                  <div className="my-pick">✓ Apostaste por <b style={{marginLeft:4}}>{b.myPick===1?b.p1Name:b.p2Name}</b></div>
+                )}
+                {s\!=="open" && b.myPick && (
+                  <div className="my-pick">Tu apuesta: <b style={{marginLeft:4}}>{b.myPick===1?b.p1Name:b.p2Name}</b></div>
+                )}
+                {s==="open" && <div className="bet-timer">⏱ {b.ends}</div>}
+                {isAdmin && s==="open" && (
+                  <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--border)"}}>
+                    <div style={{fontSize:10,color:"var(--amber)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>⚙️ Admin</div>
+                    <div style={{display:"flex",gap:6}}>
+                      <button className="bet-btn" style={{fontSize:11,borderColor:"rgba(93,201,138,.3)",color:"var(--green)"}} onClick={() => closeBet(b.id, 1)}>✓ Gana {b.p1Name}</button>
+                      <button className="bet-btn" style={{fontSize:11,borderColor:"rgba(93,201,138,.3)",color:"var(--green)"}} onClick={() => closeBet(b.id, 2)}>✓ Gana {b.p2Name}</button>
+                      <button className="bet-btn" style={{fontSize:11,borderColor:"rgba(255,68,68,.3)",color:"var(--red)"}} onClick={() => cancelBet(b.id)}>✗ Anular</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {(betsTab==="activas" ? bets.filter(b=>b.status==="open") : bets.filter(b=>b.status\!=="open")).length === 0 && (
+            <div className="empty">{betsTab==="activas" ? "No hay apuestas activas." : "No hay historial todavía."}</div>
+          )}
+          <button className="new-bet-btn">⚔️ Crear nueva apuesta</button>
+        </div>
+      )}
+
       {tab === "perfil" && (
         <div className="content" key="perfil">
           <div className="prof-card">
@@ -644,9 +762,8 @@ function MainApp({ user, profile, group, onSignOut }: {
         </div>
       )}
 
-      {/* NAV */}
       <nav className="nav">
-        {([["hoy","➕","Hoy"],["rank","🏆","Ranking"],["perfil","👤","Perfil"]] as [string,string,string][]).map(([id,icon,label]) => (
+        {([["hoy","➕","Hoy"],["rank","🏆","Ranking"],["bets","⚔️","Apuestas"],["perfil","👤","Perfil"]] as [string,string,string][]).map(([id,icon,label]) => (
           <button key={id} className={`nb${tab===id?" on":""}`} onClick={() => setTab(id)}>
             <span className="nbi">{icon}</span>
             <span className="nbl">{label}</span>
@@ -655,7 +772,6 @@ function MainApp({ user, profile, group, onSignOut }: {
         ))}
       </nav>
 
-      {/* MODAL PERFIL */}
       {modal === "profile" && (
         <div className="overlay" onClick={() => setModal(null)}>
           <div className="sheet" onClick={e => e.stopPropagation()}>
@@ -684,7 +800,7 @@ function MainApp({ user, profile, group, onSignOut }: {
 }
 
 /* ══════════════════════════════════════════
-   ROOT — gestión de sesión sin bucles
+   ROOT
 ══════════════════════════════════════════ */
 type Phase = "loading"|"auth"|"join"|"app";
 
@@ -693,18 +809,20 @@ export default function Root() {
   const [authUser, setAuthUser] = useState<any>(null);
   const [profile, setProfile]   = useState<any>(null);
   const [group, setGroup]       = useState<any>(null);
+  const [bootError, setBootError] = useState<string>("");
 
-  // Cargar sesión una sola vez al montar
   useEffect(() => {
+    console.log("[Podium] Root mount: checking existing session");
     sb.auth.getSession().then(({ data: { session } }) => {
+      console.log("[Podium] getSession:", { hasSession: \!\!session, userId: session?.user?.id });
       if (session?.user) {
         loadUserData(session.user);
       } else {
         setPhase("auth");
       }
     });
-    // El listener solo actúa en SIGNED_OUT — no en cada cambio de sesión
     const { data: { subscription } } = sb.auth.onAuthStateChange((event) => {
+      console.log("[Podium] onAuthStateChange:", event);
       if (event === "SIGNED_OUT") {
         setAuthUser(null); setProfile(null); setGroup(null);
         setPhase("auth");
@@ -714,36 +832,54 @@ export default function Root() {
   }, []);
 
   async function loadUserData(user: any) {
-    // 1. Cargar perfil
-    const { data: prof } = await sb.from("users")
-      .select("*").eq("id", user.id).maybeSingle();
-
-    setAuthUser(user);
-
-    if (!prof) {
-      // Perfil no existe — ir a registro sin cerrar sesión
+    try {
+      const { data: prof, error: profErr } = await sb.from("users")
+        .select("*").eq("id", user.id).maybeSingle();
+      if (profErr) {
+        const msg =
+          profErr.message.includes("permission") || profErr.code === "42501"
+            ? "No tengo permisos para leer tu perfil (RLS). Ejecuta el SQL de arreglo en Supabase. Detalle: " + profErr.message
+            : "Error cargando perfil: " + profErr.message;
+        setBootError(msg);
+        setAuthUser(null); setProfile(null); setGroup(null);
+        await sb.auth.signOut();
+        setPhase("auth");
+        return;
+      }
+      setAuthUser(user);
+      if (\!prof) {
+        setBootError("Login OK pero no encuentro tu fila en la tabla users. Probable causa: RLS activado sin policies en la tabla 'users'. Abre Supabase → SQL Editor y ejecuta el script de arreglo.");
+        await sb.auth.signOut();
+        setPhase("auth");
+        return;
+      }
+      setProfile(prof);
+      const { data: membership, error: memErr } = await sb.from("group_members")
+        .select("group_id, groups(*)")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
+      if (memErr) {
+        setBootError("Error cargando grupo: " + memErr.message);
+        setPhase("join");
+        return;
+      }
+      if (membership?.groups) {
+        setGroup(membership.groups);
+        setPhase("app");
+      } else {
+        setPhase("join");
+      }
+    } catch (e: any) {
+      console.error("[Podium] loadUserData unexpected error:", e);
+      setBootError("Error inesperado: " + (e?.message || String(e)));
+      await sb.auth.signOut();
       setPhase("auth");
-      return;
-    }
-
-    setProfile(prof);
-
-    // 2. Buscar grupo
-    const { data: membership } = await sb.from("group_members")
-      .select("group_id, groups(*)")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
-
-    if (membership?.groups) {
-      setGroup(membership.groups);
-      setPhase("app");
-    } else {
-      setPhase("join");
     }
   }
 
   async function handleAuth(user: any) {
+    setBootError("");
     setPhase("loading");
     await loadUserData(user);
   }
@@ -755,7 +891,6 @@ export default function Root() {
 
   async function handleSignOut() {
     await sb.auth.signOut();
-    // El listener de onAuthStateChange se encarga del resto
   }
 
   return (
@@ -763,7 +898,7 @@ export default function Root() {
       <style>{CSS}</style>
       <div className="app">
         {phase === "loading" && <Loading text="Iniciando Podium..." />}
-        {phase === "auth"    && <AuthScreen onAuth={handleAuth} />}
+        {phase === "auth"    && <AuthScreen onAuth={handleAuth} bootError={bootError} />}
         {phase === "join"    && authUser && <JoinScreen userId={authUser.id} onJoin={handleJoin} />}
         {phase === "app"     && authUser && profile && group &&
           <MainApp user={authUser} profile={profile} group={group} onSignOut={handleSignOut} />
