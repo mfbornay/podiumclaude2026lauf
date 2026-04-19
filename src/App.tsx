@@ -206,6 +206,45 @@ html,body{background:#0E0A07;height:100%}
 .chat-send{background:var(--amber);color:#0E0A07;border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;font-weight:700;flex-shrink:0}
 .chat-send:disabled{opacity:.4;cursor:not-allowed}
 .chat-sending{font-size:11px;color:var(--muted);text-align:center;padding:4px}
+
+/* DISPUTES */
+.disputes-btn{background:transparent;border:1px solid var(--border);border-radius:10px;padding:6px 11px;color:var(--text);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:6px}
+.disputes-btn:hover{border-color:var(--amber);color:var(--amber)}
+.disputes-btn .dbd{background:var(--amber);color:#0E0A07;border-radius:8px;padding:1px 6px;font-size:10px;font-weight:700}
+.rr-dispute{background:transparent;border:1px solid var(--border);border-radius:8px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:var(--muted)}
+.rr-dispute:hover{border-color:var(--amber);color:var(--amber)}
+.rr-penalty{font-size:10px;color:#F2667A;margin-left:6px}
+.modal-title-sm{font-size:14px;font-weight:700;margin-bottom:10px}
+.dispute-habit{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.dispute-habit:hover{border-color:var(--amber)}
+.dispute-habit.sel{border-color:var(--amber);background:rgba(240,168,50,.08)}
+.dispute-habit-info{display:flex;align-items:center;gap:10px}
+.dispute-habit-icon{font-size:18px}
+.dispute-habit-name{font-size:13px;font-weight:600}
+.dispute-habit-pts{font-size:11px;color:var(--muted)}
+.dispute-habit-penalty{font-size:10px;color:#F2667A}
+.dispute-reason{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;margin-top:6px;resize:vertical;min-height:60px}
+.dispute-reason:focus{outline:none;border-color:var(--amber)}
+.dispute-card{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:8px}
+.dispute-card.failed{border-color:#F2667A;background:rgba(242,102,122,.05)}
+.dispute-card.passed{border-color:#7BC97A;background:rgba(123,201,122,.05)}
+.dispute-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px}
+.dispute-card-title{font-size:13px;font-weight:700}
+.dispute-card-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.dispute-card-status{font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:8px;font-weight:700}
+.dcs-active{background:rgba(240,168,50,.15);color:var(--amber)}
+.dcs-failed{background:rgba(242,102,122,.15);color:#F2667A}
+.dcs-passed{background:rgba(123,201,122,.15);color:#7BC97A}
+.dispute-reason-box{font-size:12px;color:var(--muted);background:var(--s2);border-radius:8px;padding:7px 10px;margin:4px 0 8px;font-style:italic}
+.dispute-votes{display:flex;gap:8px;margin-top:8px}
+.dispute-vote-btn{flex:1;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px}
+.dispute-vote-btn.support{border-color:rgba(123,201,122,.4)}
+.dispute-vote-btn.support.mine{background:rgba(123,201,122,.15);border-color:#7BC97A;color:#7BC97A}
+.dispute-vote-btn.reject{border-color:rgba(242,102,122,.4)}
+.dispute-vote-btn.reject.mine{background:rgba(242,102,122,.15);border-color:#F2667A;color:#F2667A}
+.dispute-tally{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:8px;padding:0 2px}
+.dispute-tally b{color:var(--text)}
+.dispute-empty{text-align:center;color:var(--muted);font-size:12px;padding:30px 10px;font-style:italic}
 `;
 
 /* ══════════════════════════════════════════
@@ -248,6 +287,19 @@ const BETS_INIT: Bet[] = [
 
 function todayStr() {
   return new Date().toISOString().split("T")[0];
+}
+
+function yesterdayStr() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split("T")[0];
+}
+
+function disputePenalty(habitId: string): number {
+  const q = QUESTIONS.find(x => x.id === habitId);
+  if (!q) return 0;
+  // Perder la mitad redondeada hacia abajo => penalty = ceil(pts/2)
+  return Math.ceil(q.pts / 2);
 }
 
 function calcPts(done: Record<string,boolean>) {
@@ -471,6 +523,242 @@ function JoinScreen({ userId, onJoin }: { userId: string; onJoin: (g: any) => vo
             <button className="btn-ghost" onClick={() => setC(false)}>← Volver</button>
           </>
       }
+    </div>
+  );
+}
+
+/* ═════════════════════════════════════════
+   DISPUTAS
+═════════════════════════════════════════ */
+type Dispute = {
+  id: number;
+  group_id: string;
+  disputed_user: string;
+  challenger: string;
+  day: string;
+  habit_id: string;
+  reason: string | null;
+  created_at: string;
+};
+
+type DisputeVote = {
+  dispute_id: number;
+  voter_id: string;
+  vote: "support" | "reject";
+};
+
+type DisputeStatus = "active" | "failed" | "passed";
+
+function computeDisputeStatus(d: Dispute, votes: DisputeVote[], totalMembers: number): {
+  status: DisputeStatus;
+  supports: number;
+  rejects: number;
+  closed: boolean;
+  hoursLeft: number;
+} {
+  const supports = votes.filter(v => v.vote === "support").length;
+  const rejects = votes.filter(v => v.vote === "reject").length;
+  const eligible = Math.max(0, totalMembers - 1);
+  const totalVotes = supports + rejects;
+  const created = new Date(d.created_at).getTime();
+  const elapsedMs = Date.now() - created;
+  const hoursLeft = Math.max(0, 24 - elapsedMs / 3600000);
+  const closedByTime = hoursLeft <= 0;
+  const closedByVotes = totalVotes >= eligible && eligible > 0;
+  const closed = closedByTime || closedByVotes;
+  let status: DisputeStatus = "active";
+  if (closed) status = rejects > supports ? "failed" : "passed";
+  return { status, supports, rejects, closed, hoursLeft };
+}
+
+function DisputeModal({ user, group, disputedUser, onClose, onCreated, members }: {
+  user: any; group: any; disputedUser: any; onClose: () => void; onCreated: (d: Dispute) => void;
+  members: Record<string, { name: string; avatar: string }>;
+}) {
+  const [yLog, setYLog] = useState<Record<string, boolean> | null>(null);
+  const [selHabit, setSelHabit] = useState<string>("");
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await sb.from("daily_logs")
+        .select("*")
+        .eq("user_id", disputedUser.user_id || disputedUser.id)
+        .eq("group_id", group.id)
+        .eq("date", yesterdayStr())
+        .maybeSingle();
+      const log: Record<string, boolean> = {};
+      if (data) QUESTIONS.forEach(q => { if ((data as any)[q.id]) log[q.id] = true; });
+      setYLog(log);
+    })();
+  }, [disputedUser, group?.id]);
+
+  async function submit() {
+    if (!selHabit || saving) return;
+    setSaving(true);
+    const { data, error } = await sb.from("disputes").insert({
+      group_id: group.id,
+      disputed_user: disputedUser.user_id || disputedUser.id,
+      challenger: user.id,
+      day: yesterdayStr(),
+      habit_id: selHabit,
+      reason: reason.trim() || null,
+    }).select().single();
+    setSaving(false);
+    if (error) {
+      if (error.code === "23505") alert("Ya existe una disputa para ese hábito de ayer.");
+      else alert("Error creando disputa: " + error.message);
+      return;
+    }
+    onCreated(data as Dispute);
+    onClose();
+  }
+
+  const who = members[disputedUser.user_id || disputedUser.id] || { name: disputedUser.name || "?", avatar: disputedUser.avatar || "👤" };
+  const habitsDone = yLog ? QUESTIONS.filter(q => yLog[q.id]) : [];
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-top">
+          <div style={{ fontSize: 16, fontWeight: 700 }}>⚖️ Disputar punto de ayer</div>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div style={{ background: "var(--s2)", borderRadius: 12, padding: 12, margin: "10px 0", display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ fontSize: 28 }}>{who.avatar}</div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>{who.name}</div>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>Punto del día anterior</div>
+          </div>
+        </div>
+
+        {!yLog && <div style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>Cargando...</div>}
+        {yLog && habitsDone.length === 0 && (
+          <div className="dispute-empty">Este usuario no registró ningún hábito ayer. No hay nada que disputar.</div>
+        )}
+        {yLog && habitsDone.length > 0 && (
+          <>
+            <div className="modal-title-sm">¿Qué hábito quieres disputar?</div>
+            {habitsDone.map(q => (
+              <div key={q.id} className={"dispute-habit" + (selHabit === q.id ? " sel" : "")} onClick={() => setSelHabit(q.id)}>
+                <div className="dispute-habit-info">
+                  <span className="dispute-habit-icon">{q.icon}</span>
+                  <div>
+                    <div className="dispute-habit-name">{q.name}</div>
+                    <div className="dispute-habit-pts">+{q.pts} pts</div>
+                  </div>
+                </div>
+                <div className="dispute-habit-penalty">si pierde: −{disputePenalty(q.id)}</div>
+              </div>
+            ))}
+
+            <div className="modal-title-sm" style={{ marginTop: 12 }}>Motivo (opcional)</div>
+            <textarea
+              className="dispute-reason"
+              placeholder="Explica por qué no crees que mereciera el punto..."
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              maxLength={280}
+            />
+            <div style={{ fontSize: 10, color: "var(--muted)", textAlign: "right" }}>{reason.length}/280</div>
+
+            <button
+              className="btn-primary"
+              style={{ width: "100%", marginTop: 12 }}
+              onClick={submit}
+              disabled={!selHabit || saving}
+            >
+              {saving ? "Creando..." : "Crear disputa"}
+            </button>
+            <div style={{ fontSize: 10, color: "var(--muted)", textAlign: "center", marginTop: 8 }}>
+              Los miembros del grupo tendrán 24h para votar. Si la mayoría vota en contra, el hábito pasa a contar la mitad (redondeado hacia abajo).
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DisputesPanel({ user, group, disputes, votes, members, onClose, onVote }: {
+  user: any; group: any;
+  disputes: Dispute[];
+  votes: DisputeVote[];
+  members: Record<string, { name: string; avatar: string }>;
+  onClose: () => void;
+  onVote: (disputeId: number, v: "support" | "reject") => Promise<void>;
+}) {
+  const memberCount = Object.keys(members).length;
+  const sorted = [...disputes].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-top">
+          <div style={{ fontSize: 16, fontWeight: 700 }}>⚖️ Disputas del grupo</div>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        {sorted.length === 0 && <div className="dispute-empty">No hay disputas todavía.</div>}
+
+        {sorted.map(d => {
+          const vs = votes.filter(v => v.dispute_id === d.id);
+          const st = computeDisputeStatus(d, vs, memberCount);
+          const habit = QUESTIONS.find(q => q.id === d.habit_id);
+          const disputedWho = members[d.disputed_user] || { name: "?", avatar: "👤" };
+          const challengerWho = members[d.challenger] || { name: "?", avatar: "👤" };
+          const myVote = vs.find(v => v.voter_id === user.id);
+          const canVote = d.disputed_user !== user.id && !st.closed;
+          const cls = st.status === "failed" ? "failed" : st.status === "passed" ? "passed" : "";
+          const hoursLeftLabel = "activa " + Math.round(st.hoursLeft) + "h";
+          return (
+            <div key={d.id} className={"dispute-card " + cls}>
+              <div className="dispute-card-head">
+                <div style={{ flex: 1 }}>
+                  <div className="dispute-card-title">
+                    {habit ? habit.icon : "❓"} {habit ? habit.name : d.habit_id} — {disputedWho.avatar} {disputedWho.name}
+                  </div>
+                  <div className="dispute-card-sub">
+                    Creada por {challengerWho.avatar} {challengerWho.name} · ayer ({d.day})
+                  </div>
+                </div>
+                <div className={"dispute-card-status " + (st.status === "failed" ? "dcs-failed" : st.status === "passed" ? "dcs-passed" : "dcs-active")}>
+                  {st.status === "active" ? hoursLeftLabel : st.status === "failed" ? "punto reducido" : "punto mantenido"}
+                </div>
+              </div>
+
+              {d.reason && <div className="dispute-reason-box">“{d.reason}”</div>}
+
+              {canVote && (
+                <div className="dispute-votes">
+                  <button
+                    className={"dispute-vote-btn support" + (myVote && myVote.vote === "support" ? " mine" : "")}
+                    onClick={() => onVote(d.id, "support")}
+                  >✅ Mantener punto</button>
+                  <button
+                    className={"dispute-vote-btn reject" + (myVote && myVote.vote === "reject" ? " mine" : "")}
+                    onClick={() => onVote(d.id, "reject")}
+                  >❌ Reducir 50%</button>
+                </div>
+              )}
+
+              <div className="dispute-tally">
+                <span>✅ <b>{st.supports}</b> mantener</span>
+                <span>❌ <b>{st.rejects}</b> reducir</span>
+                <span>{vs.length}/{Math.max(0, memberCount - 1)} votos</span>
+              </div>
+
+              {st.status === "failed" && habit && (
+                <div style={{ fontSize: 11, color: "#F2667A", marginTop: 6, textAlign: "center" }}>
+                  −{disputePenalty(d.habit_id)} pts aplicados ({habit.name} vale {Math.floor(habit.pts / 2)} en vez de {habit.pts})
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -705,12 +993,81 @@ function MainApp({ user, profile, group, onSignOut }: {
   const [modal, setModal]     = useState<string|null>(null);
   const [bets, setBets]       = useState<Bet[]>(BETS_INIT);
   const [betsTab, setBT]      = useState<"activas"|"historial">("activas");
+  // --- DISPUTAS STATE ---
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
+  const [disputeVotes, setDisputeVotes] = useState<DisputeVote[]>([]);
+  const [disputeModal, setDisputeModal] = useState<any>(null);
+  const [showDisputes, setShowDisputes] = useState(false);
+
 
   const pts        = calcPts(done);
   const anyDone    = Object.values(done).some(Boolean);
   const isAdmin    = profile?.role === "admin";
   const myRow      = ranking.find(r => r.user_id === user.id);
   const myPos      = ranking.findIndex(r => r.user_id === user.id) + 1;
+
+  // --- DISPUTAS: LOAD + REALTIME ---
+  async function loadDisputes() {
+    if (!group?.id) return;
+    const since = new Date(Date.now() - 48*3600*1000).toISOString();
+    const { data: ds } = await sb.from("disputes")
+      .select("*").eq("group_id", group.id)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false });
+    setDisputes((ds || []) as Dispute[]);
+    if (ds && ds.length) {
+      const ids = ds.map((d: any) => d.id);
+      const { data: vs } = await sb.from("dispute_votes")
+        .select("*").in("dispute_id", ids);
+      setDisputeVotes((vs || []) as DisputeVote[]);
+    } else {
+      setDisputeVotes([]);
+    }
+  }
+
+  useEffect(() => {
+    if (!group?.id) return;
+    loadDisputes();
+    const ch = sb.channel("disputes:" + group.id)
+      .on("postgres_changes", { event: "*", schema: "public", table: "disputes", filter: "group_id=eq." + group.id },
+        () => loadDisputes())
+      .on("postgres_changes", { event: "*", schema: "public", table: "dispute_votes" },
+        () => loadDisputes())
+      .subscribe();
+    const iv = setInterval(loadDisputes, 10000);
+    return () => { sb.removeChannel(ch); clearInterval(iv); };
+  }, [group?.id]);
+
+  async function openDispute(targetUserId: string) {
+    if (targetUserId === user.id) return;
+    setDisputeModal({ userId: targetUserId });
+  }
+
+  async function castVote(disputeId: number, v: "support"|"reject") {
+    // optimistic
+    setDisputeVotes(prev => {
+      const without = prev.filter(x => !(x.dispute_id === disputeId && x.voter_id === user.id));
+      return [...without, { dispute_id: disputeId, voter_id: user.id, vote: v, created_at: new Date().toISOString() }];
+    });
+    const { error } = await sb.from("dispute_votes").upsert({
+      dispute_id: disputeId,
+      voter_id: user.id,
+      vote: v
+    }, { onConflict: "dispute_id,voter_id" });
+    if (error) { alert("No se pudo votar: " + error.message); loadDisputes(); }
+    else loadDisputes();
+  }
+
+  // Penalty map: user_id -> total points to subtract (from failed disputes only)
+  const totalMembers = ranking.length || 1;
+  const penalties: Record<string, number> = {};
+  for (const d of disputes) {
+    const vs = disputeVotes.filter(v => v.dispute_id === d.id);
+    const st = computeDisputeStatus(d, vs, totalMembers);
+    if (st.status === "failed") {
+      penalties[d.disputed_user] = (penalties[d.disputed_user] || 0) + disputePenalty(d.habit_id);
+    }
+  }
 
   useEffect(() => {
     loadToday();
@@ -782,8 +1139,21 @@ function MainApp({ user, profile, group, onSignOut }: {
     setBets(bs => bs.map(b => b.id === betId ? { ...b, status: "cancelled" } : b));
   }
 
-  const top3 = ranking.slice(0, 3);
-  const rest  = ranking.slice(3);
+  // membersMap built from ranking (used by DisputeModal/Panel)
+  const membersMap: Record<string, { name: string; avatar: string }> = {};
+  for (const r of ranking) membersMap[r.user_id] = { name: r.name, avatar: r.avatar || "🐺" };
+
+  // Apply dispute penalties to ranking, then re-sort
+  const adjRanking = [...ranking]
+    .map((r: any) => ({
+      ...r,
+      total_pts_raw: r.total_pts,
+      penalty: penalties[r.user_id] || 0,
+      total_pts: Math.max(0, (r.total_pts || 0) - (penalties[r.user_id] || 0))
+    }))
+    .sort((a: any, b: any) => (b.total_pts || 0) - (a.total_pts || 0));
+  const top3 = adjRanking.slice(0, 3);
+  const rest  = adjRanking.slice(3);
 
   return (
     <div className="app">
@@ -858,7 +1228,10 @@ function MainApp({ user, profile, group, onSignOut }: {
           <div className="rank-hero">
             <div className="rh-top">
               <span className="rh-lbl">{group.emoji} {group.name}</span>
-              <button className="rh-btn" onClick={loadRanking}>{loadingRank ? "..." : "↻ actualizar"}</button>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <button className="disputes-btn" onClick={() => setShowDisputes(true)} title="Ver disputas">⚖️ Disputas{disputes.length ? " (" + disputes.length + ")" : ""}</button>
+                <button className="rh-btn" onClick={loadRanking}>{loadingRank ? "..." : "↻ actualizar"}</button>
+              </div>
             </div>
             {loadingRank && <div style={{textAlign:"center",padding:20}}><div className="spin" style={{margin:"0 auto"}}/></div>}
             {!loadingRank && ranking.length === 0 && (
@@ -1035,6 +1408,29 @@ function MainApp({ user, profile, group, onSignOut }: {
             <button className="btn-danger" onClick={() => { setModal(null); onSignOut(); }}>Cerrar sesión</button>
           </div>
         </div>
+      )}
+
+      {/* DISPUTAS: modal + panel */}
+      {disputeModal && (
+        <DisputeModal
+          user={user}
+          group={group}
+          disputedUser={disputeModal.userId}
+          members={membersMap}
+          onClose={() => setDisputeModal(null)}
+          onCreated={(d) => { setDisputes(prev => [d, ...prev.filter(x => x.id !== d.id)]); setDisputeModal(null); loadDisputes(); }}
+        />
+      )}
+      {showDisputes && (
+        <DisputesPanel
+          user={user}
+          group={group}
+          disputes={disputes}
+          votes={disputeVotes}
+          members={membersMap}
+          onClose={() => setShowDisputes(false)}
+          onVote={castVote}
+        />
       )}
     </div>
   );
