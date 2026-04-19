@@ -264,14 +264,14 @@ function AuthScreen({ onAuth, bootError }: { onAuth: (u: any) => void; bootError
   function clearMsgs() { setErr(""); setInfo(""); }
 
   async function login() {
-    if (\!email || \!pass) return;
+    if (!email || !pass) return;
     setBusy(true); clearMsgs();
     console.log("[Podium] login: signInWithPassword", { email });
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
-    console.log("[Podium] login: response", { hasUser: \!\!data?.user, error });
+    console.log("[Podium] login: response", { hasUser: !!data?.user, error });
     setBusy(false);
     if (error) { setErr(error.message); return; }
-    if (\!data?.user) { setErr("Respuesta inesperada de Supabase (sin usuario)."); return; }
+    if (!data?.user) { setErr("Respuesta inesperada de Supabase (sin usuario)."); return; }
     onAuth(data.user);
   }
 
@@ -282,13 +282,13 @@ function AuthScreen({ onAuth, bootError }: { onAuth: (u: any) => void; bootError
       setStep(1); return;
     }
     if (step === 1) {
-      if (\!name.trim() || \!uname.trim()) { setErr("Rellena nombre y username."); return; }
+      if (!name.trim() || !uname.trim()) { setErr("Rellena nombre y username."); return; }
       setStep(2); return;
     }
     setBusy(true);
     const { data: authData, error: authErr } = await sb.auth.signUp({ email, password: pass });
     if (authErr) { setErr(authErr.message); setBusy(false); return; }
-    if (\!authData.user) { setErr("Error inesperado al crear cuenta."); setBusy(false); return; }
+    if (!authData.user) { setErr("Error inesperado al crear cuenta."); setBusy(false); return; }
 
     const { error: profErr } = await sb.from("users").insert({
       id:       authData.user.id,
@@ -299,7 +299,7 @@ function AuthScreen({ onAuth, bootError }: { onAuth: (u: any) => void; bootError
       role:     "user",
     });
 
-    if (profErr && \!profErr.message.includes("duplicate")) {
+    if (profErr && !profErr.message.includes("duplicate")) {
       setErr(profErr.message); setBusy(false); return;
     }
 
@@ -324,7 +324,7 @@ function AuthScreen({ onAuth, bootError }: { onAuth: (u: any) => void; bootError
       <input className="inp" type="password" placeholder="••••••••"
         value={pass} onChange={e => setPass(e.target.value)}
         onKeyDown={e => e.key === "Enter" && login()} />
-      <button className="btn" disabled={\!email || \!pass || busy} onClick={login}>
+      <button className="btn" disabled={!email || !pass || busy} onClick={login}>
         {busy ? "Entrando..." : "Entrar →"}
       </button>
       <div className="switch">
@@ -374,9 +374,9 @@ function AuthScreen({ onAuth, bootError }: { onAuth: (u: any) => void; bootError
       </>}
 
       <button className="btn"
-        disabled={busy || (step===0 && (\!email||\!pass)) || (step===1 && (\!name||\!uname))}
+        disabled={busy || (step===0 && (!email||!pass)) || (step===1 && (!name||!uname))}
         onClick={register}>
-        {busy ? "Creando..." : step < 2 ? "Siguiente →" : "¡Empezar\!"}
+        {busy ? "Creando..." : step < 2 ? "Siguiente →" : "¡Empezar!"}
       </button>
       <div className="switch" style={{ marginTop:8 }}>
         {step > 0
@@ -403,15 +403,15 @@ function JoinScreen({ userId, onJoin }: { userId: string; onJoin: (g: any) => vo
     setBusy(true); setErr("");
     const { data: group, error } = await sb.from("groups")
       .select("*").eq("invite_code", code.toUpperCase().trim()).maybeSingle();
-    if (error || \!group) { setErr("Código no encontrado."); setBusy(false); return; }
+    if (error || !group) { setErr("Código no encontrado."); setBusy(false); return; }
     const { error: mErr } = await sb.from("group_members")
       .insert({ group_id: group.id, user_id: userId });
-    if (mErr && \!mErr.message.includes("duplicate")) { setErr(mErr.message); setBusy(false); return; }
+    if (mErr && !mErr.message.includes("duplicate")) { setErr(mErr.message); setBusy(false); return; }
     onJoin(group);
   }
 
   async function create() {
-    if (\!gname.trim()) return;
+    if (!gname.trim()) return;
     setBusy(true); setErr("");
     const { data: group, error } = await sb.from("groups").insert({
       name: gname.trim(), created_by: userId,
@@ -435,14 +435,14 @@ function JoinScreen({ userId, onJoin }: { userId: string; onJoin: (g: any) => vo
         {busy ? "Buscando..." : "Unirme →"}
       </button>
       <div className="div"><div className="div-line"/><div className="div-txt">o</div><div className="div-line"/></div>
-      {\!creating
+      {!creating
         ? <button className="btn-ghost" onClick={() => setC(true)}>⚡ Crear un Podium nuevo</button>
         : <>
             <label className="lbl">Nombre del grupo</label>
             <input className="inp" placeholder="Ej: Panas del gym"
               value={gname} onChange={e => setGname(e.target.value)}
               onKeyDown={e => e.key === "Enter" && create()} />
-            <button className="btn" disabled={\!gname.trim() || busy} onClick={create}>
+            <button className="btn" disabled={!gname.trim() || busy} onClick={create}>
               {busy ? "Creando..." : "Crear Podium →"}
             </button>
             <button className="btn-ghost" onClick={() => setC(false)}>← Volver</button>
@@ -485,7 +485,7 @@ function MainApp({ user, profile, group, onSignOut }: {
     const { data } = await sb.from("daily_logs")
       .select("*").eq("user_id", user.id)
       .eq("group_id", group.id).eq("date", todayStr()).maybeSingle();
-    if (\!data) return;
+    if (!data) return;
     setSaved(true);
     const d: Record<string,boolean> = {};
     QUESTIONS.forEach(q => { if (data[q.id]) d[q.id] = true; });
@@ -506,7 +506,7 @@ function MainApp({ user, profile, group, onSignOut }: {
       .select("date").eq("user_id", user.id)
       .eq("group_id", group.id)
       .order("date", { ascending: false }).limit(60);
-    if (\!data?.length) return;
+    if (!data?.length) return;
     let s = 0;
     const today = new Date(); today.setHours(0,0,0,0);
     const dates = data.map(r => { const d = new Date(r.date); d.setHours(0,0,0,0); return d.getTime(); });
@@ -519,10 +519,10 @@ function MainApp({ user, profile, group, onSignOut }: {
   }
 
   async function saveDay() {
-    if (\!anyDone || saved || saving) return;
+    if (!anyDone || saved || saving) return;
     setSaving(true);
     const payload: any = { user_id: user.id, group_id: group.id, date: todayStr(), total_pts: pts };
-    QUESTIONS.forEach(q => { payload[q.id] = \!\!done[q.id]; });
+    QUESTIONS.forEach(q => { payload[q.id] = !!done[q.id]; });
     const { error } = await sb.from("daily_logs")
       .upsert(payload, { onConflict: "user_id,group_id,date" });
     setSaving(false);
@@ -534,7 +534,7 @@ function MainApp({ user, profile, group, onSignOut }: {
 
   function toggle(id: string) {
     if (saved || saving) return;
-    setDone(d => ({ ...d, [id]: \!d[id] }));
+    setDone(d => ({ ...d, [id]: !d[id] }));
   }
 
   function closeBet(betId: number, winner: 1 | 2) {
@@ -604,7 +604,7 @@ function MainApp({ user, profile, group, onSignOut }: {
             ))}
           </div>
 
-          <button className="btn" disabled={\!anyDone || saved || saving} onClick={saveDay}>
+          <button className="btn" disabled={!anyDone || saved || saving} onClick={saveDay}>
             {saving ? "Guardando..." : saved ? "✓ Guardado" : `Guardar · +${Math.max(0,pts)} pts`}
           </button>
 
@@ -624,10 +624,10 @@ function MainApp({ user, profile, group, onSignOut }: {
               <button className="rh-btn" onClick={loadRanking}>{loadingRank ? "..." : "↻ actualizar"}</button>
             </div>
             {loadingRank && <div style={{textAlign:"center",padding:20}}><div className="spin" style={{margin:"0 auto"}}/></div>}
-            {\!loadingRank && ranking.length === 0 && (
-              <div className="empty">Nadie ha registrado actividad todavía.<br/>¡Guarda tu primer día\!</div>
+            {!loadingRank && ranking.length === 0 && (
+              <div className="empty">Nadie ha registrado actividad todavía.<br/>¡Guarda tu primer día!</div>
             )}
-            {\!loadingRank && top3.length > 0 && (
+            {!loadingRank && top3.length > 0 && (
               <div className="podium-row">
                 {top3[1] && <div className="pc">
                   <div className="pavi p2">{top3[1].avatar||"🐺"}</div>
@@ -676,10 +676,10 @@ function MainApp({ user, profile, group, onSignOut }: {
               <div key={v} className={`btab${betsTab===v?" on":""}`} onClick={() => setBT(v)}>{l}</div>
             ))}
           </div>
-          {(betsTab==="activas" ? bets.filter(b=>b.status==="open") : bets.filter(b=>b.status\!=="open")).map(b => {
+          {(betsTab==="activas" ? bets.filter(b=>b.status==="open") : bets.filter(b=>b.status!=="open")).map(b => {
             const s = b.status;
             return (
-              <div key={b.id} className={`bet-card ${s\!=="open"?s:""}`}>
+              <div key={b.id} className={`bet-card ${s!=="open"?s:""}`}>
                 <div className="bet-header">
                   <span className="bet-type-lbl">{b.label}</span>
                   <span className={`bet-pot ${s==="open"?"open":s}`}>
@@ -699,7 +699,7 @@ function MainApp({ user, profile, group, onSignOut }: {
                     <div className="bet-pstat">{b.p2Pts} pts</div>
                   </div>
                 </div>
-                {s==="open" && \!b.myPick && (
+                {s==="open" && !b.myPick && (
                   <div className="bet-actions">
                     <button className="bet-btn" onClick={() => setBets(bs => bs.map(x => x.id===b.id ? {...x, myPick:1} : x))}>Por {b.p1Name}</button>
                     <button className="bet-btn" onClick={() => setBets(bs => bs.map(x => x.id===b.id ? {...x, myPick:2} : x))}>Por {b.p2Name}</button>
@@ -708,7 +708,7 @@ function MainApp({ user, profile, group, onSignOut }: {
                 {b.myPick && s==="open" && (
                   <div className="my-pick">✓ Apostaste por <b style={{marginLeft:4}}>{b.myPick===1?b.p1Name:b.p2Name}</b></div>
                 )}
-                {s\!=="open" && b.myPick && (
+                {s!=="open" && b.myPick && (
                   <div className="my-pick">Tu apuesta: <b style={{marginLeft:4}}>{b.myPick===1?b.p1Name:b.p2Name}</b></div>
                 )}
                 {s==="open" && <div className="bet-timer">⏱ {b.ends}</div>}
@@ -725,7 +725,7 @@ function MainApp({ user, profile, group, onSignOut }: {
               </div>
             );
           })}
-          {(betsTab==="activas" ? bets.filter(b=>b.status==="open") : bets.filter(b=>b.status\!=="open")).length === 0 && (
+          {(betsTab==="activas" ? bets.filter(b=>b.status==="open") : bets.filter(b=>b.status!=="open")).length === 0 && (
             <div className="empty">{betsTab==="activas" ? "No hay apuestas activas." : "No hay historial todavía."}</div>
           )}
           <button className="new-bet-btn">⚔️ Crear nueva apuesta</button>
@@ -814,7 +814,7 @@ export default function Root() {
   useEffect(() => {
     console.log("[Podium] Root mount: checking existing session");
     sb.auth.getSession().then(({ data: { session } }) => {
-      console.log("[Podium] getSession:", { hasSession: \!\!session, userId: session?.user?.id });
+      console.log("[Podium] getSession:", { hasSession: !!session, userId: session?.user?.id });
       if (session?.user) {
         loadUserData(session.user);
       } else {
@@ -847,7 +847,7 @@ export default function Root() {
         return;
       }
       setAuthUser(user);
-      if (\!prof) {
+      if (!prof) {
         setBootError("Login OK pero no encuentro tu fila en la tabla users. Probable causa: RLS activado sin policies en la tabla 'users'. Abre Supabase → SQL Editor y ejecuta el script de arreglo.");
         await sb.auth.signOut();
         setPhase("auth");
