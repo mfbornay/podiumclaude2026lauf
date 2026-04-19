@@ -52,7 +52,7 @@ html,body{background:#0E0A07;height:100%}
 .loading-txt{font-size:13px;color:var(--muted)}
 
 /* MAIN */
-.tb{padding:16px 18px 0;display:flex;justify-content:space-between;align-items:center}
+.tb{padding:calc(env(safe-area-inset-top, 0px) + 12px) 18px 0;display:flex;justify-content:space-between;align-items:center}
 .tb-logo{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:var(--text)}
 .tb-logo span{color:var(--amber)}
 .tb-r{display:flex;align-items:center;gap:7px}
@@ -66,7 +66,7 @@ html,body{background:#0E0A07;height:100%}
 .card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:15px;margin-bottom:10px}
 
 /* NAV */
-.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(14,10,7,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);padding:9px 0 20px;z-index:100}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(14,10,7,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);padding:9px 0 20px;z-index:100;padding-bottom:env(safe-area-inset-bottom, 0px)}
 .nb{background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 0}
 .nbi{font-size:19px;transition:transform .2s}
 .nbl{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600}
