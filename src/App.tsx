@@ -493,8 +493,21 @@ function ChatTab({ user, group, profile }: { user: any; group: any; profile: any
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const scrollDown = () => {
+    setTimeout(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; }, 50);
+  };
+
+  const addMsg = (m: ChatMsg) => {
+    setMsgs(prev => {
+      if (prev.some(p => p.id === m.id)) return prev;
+      return [...prev, m];
+    });
+    scrollDown();
+  };
 
   useEffect(() => {
     if (!group?.id) return;
@@ -512,39 +525,53 @@ function ChatTab({ user, group, profile }: { user: any; group: any; profile: any
   useEffect(() => {
     if (!group?.id) return;
     let cancelled = false;
-    (async () => {
-      const { data } = await sb.from("chat_messages")
-        .select("*").eq("group_id", group.id)
-        .order("created_at", { ascending: false }).limit(100);
-      if (cancelled) return;
-      setMsgs((data || []).reverse() as ChatMsg[]);
-      setTimeout(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; }, 50);
-    })();
+    setLoadErr(null);
 
-    const channel = sb.channel("chat:" + group.id)
+    const load = async () => {
+      const { data, error } = await sb.from("chat_messages")
+        .select("*").eq("group_id", group.id)
+        .order("created_at", { ascending: true }).limit(200);
+      if (cancelled) return;
+      if (error) { console.error("[chat] load error:", error); setLoadErr(error.message); return; }
+      setMsgs((data || []) as ChatMsg[]);
+      scrollDown();
+    };
+    load();
+
+    const channel = sb.channel("chat-" + group.id)
       .on("postgres_changes",
         { event: "INSERT", schema: "public", table: "chat_messages", filter: "group_id=eq." + group.id },
+        (payload: any) => { addMsg(payload.new as ChatMsg); })
+      .on("postgres_changes",
+        { event: "DELETE", schema: "public", table: "chat_messages", filter: "group_id=eq." + group.id },
         (payload: any) => {
-          setMsgs(prev => [...prev, payload.new as ChatMsg]);
-          setTimeout(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; }, 50);
+          const oldId = payload.old && payload.old.id;
+          if (oldId) setMsgs(prev => prev.filter(m => m.id !== oldId));
         })
-      .subscribe();
+      .subscribe((status: any) => { console.log("[chat] subscription:", status); });
 
-    return () => { cancelled = true; sb.removeChannel(channel); };
+    // Fallback polling every 5s in case realtime drops
+    const poll = setInterval(load, 5000);
+
+    return () => { cancelled = true; clearInterval(poll); sb.removeChannel(channel); };
   }, [group?.id]);
 
   async function send() {
     const t = text.trim();
     if (!t || sending) return;
     setSending(true);
-    const { error } = await sb.from("chat_messages").insert({
-      group_id: group.id,
-      user_id: user.id,
-      text: t,
-    });
+    const { data, error } = await sb.from("chat_messages")
+      .insert({ group_id: group.id, user_id: user.id, text: t })
+      .select()
+      .single();
     setSending(false);
-    if (!error) setText("");
-    else alert("Error enviando mensaje: " + error.message);
+    if (error) {
+      console.error("[chat] insert error:", error);
+      alert("Error enviando mensaje: " + error.message);
+      return;
+    }
+    setText("");
+    if (data) addMsg(data as ChatMsg);
   }
 
   async function sendPhoto(file: File) {
@@ -558,18 +585,25 @@ function ChatTab({ user, group, profile }: { user: any; group: any; profile: any
         upsert: false,
         contentType: file.type || "image/jpeg",
       });
-      if (upErr) { alert("Error subiendo foto: " + upErr.message); return; }
+      if (upErr) { console.error("[chat] upload error:", upErr); alert("Error subiendo foto: " + upErr.message); return; }
       const { data: pub } = sb.storage.from("chat-photos").getPublicUrl(path);
-      const { error: insErr } = await sb.from("chat_messages").insert({
-        group_id: group.id,
-        user_id: user.id,
-        photo_url: pub.publicUrl,
-      });
-      if (insErr) alert("Error guardando mensaje: " + insErr.message);
+      const { data: ins, error: insErr } = await sb.from("chat_messages")
+        .insert({ group_id: group.id, user_id: user.id, photo_url: pub.publicUrl })
+        .select().single();
+      if (insErr) { console.error("[chat] insert photo error:", insErr); alert("Error guardando mensaje: " + insErr.message); return; }
+      if (ins) addMsg(ins as ChatMsg);
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     }
+  }
+
+  async function clearChat() {
+    if (!group?.id) return;
+    if (!window.confirm("¿Vaciar todo el chat del grupo? Esta acción no se puede deshacer.")) return;
+    const { error } = await sb.from("chat_messages").delete().eq("group_id", group.id);
+    if (error) { alert("Error borrando chat: " + error.message); return; }
+    setMsgs([]);
   }
 
   function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -579,11 +613,23 @@ function ChatTab({ user, group, profile }: { user: any; group: any; profile: any
     }
   }
 
+  const isAdmin = profile?.role === "admin";
+
   return (
     <div className="content" key="chat">
       <div className="chat-wrap">
+        {isAdmin && (
+          <div style={{ display: "flex", justifyContent: "flex-end", padding: "4px 2px 8px" }}>
+            <button
+              onClick={clearChat}
+              style={{ background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--muted)", padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}
+              title="Borrar todos los mensajes del grupo"
+            >🧹 Vaciar chat</button>
+          </div>
+        )}
         <div className="chat-list" ref={listRef}>
-          {msgs.length === 0 && <div className="chat-empty">Aún no hay mensajes. ¡Sé el primero!</div>}
+          {loadErr && <div className="chat-empty" style={{ color: "#F2667A" }}>Error: {loadErr}</div>}
+          {!loadErr && msgs.length === 0 && <div className="chat-empty">Aún no hay mensajes. ¡Sé el primero!</div>}
           {msgs.map(m => {
             const mine = m.user_id === user.id;
             const who = mine
@@ -601,12 +647,7 @@ function ChatTab({ user, group, profile }: { user: any; group: any; profile: any
                   </div>
                   {m.text && <div className="msg-bubble">{m.text}</div>}
                   {m.photo_url && (
-                    <img
-                      src={m.photo_url}
-                      alt="foto"
-                      className="msg-photo"
-                      onClick={() => window.open(m.photo_url!, "_blank")}
-                    />
+                    <img src={m.photo_url} alt="foto" className="msg-photo" onClick={() => window.open(m.photo_url!, "_blank")} />
                   )}
                 </div>
               </div>
