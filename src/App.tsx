@@ -257,6 +257,51 @@ html,body{background:#0E0A07;height:100%}
 .pm-log-row{background:var(--s2);border-radius:10px;padding:8px 11px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
 .pm-log-date{font-size:10px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}
 .pm-log-pts{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--amber)}
+
+/* LOGO SVG */
+.tb-logo{display:flex;align-items:center;gap:6px;cursor:default}
+.tb-logo-word{font-family:'Playfair Display',serif;font-weight:900;font-style:italic;font-size:22px;color:var(--text)}
+/* DAY GRID */
+.day-grid{display:flex;gap:3px;margin-top:12px;margin-bottom:2px}
+.day-cell{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.day-cell-lbl{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.day-cell-bar{width:100%;height:26px;border-radius:5px;background:var(--s2);border:1px solid var(--border);transition:all .2s}
+.day-cell-bar.done{background:rgba(240,168,50,.55);border-color:rgba(240,168,50,.7)}
+.day-cell-bar.today-empty{border-color:var(--amber);border-style:dashed}
+/* BET STAKE */
+.bet-sides{display:flex;gap:6px;margin:6px 0 8px}
+.bet-side{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:9px 6px;text-align:center;cursor:pointer;transition:all .15s}
+.bet-side:hover{border-color:rgba(240,168,50,.4)}
+.bet-side.sel{background:rgba(240,168,50,.1);border-color:var(--amber)}
+.bet-side-avi{font-size:22px;margin-bottom:2px}
+.bet-side-name{font-size:11px;font-weight:600;color:var(--text)}
+.bet-side-pts{font-size:10px;color:var(--muted)}
+.bet-pot-bar{height:4px;border-radius:2px;background:var(--s3);overflow:hidden;margin:6px 0 4px}
+.bet-pot-fill{height:100%;background:var(--amber);border-radius:2px;transition:width .3s}
+.bet-pot-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-bottom:8px}
+.bet-rules-lbl{font-size:9px;color:var(--muted);text-align:center;margin-bottom:6px;font-style:italic}
+.stake-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.stake-range{flex:1;accent-color:var(--amber);height:4px}
+.stake-amt{font-size:14px;font-weight:700;color:var(--amber);min-width:20px;text-align:right}
+.stake-actions{display:flex;gap:6px;margin-bottom:8px}
+.stake-confirm{flex:1;background:var(--amber);color:#0E0A07;border:none;border-radius:10px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif}
+.stake-cancel{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif}
+.bet-locked{background:rgba(240,168,50,.08);border:1px solid rgba(240,168,50,.25);border-radius:10px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:12px}
+/* QUOTED EVENT */
+.quoted-event{display:flex;align-items:center;gap:8px;background:var(--s2);border-radius:10px 10px 0 0;padding:8px 12px;margin-bottom:2px}
+.qe-bar{width:3px;border-radius:2px;align-self:stretch;flex-shrink:0;min-height:20px}
+.qe-text{flex:1;font-size:11px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qe-close{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;flex-shrink:0;line-height:1;padding:0}
+/* CARD FOOTER */
+.card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.chat-link-btn{background:none;border:none;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:4px;padding:2px 6px;border-radius:8px;transition:all .15s}
+.chat-link-btn:hover{color:var(--text);background:var(--s2)}
+/* BETS COUNTER IN TOPBAR */
+.bets-chip{display:flex;align-items:center;gap:4px;background:rgba(240,168,50,.12);border:1px solid rgba(240,168,50,.3);border-radius:20px;padding:4px 10px;cursor:pointer;transition:all .15s}
+.bets-chip:hover{background:rgba(240,168,50,.2)}
+.bets-chip-ico{font-size:12px}
+.bets-chip-n{font-size:11px;font-weight:700;color:var(--amber)}
+
 `;
 
 
@@ -304,10 +349,27 @@ function yesterdayStr(){ const d=new Date();d.setDate(d.getDate()-1);return d.to
 function disputePenalty(habitId:string){ const q=QUESTIONS.find(x=>x.id===habitId);return q?Math.ceil(q.pts/2):0; }
 function calcPts(done:Record<string,boolean>){ return QUESTIONS.reduce((s,q)=>done[q.id]?s+q.pts:s,0); }
 function relTime(iso:string){ const m=Math.floor((Date.now()-new Date(iso).getTime())/60000);if(m<1)return"ahora";if(m<60)return`${m}m`;const h=Math.floor(m/60);if(h<24)return`${h}h`;return`${Math.floor(h/24)}d`; }
+function getWeekNum(d=new Date()){const jan1=new Date(d.getFullYear(),0,1);return Math.ceil(((d.getTime()-jan1.getTime())/86400000+jan1.getDay()+1)/7);}
+function getMondayStr(){const d=new Date();const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);return d.toISOString().split("T")[0];}
+
+/* ══════════════════════════════════════════ PODIUM LOGO */
+function PodiumLogo({size=20}:{size?:number}){
+  const h=Math.round(size*0.8);
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:5}}>
+      <svg width={size} height={h} viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="6" y="3" width="8" height="13" rx="2" fill="var(--amber)"/>
+        <rect x="0" y="7" width="6" height="9" rx="2" fill="#9B9B9B" opacity=".9"/>
+        <rect x="14" y="9" width="6" height="7" rx="2" fill="#CD7F32"/>
+      </svg>
+      <span className="tb-logo-word">{"​"}</span>
+    </div>
+  );
+}
 
 /* ══════════════════════════════════════════ LOADING */
 function Loading({text="Cargando..."}:{text?:string}){
-  return <div className="loading"><div className="logo" style={{fontFamily:"'Playfair Display',serif",fontSize:36,fontWeight:900,color:"var(--text)"}}>Po<span style={{color:"var(--amber)"}}>d</span>ium</div><div className="spin"/><div className="loading-txt">{text}</div></div>;
+  return <div className="loading"><div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}><svg width="28" height="22" viewBox="0 0 20 16" fill="none"><rect x="6" y="3" width="8" height="13" rx="2" fill="var(--amber)"/><rect x="0" y="7" width="6" height="9" rx="2" fill="#9B9B9B" opacity=".9"/><rect x="14" y="9" width="6" height="7" rx="2" fill="#CD7F32"/></svg><span style={{fontFamily:"'Playfair Display',serif",fontStyle:"italic",fontWeight:900,fontSize:30,color:"var(--text)"}}>Podium</span></div><div className="spin"/><div className="loading-txt">{text}</div></div>;
 }
 
 /* ══════════════════════════════════════════ AUTH */
@@ -345,7 +407,7 @@ function AuthScreen({onAuth,bootError}:{onAuth:(u:any)=>void;bootError?:string})
   }
   if(mode==="login") return(
     <div className="page">
-      <div className="logo">Po<span>d</span>ium</div>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}><svg width="28" height="22" viewBox="0 0 20 16" fill="none"><rect x="6" y="3" width="8" height="13" rx="2" fill="var(--amber)"/><rect x="0" y="7" width="6" height="9" rx="2" fill="#9B9B9B" opacity=".9"/><rect x="14" y="9" width="6" height="7" rx="2" fill="#CD7F32"/></svg><span style={{fontFamily:"'Playfair Display',serif",fontStyle:"italic",fontWeight:900,fontSize:32,color:"var(--text)"}}>Podium</span></div>
       <div className="tagline">Compite con tus amigos. Mejora cada día.</div>
       {bootError&&<div className="err">⚠️ {bootError}</div>}
       {err&&<div className="err">{err}</div>}{info&&<div className="ok">{info}</div>}
@@ -359,7 +421,7 @@ function AuthScreen({onAuth,bootError}:{onAuth:(u:any)=>void;bootError?:string})
   );
   return(
     <div className="page">
-      <div className="logo">Po<span>d</span>ium</div>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}><svg width="28" height="22" viewBox="0 0 20 16" fill="none"><rect x="6" y="3" width="8" height="13" rx="2" fill="var(--amber)"/><rect x="0" y="7" width="6" height="9" rx="2" fill="#9B9B9B" opacity=".9"/><rect x="14" y="9" width="6" height="7" rx="2" fill="#CD7F32"/></svg><span style={{fontFamily:"'Playfair Display',serif",fontStyle:"italic",fontWeight:900,fontSize:32,color:"var(--text)"}}>Podium</span></div>
       <div className="tagline">{["Crea tu cuenta","Tu perfil","Tu avatar"][step]}</div>
       <div className="prog">{[0,1,2].map(i=><div key={i} className="prog-dot" style={{background:i<=step?"var(--amber)":"var(--s3)"}}/>)}</div>
       {err&&<div className="err">{err}</div>}{info&&<div className="ok">{info}</div>}
@@ -393,7 +455,7 @@ function JoinScreen({userId,onJoin}:{userId:string;onJoin:(g:any)=>void}){
   }
   return(
     <div className="page">
-      <div className="logo">Po<span>d</span>ium</div>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}><svg width="28" height="22" viewBox="0 0 20 16" fill="none"><rect x="6" y="3" width="8" height="13" rx="2" fill="var(--amber)"/><rect x="0" y="7" width="6" height="9" rx="2" fill="#9B9B9B" opacity=".9"/><rect x="14" y="9" width="6" height="7" rx="2" fill="#CD7F32"/></svg><span style={{fontFamily:"'Playfair Display',serif",fontStyle:"italic",fontWeight:900,fontSize:32,color:"var(--text)"}}>Podium</span></div>
       <div className="tagline">Únete a un grupo o crea uno nuevo.</div>
       {err&&<div className="err">{err}</div>}
       <label className="lbl">Código de invitación</label>
@@ -522,7 +584,8 @@ function DisputesPanel({user,group,disputes,votes,members,totalMembers,onClose,o
 
 /* ══════════════════════════════════════════ CHAT */
 type ChatMsg={id:number;group_id:string;user_id:string;text:string|null;photo_url:string|null;created_at:string};
-function ChatTab({user,group,profile}:{user:any;group:any;profile:any}){
+type SharedEvent={text:string;color:string};
+function ChatTab({user,group,profile,sharedEvent,onClearShared}:{user:any;group:any;profile:any;sharedEvent:SharedEvent|null;onClearShared:()=>void}){
   const [msgs,setMsgs]=useState<ChatMsg[]>([]);
   const [members,setMembers]=useState<Record<string,{name:string;avatar:string}>>({});
   const [text,setText]=useState("");
@@ -564,10 +627,11 @@ function ChatTab({user,group,profile}:{user:any;group:any;profile:any}){
   },[group?.id]);
   async function send(){
     const t=text.trim();if(!t||sending)return; setSending(true);
-    const{data,error}=await sb.from("chat_messages").insert({group_id:group.id,user_id:user.id,text:t}).select().single();
+    const fullText=sharedEvent?`[${sharedEvent.text}]\n${t}`:t;
+    const{data,error}=await sb.from("chat_messages").insert({group_id:group.id,user_id:user.id,text:fullText}).select().single();
     setSending(false);
     if(error){alert("Error: "+error.message);return;}
-    setText(""); if(data)addMsg(data as ChatMsg);
+    setText(""); onClearShared(); if(data)addMsg(data as ChatMsg);
   }
   async function sendPhoto(file:File){
     if(!file||uploading)return; setUploading(true);
@@ -612,11 +676,14 @@ function ChatTab({user,group,profile}:{user:any;group:any;profile:any}){
           })}
         </div>
         {uploading&&<div className="chat-sending">Subiendo foto…</div>}
-        <div className="chat-input-bar">
-          <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)sendPhoto(f);}}/>
-          <button className="chat-photo-btn" onClick={()=>fileRef.current?.click()} disabled={uploading}>📷</button>
-          <input className="chat-input" placeholder="Escribe un mensaje…" value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}} disabled={sending}/>
-          <button className="chat-send" onClick={send} disabled={sending||!text.trim()}>➜</button>
+        <div className="chat-input-bar" style={{flexDirection:"column",alignItems:"stretch",gap:0,paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 10px)"}}>
+          {sharedEvent&&<div className="quoted-event"><div className="qe-bar" style={{background:sharedEvent.color}}/><span className="qe-text">{sharedEvent.text}</span><button className="qe-close" onClick={onClearShared}>✕</button></div>}
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)sendPhoto(f);}}/>
+            <button className="chat-photo-btn" onClick={()=>fileRef.current?.click()} disabled={uploading}>📷</button>
+            <input className="chat-input" placeholder={sharedEvent?"Comenta…":"Escribe un mensaje…"} value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}} disabled={sending}/>
+            <button className="chat-send" onClick={send} disabled={sending||!text.trim()}>➜</button>
+          </div>
         </div>
       </div>
     </div>
@@ -624,22 +691,42 @@ function ChatTab({user,group,profile}:{user:any;group:any;profile:any}){
 }
 
 /* ══════════════════════════════════════════ TODAY BANNER */
-function TodayBanner({pts,streak,saved,done,onApuntar}:{pts:number;streak:number;saved:boolean;done:Record<string,boolean>;onApuntar:()=>void}){
-  const doneHabits=QUESTIONS.filter(q=>done[q.id]);
+function TodayBanner({weekPts,streak,saved,done,onApuntar,myPos,weekDays}:{weekPts:number;streak:number;saved:boolean;done:Record<string,boolean>;onApuntar:()=>void;myPos:number;weekDays:boolean[]}){
+  const now=new Date();
+  const dow=(now.getDay()+6)%7; // 0=Mon
+  const dayName=now.toLocaleDateString("es-ES",{weekday:"long"}).replace(/^./,c=>c.toUpperCase());
+  const weekNum=getWeekNum();
+  const DAY_LABELS=["L","M","X","J","V","S","D"];
+  const todayPts=Object.entries(done).reduce((s,[id,on])=>{const q=QUESTIONS.find(x=>x.id===id);return on&&q?s+q.pts:s;},0);
   return(
     <div className="today-banner">
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
         <div>
-          <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>{new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})}</div>
-          <div className="hero-pts">{Math.max(0,pts)}</div>
-          <div className="hero-lbl">puntos de hoy</div>
+          <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:4}}>Semana {weekNum} · {dayName}</div>
+          <div className="hero-pts">{Math.max(0,weekPts)}</div>
+          <div className="hero-lbl">pts esta semana</div>
         </div>
-        {streak>0&&<div className="streak">🔥 {streak} días</div>}
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:2}}>Posición</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:30,fontWeight:900,color:"var(--text)",lineHeight:1}}>#{myPos||"—"}</div>
+          {streak>0&&<div className="streak" style={{marginTop:5,display:"inline-block"}}>🔥 {streak} días</div>}
+        </div>
       </div>
-      {doneHabits.length>0&&<div className="chips">{doneHabits.map(q=><div key={q.id} className="chip">{q.icon} {q.name}</div>)}</div>}
+      <div className="day-grid">
+        {DAY_LABELS.map((lbl,i)=>{
+          const isDone=weekDays[i];
+          const isToday=i===dow;
+          return(
+            <div key={i} className="day-cell">
+              <div className="day-cell-lbl">{lbl}</div>
+              <div className={"day-cell-bar"+(isDone?" done":isToday?" today-empty":"")}/>
+            </div>
+          );
+        })}
+      </div>
       {saved
-        ?<button className="apuntar-btn saved" disabled>✓ Día guardado · +{Math.max(0,pts)} pts</button>
-        :<button className="apuntar-btn" onClick={onApuntar}>➕ Apuntar actividad</button>}
+        ?<button className="apuntar-btn saved" style={{marginTop:10}} disabled>✓ Día guardado · +{todayPts} pts</button>
+        :<button className="apuntar-btn" style={{marginTop:10}} onClick={onApuntar}>➕ Apuntar día</button>}
     </div>
   );
 }
@@ -706,7 +793,49 @@ function ReactionsBar({feedType,feedRef,userId,reactions,onReact}:{feedType:stri
 }
 
 /* ══════════════════════════════════════════ FEED CARD */
-function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembers}:{item:FeedItem;userId:string;members:Record<string,{name:string;avatar:string}>;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;disputeVotes:DisputeVote[];totalMembers:number}){
+type BetStake={side:1|2;amount:number;confirmed:boolean};
+function BetFeedCard({item,userId,reactions,onReact,betStakes,onBetStake,onSendToChat}:{item:FeedBetItem;userId:string;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;betStakes:Record<number,BetStake>;onBetStake:(id:number,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote?:(id:number,v:"support"|"reject")=>Promise<void>}){
+  const b=item.bet;
+  const myStake=betStakes[b.id];
+  const [selSide,setSelSide]=React.useState<1|2|null>(null);
+  const [stakeAmt,setStakeAmt]=React.useState(5);
+  const total=b.p1Pts+b.p2Pts;
+  const p1Pct=total>0?Math.round(b.p1Pts/total*100):50;
+  const isBetWon=item.type==="bet_won";
+  const winnerName=b.myPick===1?b.p1Name:b.p2Name;
+  const winnerAvi=b.myPick===1?b.p1Avi:b.p2Avi;
+  if(isBetWon) return(
+    <div className="feed-card" style={{borderColor:"rgba(93,201,138,.25)"}}>
+      <div className="feed-head"><div className="feed-avi">{winnerAvi}</div><div style={{flex:1,minWidth:0}}><div className="feed-name">{winnerName} <span style={{fontWeight:400,color:"var(--green)"}}>ganó la apuesta 🏆</span></div><div className="feed-when">{b.label}</div></div><div style={{background:"rgba(93,201,138,.12)",color:"var(--green)",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:700,flexShrink:0}}>+{b.pot} pts</div></div>
+      <div className="card-footer"><ReactionsBar feedType="bet_won" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/><button className="chat-link-btn" onClick={()=>onSendToChat(item)}>💬 Chat</button></div>
+    </div>
+  );
+  return(
+    <div className="feed-card">
+      <div className="feed-head">
+        <div className="feed-avi" style={{background:"rgba(240,168,50,.1)",fontSize:16}}>⚔️</div>
+        <div style={{flex:1,minWidth:0}}><div className="feed-name" style={{fontSize:12}}>{b.label}</div><div className="feed-when">apuesta abierta · termina en {b.ends}</div></div>
+        <div style={{background:"rgba(240,168,50,.12)",color:"var(--amber)",borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,flexShrink:0}}>⚡{b.p1Pts+b.p2Pts} PTS</div>
+      </div>
+      {!myStake?.confirmed&&<div className="bet-sides">
+        <div className={"bet-side"+(selSide===1?" sel":"")} onClick={()=>setSelSide(s=>s===1?null:1)}><div className="bet-side-avi">{b.p1Avi}</div><div className="bet-side-name">{b.p1Name}</div><div className="bet-side-pts">{b.p1Pts} pts</div></div>
+        <div style={{display:"flex",alignItems:"center",fontSize:11,fontWeight:700,color:"var(--muted)",padding:"0 2px"}}>VS</div>
+        <div className={"bet-side"+(selSide===2?" sel":"")} onClick={()=>setSelSide(s=>s===2?null:2)}><div className="bet-side-avi">{b.p2Avi}</div><div className="bet-side-name">{b.p2Name}</div><div className="bet-side-pts">{b.p2Pts} pts</div></div>
+      </div>}
+      <div className="bet-pot-bar"><div className="bet-pot-fill" style={{width:p1Pct+"%"}}/></div>
+      <div className="bet-pot-labels"><span>{b.p1Name}: {b.p1Pts}pts</span><span>{b.p2Name}: {b.p2Pts}pts</span></div>
+      <div className="bet-rules-lbl">Elige un lado · máx 10 pts · ganador dobla · perdedor 0</div>
+      {selSide&&!myStake?.confirmed&&<>
+        <div className="stake-row"><span style={{fontSize:11,color:"var(--muted)",whiteSpace:"nowrap"}}>Apostar:</span><input type="range" className="stake-range" min={1} max={10} value={stakeAmt} onChange={e=>setStakeAmt(+e.target.value)}/><span className="stake-amt">{stakeAmt}pts</span></div>
+        <div className="stake-actions"><button className="stake-confirm" onClick={()=>{onBetStake(b.id,selSide,stakeAmt);setSelSide(null);}}>Apostar por {selSide===1?b.p1Name:b.p2Name}</button><button className="stake-cancel" onClick={()=>setSelSide(null)}>✕</button></div>
+      </>}
+      {myStake?.confirmed&&<div className="bet-locked"><span>✓ {myStake.amount}pts por <b style={{marginLeft:3}}>{myStake.side===1?b.p1Name:b.p2Name}</b></span><span style={{color:"var(--green)"}}>+{myStake.amount*2} si gana 🏆</span></div>}
+      <div className="card-footer"><ReactionsBar feedType="bet_open" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/><button className="chat-link-btn" onClick={()=>onSendToChat(item)}>💬 Chat</button></div>
+    </div>
+  );
+}
+
+function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembers,betStakes,onBetStake,onSendToChat}:{item:FeedItem;userId:string;members:Record<string,{name:string;avatar:string}>;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;disputeVotes:DisputeVote[];totalMembers:number;betStakes:Record<number,BetStake>;onBetStake:(id:number,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void}){
   if(item.type==="log"){
     const who=members[item.user_id]||{name:"?",avatar:"👤"};
     const isMe=item.user_id===userId;
@@ -721,7 +850,7 @@ function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembe
           <div style={{textAlign:"right",flexShrink:0}}><div className="feed-pts-big">+{item.pts}</div><div style={{fontSize:10,color:"var(--muted)"}}>pts</div></div>
         </div>
         {item.habits.length>0&&<div className="feed-habits">{item.habits.map(h=><div key={h.id} className="feed-habit-chip">{h.icon} {h.name}</div>)}</div>}
-        <ReactionsBar feedType="log" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/>
+        <div className="card-footer"><ReactionsBar feedType="log" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/><button className="chat-link-btn" onClick={()=>onSendToChat(item)}>💬 Chat</button></div>
       </div>
     );
   }
@@ -740,42 +869,12 @@ function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembe
           <div className="feed-streak-num">🔥{item.streak}</div>
           <div><div className="feed-streak-lbl">{lbl}</div><div className="feed-streak-sub">{item.streak} días consecutivos</div></div>
         </div>
-        <ReactionsBar feedType="streak" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/>
+        <div className="card-footer"><ReactionsBar feedType="streak" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/><button className="chat-link-btn" onClick={()=>onSendToChat(item)}>💬 Chat</button></div>
       </div>
     );
   }
-  if(item.type==="bet_open"){
-    const b=item.bet;
-    return(
-      <div className="feed-card">
-        <div className="feed-head">
-          <div className="feed-avi">⚔️</div>
-          <div style={{flex:1,minWidth:0}}><div className="feed-name">{b.label}</div><div className="feed-when">Apuesta abierta · ⏱ {b.ends}</div></div>
-          <div style={{background:"rgba(240,168,50,.12)",color:"var(--amber)",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:700,flexShrink:0}}>⚡{b.pot} pts</div>
-        </div>
-        <div className="feed-bet-body">
-          <div className="feed-bp"><div className="feed-bp-avi">{b.p1Avi}</div><div className="feed-bp-name">{b.p1Name}</div><div className="feed-bp-pts">{b.p1Pts} pts</div></div>
-          <div className="feed-vs">VS</div>
-          <div className="feed-bp"><div className="feed-bp-avi">{b.p2Avi}</div><div className="feed-bp-name">{b.p2Name}</div><div className="feed-bp-pts">{b.p2Pts} pts</div></div>
-        </div>
-        <ReactionsBar feedType="bet_open" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/>
-      </div>
-    );
-  }
-  if(item.type==="bet_won"){
-    const b=item.bet;
-    const winnerName=b.myPick===1?b.p1Name:b.p2Name;
-    const winnerAvi=b.myPick===1?b.p1Avi:b.p2Avi;
-    return(
-      <div className="feed-card" style={{borderColor:"rgba(93,201,138,.25)"}}>
-        <div className="feed-head">
-          <div className="feed-avi">{winnerAvi}</div>
-          <div style={{flex:1,minWidth:0}}><div className="feed-name">{winnerName} <span style={{fontWeight:400,color:"var(--green)"}}>ganó la apuesta 🏆</span></div><div className="feed-when">{b.label}</div></div>
-          <div style={{background:"rgba(93,201,138,.12)",color:"var(--green)",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:700,flexShrink:0}}>+{b.pot} pts</div>
-        </div>
-        <ReactionsBar feedType="bet_won" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/>
-      </div>
-    );
+  if(item.type==="bet_open"||item.type==="bet_won"){
+    return <BetFeedCard item={item as FeedBetItem} userId={userId} reactions={reactions} onReact={onReact} betStakes={betStakes} onBetStake={onBetStake} onSendToChat={onSendToChat}/>;
   }
   if(item.type==="dispute"){
     const d=item.dispute;
@@ -797,10 +896,15 @@ function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembe
           <div style={{background:"rgba(0,0,0,.2)",border:`1px solid ${stColor}60`,borderRadius:20,padding:"3px 9px",fontSize:10,fontWeight:700,color:stColor,flexShrink:0,whiteSpace:"nowrap"}}>{stLabel}</div>
         </div>
         {d.reason&&<div style={{fontSize:12,color:"var(--muted)",background:"var(--s2)",borderRadius:8,padding:"7px 10px",marginBottom:8,fontStyle:"italic"}}>"{d.reason}"</div>}
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--muted)",marginBottom:4}}>
-          <span>✅ {st.supports} mantener</span><span>❌ {st.rejects} reducir</span><span>{vs.length}/{Math.max(0,totalMembers-1)} votos</span>
-        </div>
-        <ReactionsBar feedType="dispute" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/>
+        {!st.closed&&d.disputed_user!==userId&&(()=>{
+          const myVote=vs.find(v=>v.voter_id===userId);
+          return(<div className="dispute-votes">
+            <button className={"dispute-vote-btn support"+(myVote?.vote==="support"?" mine":"")} onClick={()=>onVote&&onVote(d.id,"support")}>✅ Mantener · {st.supports}</button>
+            <button className={"dispute-vote-btn reject"+(myVote?.vote==="reject"?" mine":"")} onClick={()=>onVote&&onVote(d.id,"reject")}>❌ Reducir · {st.rejects}</button>
+          </div>);
+        })()}
+        {st.closed&&<div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--muted)",marginBottom:4}}><span>✅ {st.supports} mantener</span><span>❌ {st.rejects} reducir</span><span>{vs.length}/{Math.max(0,totalMembers-1)} votos</span></div>}
+        <div className="card-footer"><ReactionsBar feedType="dispute" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/><button className="chat-link-btn" onClick={()=>onSendToChat(item)}>💬 Chat</button></div>
       </div>
     );
   }
@@ -808,7 +912,7 @@ function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembe
 }
 
 /* ══════════════════════════════════════════ FEED */
-function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,totalMembers}:{user:any;group:any;members:Record<string,{name:string;avatar:string}>;disputes:Dispute[];disputeVotes:DisputeVote[];bets:Bet[];reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;totalMembers:number}){
+function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,totalMembers,betStakes,onBetStake,onSendToChat,onVote}:{user:any;group:any;members:Record<string,{name:string;avatar:string}>;disputes:Dispute[];disputeVotes:DisputeVote[];bets:Bet[];reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;totalMembers:number;betStakes:Record<number,BetStake>;onBetStake:(id:number,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote:(id:number,v:"support"|"reject")=>Promise<void>}){
   const [logs,setLogs]=useState<any[]>([]);
   const [loading,setLoading]=useState(true);
   useEffect(()=>{
@@ -861,7 +965,7 @@ function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,t
     <div className="feed">
       <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",fontWeight:500,marginBottom:2}}>Actividad reciente</div>
       {items.map(item=>(
-        <FeedCard key={item.ref} item={item} userId={user.id} members={members} reactions={reactions} onReact={onReact} disputeVotes={disputeVotes} totalMembers={totalMembers}/>
+        <FeedCard key={item.ref} item={item} userId={user.id} members={members} reactions={reactions} onReact={onReact} disputeVotes={disputeVotes} totalMembers={totalMembers} betStakes={betStakes} onBetStake={onBetStake} onSendToChat={onSendToChat} onVote={onVote}/>
       ))}
     </div>
   );
@@ -950,6 +1054,9 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   const [reactions,setReactions]=useState<FeedReaction[]>([]);
   const [profileModal,setProfileModal]=useState<string|null>(null);
   const [members,setMembers]=useState<Record<string,{name:string;avatar:string}>>({});
+  const [weekDays,setWeekDays]=useState<boolean[]>([false,false,false,false,false,false,false]);
+  const [betStakes,setBetStakes]=useState<Record<number,BetStake>>({});
+  const [sharedEvent,setSharedEvent]=useState<SharedEvent|null>(null);
 
   const pts=calcPts(done);
   const isAdmin=profile?.role==="admin";
@@ -964,6 +1071,16 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
     const map:Record<string,{name:string;avatar:string}>={};
     (us||[]).forEach((u:any)=>{map[u.id]={name:u.name||"?",avatar:u.avatar||"👤"};});
     setMembers(map);
+  }
+
+  async function loadWeekDays(){
+    try{
+      const mon=getMondayStr();
+      const{data}=await sb.from("daily_logs").select("date").eq("user_id",user.id).eq("group_id",group.id).gte("date",mon);
+      const days=[false,false,false,false,false,false,false];
+      (data||[]).forEach((r:any)=>{const d=new Date(r.date+"T12:00:00");const idx=(d.getDay()+6)%7;if(idx>=0&&idx<7)days[idx]=true;});
+      setWeekDays(days);
+    }catch(_){}
   }
 
   async function loadDisputes(){
@@ -1063,7 +1180,22 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
     }
   }
 
-  useEffect(()=>{loadToday();loadRanking();loadStreak();loadMembers();loadReactions();},[]);
+  function handleBetStake(betId:number,side:1|2,amount:number){
+    setBetStakes(prev=>({...prev,[betId]:{side,amount,confirmed:true}}));
+  }
+
+  function handleSendToChat(item:FeedItem){
+    let text="";let color="var(--amber)";
+    if(item.type==="log"){const who=members[(item as FeedLogItem).user_id]||{name:"?"};text=`${who.name} registró ${(item as FeedLogItem).pts} pts`;color="var(--amber)";}
+    else if(item.type==="streak"){const who=members[(item as FeedStreakItem).user_id]||{name:"?"};text=`${who.name} lleva ${(item as FeedStreakItem).streak} días seguidos`;color="#F0A832";}
+    else if(item.type==="bet_open"){text=`Duelo: ${(item as FeedBetItem).bet.label}`;color="var(--blue)";}
+    else if(item.type==="bet_won"){text=`Apuesta ganada: ${(item as FeedBetItem).bet.label}`;color="var(--green)";}
+    else if(item.type==="dispute"){const d=(item as FeedDisputeItem).dispute;const who=members[d.disputed_user]||{name:"?"};text=`Disputa a ${who.name}`;color="#F2667A";}
+    setSharedEvent({text,color});
+    setTab("chat");
+  }
+
+  useEffect(()=>{loadToday();loadRanking();loadStreak();loadMembers();loadReactions();loadWeekDays();},[]);
 
   function closeBet(betId:number,winner:1|2){setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"won",myPick:winner}:b));}
   function cancelBet(betId:number){setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"cancelled"}:b));}
@@ -1072,18 +1204,21 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
     <div className="app">
       {/* TOPBAR */}
       <div className="tb">
-        <div className="tb-logo">Po<span>d</span>ium</div>
+        <div className="tb-logo">
+          <svg width="20" height="16" viewBox="0 0 20 16" fill="none"><rect x="6" y="3" width="8" height="13" rx="2" fill="var(--amber)"/><rect x="0" y="7" width="6" height="9" rx="2" fill="#9B9B9B" opacity=".9"/><rect x="14" y="9" width="6" height="7" rx="2" fill="#CD7F32"/></svg>
+          <span className="tb-logo-word">Podium</span>
+        </div>
         <div className="tb-r">
           <div className="gchip"><div className="gdot" style={{background:group.color||"var(--amber)"}}/><span className="gname">{group.emoji} {group.name}</span></div>
-          <button className="avi-btn" style={{background:group.color||"var(--amber)"}} onClick={()=>setProfileModal(user.id)}>{profile?.avatar||"🐺"}</button>
+          {bets.filter(b=>b.status==="open").length>0&&<div className="bets-chip" onClick={()=>setTab("bets")}><span className="bets-chip-ico">⚡</span><span className="bets-chip-n">{bets.filter(b=>b.status==="open").length}</span></div>}
         </div>
       </div>
 
       {/* HOY */}
       {tab==="hoy"&&(
         <div className="content" key="hoy">
-          <TodayBanner pts={pts} streak={streak} saved={saved} done={done} onApuntar={()=>setShowApuntar(true)}/>
-          <Feed user={user} group={group} members={members} disputes={disputes} disputeVotes={disputeVotes} bets={bets} reactions={reactions} onReact={handleReact} totalMembers={totalMembers}/>
+          <TodayBanner weekPts={myRow?.total_pts||pts} streak={streak} saved={saved} done={done} onApuntar={()=>setShowApuntar(true)} myPos={myPos} weekDays={weekDays}/>
+          <Feed user={user} group={group} members={members} disputes={disputes} disputeVotes={disputeVotes} bets={bets} reactions={reactions} onReact={handleReact} totalMembers={totalMembers} betStakes={betStakes} onBetStake={handleBetStake} onSendToChat={handleSendToChat} onVote={castVote}/>
         </div>
       )}
 
@@ -1184,7 +1319,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
       )}
 
       {/* CHAT */}
-      {tab==="chat"&&<ChatTab user={user} group={group} profile={profile}/>}
+      {tab==="chat"&&<ChatTab user={user} group={group} profile={profile} sharedEvent={sharedEvent} onClearShared={()=>setSharedEvent(null)}/>}
 
       {/* PERFIL */}
       {tab==="perfil"&&(
@@ -1219,13 +1354,18 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
 
       {/* NAV */}
       <nav className="nav">
-        {(([["hoy","➕","Hoy"],["rank","🏆","Ranking"],["bets","⚔️","Apuestas"],["chat","💬","Chat"],["perfil","👤","Perfil"]] as [string,string,string][])).map(([id,icon,label])=>(
+        {(([["hoy","🏠","Hoy"],["rank","🏆","Ranking"],["bets","⚔️","Apuestas"],["chat","💬","Chat"]] as [string,string,string][])).map(([id,icon,label])=>(
           <button key={id} className={`nb${tab===id?" on":""}`} onClick={()=>setTab(id)}>
             <span className="nbi">{icon}</span>
             <span className="nbl">{label}</span>
             {tab===id&&<div className="nbp"/>}
           </button>
         ))}
+        <button className={`nb${tab==="perfil"?" on":""}`} onClick={()=>setTab("perfil")}>
+          <span className="nbi">{profile?.avatar||"👤"}</span>
+          <span className="nbl">Perfil</span>
+          {tab==="perfil"&&<div className="nbp"/>}
+        </button>
       </nav>
 
       {/* APUNTAR MODAL */}
