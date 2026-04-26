@@ -52,10 +52,16 @@ html,body{background:#0E0A07;height:100%}
 .gname{font-size:11px;font-weight:600;color:var(--text)}
 .avi-btn{width:32px;height:32px;border-radius:9px;border:none;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
 .content{padding:14px 18px 88px;animation:up .22s ease both}
+.content-fab{padding-bottom:138px}
 @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .section-lbl{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:9px}
 .card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:15px;margin-bottom:10px}
 .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(14,10,7,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);padding:9px 0 calc(env(safe-area-inset-bottom,0px) + 9px);z-index:100}
+.fab-wrap{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 68px);left:50%;transform:translateX(-50%);width:100%;max-width:430px;display:flex;justify-content:center;pointer-events:none;z-index:99}
+.fab{pointer-events:all;display:flex;align-items:center;gap:8px;background:var(--amber);color:#0E0A07;border:none;border-radius:28px;padding:14px 32px;font-size:14px;font-weight:800;letter-spacing:.4px;cursor:pointer;box-shadow:0 4px 24px rgba(240,168,50,.5);transition:transform .15s,box-shadow .15s;animation:up .25s ease}
+.fab:active{transform:scale(.95);box-shadow:0 2px 10px rgba(240,168,50,.3)}
+.fab-done{background:var(--s2);color:var(--muted);box-shadow:none;border:1px solid var(--border);cursor:default}
+.fab-bets{background:linear-gradient(135deg,#6C4DFF 0%,#9B5DFF 100%);color:#fff;box-shadow:0 4px 24px rgba(108,77,255,.45)}
 .nb{background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 0}
 .nbi{font-size:19px;transition:transform .2s}
 .nbl{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -724,9 +730,7 @@ function TodayBanner({weekPts,streak,saved,done,onApuntar,myPos,weekDays}:{weekP
           );
         })}
       </div>
-      {saved
-        ?<button className="apuntar-btn saved" style={{marginTop:10}} disabled>✓ Día guardado · +{todayPts} pts</button>
-        :<button className="apuntar-btn" style={{marginTop:10}} onClick={onApuntar}>➕ Apuntar día</button>}
+      {saved&&<div style={{textAlign:"center",fontSize:12,color:"var(--green)",fontWeight:700,marginTop:10,letterSpacing:.5}}>✓ Día guardado · +{todayPts} pts</div>}
     </div>
   );
 }
@@ -1216,7 +1220,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
 
       {/* HOY */}
       {tab==="hoy"&&(
-        <div className="content" key="hoy">
+        <div className="content content-fab" key="hoy">
           <TodayBanner weekPts={myRow?.total_pts||pts} streak={streak} saved={saved} done={done} onApuntar={()=>setShowApuntar(true)} myPos={myPos} weekDays={weekDays}/>
           <Feed user={user} group={group} members={members} disputes={disputes} disputeVotes={disputeVotes} bets={bets} reactions={reactions} onReact={handleReact} totalMembers={totalMembers} betStakes={betStakes} onBetStake={handleBetStake} onSendToChat={handleSendToChat} onVote={castVote}/>
         </div>
@@ -1276,7 +1280,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
 
       {/* APUESTAS */}
       {tab==="bets"&&(
-        <div className="content" key="bets">
+        <div className="content content-fab" key="bets">
           <div className="bets-tabs">
             {(([["activas","⚔️ Activas"],["historial","📋 Historial"]] as ["activas"|"historial",string][])).map(([v,l])=>(
               <div key={v} className={`btab${betsTab===v?" on":""}`} onClick={()=>setBT(v)}>{l}</div>
@@ -1349,6 +1353,20 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
             <div className="invite-sub">Invita a tus amigos</div>
           </div>
           <button className="btn-danger" onClick={onSignOut}>Cerrar sesión</button>
+        </div>
+      )}
+
+      {/* FAB — acción contextual por tab */}
+      {tab==="hoy"&&(
+        <div className="fab-wrap">
+          {saved
+            ?<button className="fab fab-done" disabled><span>✓</span><span>Día apuntado</span></button>
+            :<button className="fab" onClick={()=>setShowApuntar(true)}><span>＋</span><span>Apuntar día</span></button>}
+        </div>
+      )}
+      {tab==="bets"&&(
+        <div className="fab-wrap">
+          <button className="fab fab-bets" onClick={()=>setTab("chat")}><span>⚡</span><span>Nueva apuesta</span></button>
         </div>
       )}
 
