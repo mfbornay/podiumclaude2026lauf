@@ -884,7 +884,7 @@ function BetFeedCard({item,userId,reactions,onReact,betStakes,onBetStake,onSendT
   );
 }
 
-function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembers,betStakes,onBetStake,onSendToChat,onDispute}:{item:FeedItem;userId:string;members:Record<string,{name:string;avatar:string}>;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;disputeVotes:DisputeVote[];totalMembers:number;betStakes:Record<number,BetStake>;onBetStake:(id:number,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onDispute?:(uid:string)=>void}){
+function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembers,betStakes,onBetStake,onSendToChat,onVote,onDispute}:{item:FeedItem;userId:string;members:Record<string,{name:string;avatar:string}>;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;disputeVotes:DisputeVote[];totalMembers:number;betStakes:Record<number,BetStake>;onBetStake:(id:number,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote?:(id:number,v:"support"|"reject")=>Promise<void>;onDispute?:(uid:string)=>void}){
   if(item.type==="log"){
     const who=members[item.user_id]||{name:"?",avatar:"👤"};
     const isMe=item.user_id===userId;
