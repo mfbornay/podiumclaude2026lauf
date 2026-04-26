@@ -61,6 +61,19 @@ html,body{background:#0E0A07;height:100%}
 .logro-title{font-size:12px;font-weight:800;color:var(--text);margin-bottom:2px;line-height:1.2}
 .logro-desc{font-size:10px;color:var(--muted);line-height:1.35}
 .logro-none{font-size:12px;color:var(--muted);text-align:center;padding:14px 0;font-style:italic}
+.ambito-bar-wrap{margin-bottom:10px}
+.ambito-bar-track{height:6px;border-radius:3px;background:var(--s3);overflow:hidden;margin-top:4px}
+.ambito-bar-fill{height:100%;border-radius:3px;transition:width .5s ease}
+.badge-chip{display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:6px}
+.badge-chip-ico{font-size:22px;flex-shrink:0}
+.badge-chip-body{flex:1}
+.badge-chip-title{font-size:13px;font-weight:800;color:var(--text)}
+.badge-chip-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.last7-row{display:flex;gap:3px;margin-bottom:14px}
+.last7-cell{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.last7-bar{width:100%;border-radius:4px;background:var(--s3);display:flex;align-items:flex-end;justify-content:center;min-height:28px;position:relative}
+.last7-pts{font-size:9px;font-weight:700;color:var(--amber);position:absolute;bottom:3px}
+.last7-lbl{font-size:9px;color:var(--muted);letter-spacing:.5px}
 @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .section-lbl{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:9px}
 .card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:15px;margin-bottom:10px}
@@ -335,7 +348,13 @@ const QUESTIONS = [
   { id:"podcast",icon:"🎧",name:"Podcast educ.",pts:2 },
   { id:"meditation",icon:"🧘",name:"Meditación",pts:2 },
 ];
-const REACTION_EMOJIS = ["🔥","❤️","💪","👏","😮"];
+const AMBITOS=[
+  {id:"deporte",label:"Deporte",icon:"💪",color:"#F0A832",habits:["gym","running","sport"]},
+  {id:"social",label:"Social",icon:"🍻",color:"#F2667A",habits:["quedada","familia","pareja"]},
+  {id:"salud",label:"Salud",icon:"🥗",color:"#5DC98A",habits:["food","screen_good","meditation"]},
+  {id:"cultura",label:"Cultura",icon:"📚",color:"#5B8DEF",habits:["book","course","podcast"]},
+] as const;
+const REACTION_EMOJIS = ["🐐","💪","💀","🏳️‍🌈","💅"];
 const STREAK_MILESTONES = [3,7,14,21,30];
 
 type Bet = { id:number;label:string;p1Name:string;p1Avi:string;p1Pts:number;p2Name:string;p2Avi:string;p2Pts:number;pot:number;ends:string;status:"open"|"won"|"lost"|"cancelled";myPick:1|2|null; };
@@ -738,7 +757,9 @@ function TodayBanner({weekPts,streak,saved,done,onApuntar,myPos,weekDays}:{weekP
           );
         })}
       </div>
-      {saved&&<div style={{textAlign:"center",fontSize:12,color:"var(--green)",fontWeight:700,marginTop:10,letterSpacing:.5}}>✓ Día guardado · +{todayPts} pts</div>}
+      {saved
+        ?<div style={{textAlign:"center",fontSize:12,color:"var(--green)",fontWeight:700,marginTop:10,letterSpacing:.5}}>✓ Día guardado · +{todayPts} pts</div>
+        :<button className="apuntar-btn" onClick={onApuntar} style={{marginTop:10}}>＋ Apuntar día</button>}
     </div>
   );
 }
@@ -755,16 +776,32 @@ function ApuntarModal({done,saved,saving,onToggle,onSave,onClose}:{done:Record<s
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:"var(--text)"}}>¿Qué has hecho hoy?</div>
           {anyDone&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:900,color:"var(--amber)"}}>+{pts} pts</div>}
         </div>
-        <div className="q-grid">
-          {QUESTIONS.map(q=>(
-            <div key={q.id} className={`qi${done[q.id]?" on":""}${saved?" locked":""}`} onClick={()=>onToggle(q.id)}>
-              <div className="qi-icon">{q.icon}</div>
-              <div className="qi-name">{q.name}</div>
-              <div className="qi-pts">+{q.pts} pts</div>
-              <div className="qi-chk">{done[q.id]?"✓":""}</div>
+        {AMBITOS.map(a=>{
+          const aHabits=QUESTIONS.filter(q=>a.habits.includes(q.id as any));
+          const maxPts=aHabits.reduce((s,q)=>s+q.pts,0);
+          const earnedPts=aHabits.reduce((s,q)=>done[q.id]?s+q.pts:s,0);
+          return(
+            <div key={a.id} style={{marginBottom:16}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <div style={{width:8,height:8,borderRadius:"50%",background:a.color}}/>
+                  <span style={{fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:a.color}}>{a.icon} {a.label}</span>
+                </div>
+                <span style={{fontSize:11,color:"var(--muted)"}}>{earnedPts} / {maxPts} pts</span>
+              </div>
+              <div className="q-grid">
+                {aHabits.map(q=>(
+                  <div key={q.id} className={`qi${done[q.id]?" on":""}${saved?" locked":""}`} onClick={()=>onToggle(q.id)}>
+                    <div className="qi-icon">{q.icon}</div>
+                    <div className="qi-name">{q.name}</div>
+                    <div className="qi-pts">+{q.pts} pts</div>
+                    <div className="qi-chk">{done[q.id]?"✓":""}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
+          );
+        })}
         <button className="btn" style={{marginTop:14}} disabled={!anyDone||saved||saving} onClick={onSave}>
           {saving?"Guardando...":saved?"✓ Guardado":`Guardar · +${Math.max(0,pts)} pts`}
         </button>
@@ -847,7 +884,7 @@ function BetFeedCard({item,userId,reactions,onReact,betStakes,onBetStake,onSendT
   );
 }
 
-function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembers,betStakes,onBetStake,onSendToChat}:{item:FeedItem;userId:string;members:Record<string,{name:string;avatar:string}>;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;disputeVotes:DisputeVote[];totalMembers:number;betStakes:Record<number,BetStake>;onBetStake:(id:number,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void}){
+function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembers,betStakes,onBetStake,onSendToChat,onDispute}:{item:FeedItem;userId:string;members:Record<string,{name:string;avatar:string}>;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;disputeVotes:DisputeVote[];totalMembers:number;betStakes:Record<number,BetStake>;onBetStake:(id:number,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onDispute?:(uid:string)=>void}){
   if(item.type==="log"){
     const who=members[item.user_id]||{name:"?",avatar:"👤"};
     const isMe=item.user_id===userId;
@@ -862,7 +899,7 @@ function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembe
           <div style={{textAlign:"right",flexShrink:0}}><div className="feed-pts-big">+{item.pts}</div><div style={{fontSize:10,color:"var(--muted)"}}>pts</div></div>
         </div>
         {item.habits.length>0&&<div className="feed-habits">{item.habits.map(h=><div key={h.id} className="feed-habit-chip">{h.icon} {h.name}</div>)}</div>}
-        <div className="card-footer"><ReactionsBar feedType="log" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/><button className="chat-link-btn" onClick={()=>onSendToChat(item)}>💬 Chat</button></div>
+        <div className="card-footer"><ReactionsBar feedType="log" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/><div style={{display:"flex",gap:6}}>{!isMe&&<button className="chat-link-btn" style={{color:"#F2667A"}} onClick={()=>onDispute&&onDispute(item.user_id)}>⚠️ Disputar</button>}<button className="chat-link-btn" onClick={()=>onSendToChat(item)}>💬 Chat</button></div></div>
       </div>
     );
   }
@@ -924,7 +961,7 @@ function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembe
 }
 
 /* ══════════════════════════════════════════ FEED */
-function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,totalMembers,betStakes,onBetStake,onSendToChat,onVote}:{user:any;group:any;members:Record<string,{name:string;avatar:string}>;disputes:Dispute[];disputeVotes:DisputeVote[];bets:Bet[];reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;totalMembers:number;betStakes:Record<number,BetStake>;onBetStake:(id:number,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote:(id:number,v:"support"|"reject")=>Promise<void>}){
+function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,totalMembers,betStakes,onBetStake,onSendToChat,onVote,onDispute}:{user:any;group:any;members:Record<string,{name:string;avatar:string}>;disputes:Dispute[];disputeVotes:DisputeVote[];bets:Bet[];reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;totalMembers:number;betStakes:Record<number,BetStake>;onBetStake:(id:number,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote:(id:number,v:"support"|"reject")=>Promise<void>;onDispute?:(uid:string)=>void}){
   const [logs,setLogs]=useState<any[]>([]);
   const [loading,setLoading]=useState(true);
   useEffect(()=>{
@@ -977,7 +1014,7 @@ function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,t
     <div className="feed">
       <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",fontWeight:500,marginBottom:2}}>Actividad reciente</div>
       {items.map(item=>(
-        <FeedCard key={item.ref} item={item} userId={user.id} members={members} reactions={reactions} onReact={onReact} disputeVotes={disputeVotes} totalMembers={totalMembers} betStakes={betStakes} onBetStake={onBetStake} onSendToChat={onSendToChat} onVote={onVote}/>
+        <FeedCard key={item.ref} item={item} userId={user.id} members={members} reactions={reactions} onReact={onReact} disputeVotes={disputeVotes} totalMembers={totalMembers} betStakes={betStakes} onBetStake={onBetStake} onSendToChat={onSendToChat} onVote={onVote} onDispute={onDispute}/>
       ))}
     </div>
   );
@@ -1070,6 +1107,9 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   const [betStakes,setBetStakes]=useState<Record<number,BetStake>>({});
   const [sharedEvent,setSharedEvent]=useState<SharedEvent|null>(null);
   const [weekLeaders,setWeekLeaders]=useState<Record<string,string>>({});
+  const [ambitoTotals,setAmbitoTotals]=useState<Record<string,number>>({});
+  const [habitCounts,setHabitCounts]=useState<Record<string,number>>({});
+  const [last7Logs,setLast7Logs]=useState<{date:string;pts:number}[]>([]);
 
   const pts=calcPts(done);
   const isAdmin=profile?.role==="admin";
@@ -1084,6 +1124,25 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
     const map:Record<string,{name:string;avatar:string}>={};
     (us||[]).forEach((u:any)=>{map[u.id]={name:u.name||"?",avatar:u.avatar||"👤"};});
     setMembers(map);
+  }
+
+  async function loadProfileData(){
+    const{data}=await sb.from("daily_logs").select("*").eq("user_id",user.id).eq("group_id",group.id).order("date",{ascending:false}).limit(365);
+    if(!data)return;
+    const at:Record<string,number>={};
+    const hc:Record<string,number>={};
+    for(const row of data){
+      for(const q of QUESTIONS){if((row as any)[q.id])hc[q.id]=(hc[q.id]||0)+1;}
+      for(const a of AMBITOS){
+        let p=0;
+        for(const hId of a.habits){const q=QUESTIONS.find(x=>x.id===hId);if(q&&(row as any)[hId])p+=q.pts;}
+        at[a.id]=(at[a.id]||0)+p;
+      }
+    }
+    setAmbitoTotals(at);
+    setHabitCounts(hc);
+    const l7=data.slice(0,7).map(row=>{const p=QUESTIONS.reduce((s,q)=>(row as any)[q.id]?s+q.pts:s,0);return{date:row.date,pts:p};});
+    setLast7Logs(l7);
   }
 
   async function loadWeekLeaders(){
@@ -1232,7 +1291,8 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   }
 
   useEffect(()=>{loadToday();loadRanking();loadStreak();loadMembers();loadReactions();loadWeekDays();
-    loadWeekLeaders();},[]);
+    loadWeekLeaders();
+    loadProfileData();},[]);
 
   function closeBet(betId:number,winner:1|2){setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"won",myPick:winner}:b));}
   function cancelBet(betId:number){setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"cancelled"}:b));}
@@ -1253,9 +1313,9 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
 
       {/* HOY */}
       {tab==="hoy"&&(
-        <div className="content content-fab" key="hoy">
+        <div className="content" key="hoy">
           <TodayBanner weekPts={myRow?.total_pts||pts} streak={streak} saved={saved} done={done} onApuntar={()=>setShowApuntar(true)} myPos={myPos} weekDays={weekDays}/>
-          <Feed user={user} group={group} members={members} disputes={disputes} disputeVotes={disputeVotes} bets={bets} reactions={reactions} onReact={handleReact} totalMembers={totalMembers} betStakes={betStakes} onBetStake={handleBetStake} onSendToChat={handleSendToChat} onVote={castVote}/>
+          <Feed user={user} group={group} members={members} disputes={disputes} disputeVotes={disputeVotes} bets={bets} reactions={reactions} onReact={handleReact} totalMembers={totalMembers} betStakes={betStakes} onBetStake={handleBetStake} onSendToChat={handleSendToChat} onVote={castVote} onDispute={(uid)=>{setProfileModal(null);setDisputeModal(uid);}}/>
         </div>
       )}
 
@@ -1314,6 +1374,19 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
       {/* APUESTAS */}
       {tab==="bets"&&(
         <div className="content content-fab" key="bets">
+          <div style={{background:"rgba(240,168,50,.07)",border:"1px solid rgba(240,168,50,.25)",borderRadius:14,padding:"12px 14px",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+              <span style={{fontSize:18}}>⚡</span>
+              <span style={{fontWeight:800,fontSize:14,color:"var(--text)"}}>Cómo funciona</span>
+            </div>
+            <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.5}}>
+              Apuesta <b style={{color:"var(--text)"}}>1–10 pts</b> por un lado · el ganador <b style={{color:"var(--amber)"}}>dobla</b> · el perdedor se queda a <b style={{color:"var(--text)"}}>0</b>. No acumulan del día.
+            </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <span className="section-lbl" style={{margin:0}}>Apuestas activas</span>
+            <span style={{fontSize:11,color:"var(--muted)"}}>{bets.filter(b=>b.status==="open").length} abiertas</span>
+          </div>
           <div className="bets-tabs">
             {(([["activas","⚔️ Activas"],["historial","📋 Historial"]] as ["activas"|"historial",string][])).map(([v,l])=>(
               <div key={v} className={`btab${betsTab===v?" on":""}`} onClick={()=>setBT(v)}>{l}</div>
@@ -1376,10 +1449,52 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
             </div>
           </div>
           <div className="stats-row">
-            <div className="stat"><div className="stat-val">🔥{streak}</div><div className="stat-lbl">Racha</div></div>
+            <div className="stat"><div className="stat-val" style={{color:"var(--amber)"}}>{myRow?.total_pts||0}</div><div className="stat-lbl">Puntos</div></div>
             <div className="stat"><div className="stat-val">{myRow?.days_logged||0}</div><div className="stat-lbl">Días</div></div>
-            <div className="stat"><div className="stat-val" style={{color:"var(--amber)"}}>{myRow?.total_pts||0}</div><div className="stat-lbl">Pts</div></div>
+            <div className="stat"><div className="stat-val">🔥{streak}</div><div className="stat-lbl">Racha</div></div>
           </div>
+
+          {/* PUNTOS POR ÁMBITO */}
+          <span className="section-lbl" style={{display:"block",marginTop:14}}>Puntos por ámbito</span>
+          {AMBITOS.map(a=>{
+            const total=ambitoTotals[a.id]||0;
+            const maxPossible=Math.max(...Object.values(ambitoTotals),1);
+            return(
+              <div key={a.id} className="ambito-bar-wrap">
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{a.icon} {a.label}</span>
+                  <span style={{fontSize:13,fontWeight:800,color:"var(--text)"}}>{total}</span>
+                </div>
+                <div className="ambito-bar-track">
+                  <div className="ambito-bar-fill" style={{width:`${maxPossible>0?Math.round(total/maxPossible*100):0}%`,background:a.color}}/>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* ÚLTIMOS 7 DÍAS */}
+          {last7Logs.length>0&&(<>
+            <span className="section-lbl" style={{display:"block",marginTop:14}}>Últimos 7 días</span>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--muted)",marginBottom:4}}>
+              <span>hace 7d</span><span>hoy</span>
+            </div>
+            <div className="last7-row">
+              {[...last7Logs].reverse().map((d,i)=>{
+                const day=new Date(d.date+"T12:00:00");
+                const lbl=["L","M","X","J","V","S","D"][day.getDay()===0?6:day.getDay()-1];
+                const maxPts=Math.max(...last7Logs.map(x=>x.pts),1);
+                const h=Math.max(14,Math.round(d.pts/maxPts*52));
+                return(
+                  <div key={i} className="last7-cell">
+                    <div className="last7-bar" style={{height:h,background:d.pts>0?"rgba(240,168,50,.18)":"var(--s2)",border:d.pts>0?"1px solid rgba(240,168,50,.3)":"1px solid var(--border)"}}>
+                      {d.pts>0&&<span className="last7-pts">{d.pts}</span>}
+                    </div>
+                    <span className="last7-lbl">{lbl}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </>)}
           {/* LOGROS */}
           {(()=>{
             const WEEKLY_TITLES=[
@@ -1409,14 +1524,18 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
               {icon:"🏅",title:"Al podio",desc:"Top 3 esta semana",done:myPosAdj>0&&myPosAdj<=3},
             ].filter(m=>m.done);
             return(<>
-              <span className="section-lbl" style={{display:"block",marginTop:16}}>Títulos esta semana</span>
-              {myWeekly.length>0
-                ?<div className="logros-grid">{myWeekly.map((t,i)=><div key={i} className="logro-card logro-weekly"><div className="logro-ico">{t.icon}</div><div className="logro-title">{t.title}</div><div className="logro-desc">{t.desc}</div></div>)}</div>
-                :<div className="logro-none">Ningún título esta semana — sigue apuntando</div>}
-              <span className="section-lbl" style={{display:"block",marginTop:12}}>Logros desbloqueados</span>
-              {MILESTONES.length>0
-                ?<div className="logros-grid">{MILESTONES.map((m,i)=><div key={i} className="logro-card logro-milestone"><div className="logro-ico">{m.icon}</div><div className="logro-title">{m.title}</div><div className="logro-desc">{m.desc}</div></div>)}</div>
-                :<div className="logro-none">Aún sin logros — sigue apuntando días</div>}
+              <span className="section-lbl" style={{display:"block",marginTop:14}}>Badges</span>
+              {[...myWeekly,...MILESTONES].length>0
+                ?[...myWeekly,...MILESTONES].map((b,i)=>(
+                    <div key={i} className="badge-chip">
+                      <div className="badge-chip-ico">{b.icon}</div>
+                      <div className="badge-chip-body">
+                        <div className="badge-chip-title">{b.title}</div>
+                        <div className="badge-chip-sub">{b.desc}</div>
+                      </div>
+                    </div>
+                  ))
+                :<div className="logro-none">Aún sin badges — ¡sigue apuntando!</div>}
             </>);
           })()}
 
@@ -1430,13 +1549,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
       )}
 
       {/* FAB — acción contextual por tab */}
-      {tab==="hoy"&&(
-        <div className="fab-wrap">
-          {saved
-            ?<button className="fab fab-done" disabled><span>✓</span><span>Día apuntado</span></button>
-            :<button className="fab" onClick={()=>setShowApuntar(true)}><span>＋</span><span>Apuntar día</span></button>}
-        </div>
-      )}
+
       {tab==="bets"&&(
         <div className="fab-wrap">
           <button className="fab fab-bets" onClick={()=>setTab("chat")}><span>⚡</span><span>Nueva apuesta</span></button>
