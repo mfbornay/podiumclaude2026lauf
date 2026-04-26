@@ -53,10 +53,18 @@ html,body{background:#0E0A07;height:100%}
 .avi-btn{width:32px;height:32px;border-radius:9px;border:none;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
 .content{padding:14px 18px 88px;animation:up .22s ease both}
 .content-fab{padding-bottom:138px}
+.logros-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:4px}
+.logro-card{border-radius:14px;padding:12px 10px;text-align:center;animation:up .3s ease}
+.logro-weekly{background:rgba(240,168,50,.08);border:1px solid rgba(240,168,50,.4)}
+.logro-milestone{background:rgba(93,201,138,.07);border:1px solid rgba(93,201,138,.35)}
+.logro-ico{font-size:26px;margin-bottom:5px;line-height:1}
+.logro-title{font-size:12px;font-weight:800;color:var(--text);margin-bottom:2px;line-height:1.2}
+.logro-desc{font-size:10px;color:var(--muted);line-height:1.35}
+.logro-none{font-size:12px;color:var(--muted);text-align:center;padding:14px 0;font-style:italic}
 @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .section-lbl{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:9px}
 .card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:15px;margin-bottom:10px}
-.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(14,10,7,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);padding:9px 0 calc(env(safe-area-inset-bottom,0px) + 9px);z-index:100}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(14,10,7,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(4,1fr);padding:9px 0 calc(env(safe-area-inset-bottom,0px) + 9px);z-index:100}
 .fab-wrap{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 68px);left:50%;transform:translateX(-50%);width:100%;max-width:430px;display:flex;justify-content:center;pointer-events:none;z-index:99}
 .fab{pointer-events:all;display:flex;align-items:center;gap:8px;background:var(--amber);color:#0E0A07;border:none;border-radius:28px;padding:14px 32px;font-size:14px;font-weight:800;letter-spacing:.4px;cursor:pointer;box-shadow:0 4px 24px rgba(240,168,50,.5);transition:transform .15s,box-shadow .15s;animation:up .25s ease}
 .fab:active{transform:scale(.95);box-shadow:0 2px 10px rgba(240,168,50,.3)}
@@ -1061,6 +1069,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   const [weekDays,setWeekDays]=useState<boolean[]>([false,false,false,false,false,false,false]);
   const [betStakes,setBetStakes]=useState<Record<number,BetStake>>({});
   const [sharedEvent,setSharedEvent]=useState<SharedEvent|null>(null);
+  const [weekLeaders,setWeekLeaders]=useState<Record<string,string>>({});
 
   const pts=calcPts(done);
   const isAdmin=profile?.role==="admin";
@@ -1075,6 +1084,29 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
     const map:Record<string,{name:string;avatar:string}>={};
     (us||[]).forEach((u:any)=>{map[u.id]={name:u.name||"?",avatar:u.avatar||"👤"};});
     setMembers(map);
+  }
+
+  async function loadWeekLeaders(){
+    const mon=getMondayStr();
+    const{data}=await sb.from("daily_logs")
+      .select("user_id,gym,running,sport,quedada,familia,food,screen_good,pareja,book,course,podcast,meditation")
+      .eq("group_id",group.id).gte("date",mon);
+    if(!data)return;
+    const counts:Record<string,Record<string,number>>={};
+    for(const row of data){
+      const uid=row.user_id;
+      if(!counts[uid])counts[uid]={};
+      for(const q of QUESTIONS){if((row as any)[q.id])counts[uid][q.id]=(counts[uid][q.id]||0)+1;}
+    }
+    const leaders:Record<string,string>={};
+    for(const q of QUESTIONS){
+      let best=0,bestUid='';
+      for(const [uid,hc] of Object.entries(counts)){
+        const n=(hc[q.id]||0);if(n>best){best=n;bestUid=uid;}
+      }
+      if(bestUid&&best>0)leaders[q.id]=bestUid;
+    }
+    setWeekLeaders(leaders);
   }
 
   async function loadWeekDays(){
@@ -1199,7 +1231,8 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
     setTab("chat");
   }
 
-  useEffect(()=>{loadToday();loadRanking();loadStreak();loadMembers();loadReactions();loadWeekDays();},[]);
+  useEffect(()=>{loadToday();loadRanking();loadStreak();loadMembers();loadReactions();loadWeekDays();
+    loadWeekLeaders();},[]);
 
   function closeBet(betId:number,winner:1|2){setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"won",myPick:winner}:b));}
   function cancelBet(betId:number){setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"cancelled"}:b));}
@@ -1347,6 +1380,46 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
             <div className="stat"><div className="stat-val">{myRow?.days_logged||0}</div><div className="stat-lbl">Días</div></div>
             <div className="stat"><div className="stat-val" style={{color:"var(--amber)"}}>{myRow?.total_pts||0}</div><div className="stat-lbl">Pts</div></div>
           </div>
+          {/* LOGROS */}
+          {(()=>{
+            const WEEKLY_TITLES=[
+              {id:"gym",icon:"💪",title:"La Máquina",desc:"Más días de gym esta semana"},
+              {id:"running",icon:"🏃",title:"El Corredor",desc:"Más veces running esta semana"},
+              {id:"sport",icon:"🎾",title:"El Deportista",desc:"Líder en deporte de grupo"},
+              {id:"book",icon:"📚",title:"El Lector",desc:"El que más ha leído esta semana"},
+              {id:"meditation",icon:"🧘",title:"El Monje",desc:"Meditación número 1 esta semana"},
+              {id:"food",icon:"🥗",title:"El Sano",desc:"Comida limpia líder esta semana"},
+              {id:"course",icon:"📖",title:"El Estudioso",desc:"Más horas de estudio esta semana"},
+              {id:"podcast",icon:"🎧",title:"El Curioso",desc:"Más podcasts educativos esta semana"},
+              {id:"quedada",icon:"🍻",title:"El Social",desc:"Más quedadas con amigos"},
+              {id:"screen_good",icon:"📵",title:"El Desconectado",desc:"Menos pantalla esta semana"},
+            ];
+            const myWeekly=WEEKLY_TITLES.filter(t=>weekLeaders[t.id]===user.id);
+            const myPosAdj=adjRanking.findIndex((r:any)=>r.user_id===user.id)+1;
+            if(myPosAdj===1)myWeekly.unshift({id:"rank1",icon:"👑",title:"El Intocable",desc:"Primer puesto esta semana"});
+            const maxStreak=Math.max(...adjRanking.map((r:any)=>r.streak||0));
+            if(streak>=7&&streak===maxStreak)myWeekly.push({id:"streak1",icon:"🔥",title:"En Llamas",desc:"Racha más larga del grupo"});
+            const MILESTONES=[
+              {icon:"🌱",title:"Primera semilla",desc:"1er día registrado",done:(myRow?.days_logged||0)>=1},
+              {icon:"💪",title:"Semana entera",desc:"7 días registrados",done:(myRow?.days_logged||0)>=7},
+              {icon:"📅",title:"Mes de hierro",desc:"30 días registrados",done:(myRow?.days_logged||0)>=30},
+              {icon:"🔥",title:"Llama viva",desc:"Racha de 7 días",done:streak>=7},
+              {icon:"🔱",title:"Imparable",desc:"Racha de 14 días",done:streak>=14},
+              {icon:"⚡",title:"Apostador nato",desc:"1 apuesta realizada",done:Object.keys(betStakes).length>0},
+              {icon:"🏅",title:"Al podio",desc:"Top 3 esta semana",done:myPosAdj>0&&myPosAdj<=3},
+            ].filter(m=>m.done);
+            return(<>
+              <span className="section-lbl" style={{display:"block",marginTop:16}}>Títulos esta semana</span>
+              {myWeekly.length>0
+                ?<div className="logros-grid">{myWeekly.map((t,i)=><div key={i} className="logro-card logro-weekly"><div className="logro-ico">{t.icon}</div><div className="logro-title">{t.title}</div><div className="logro-desc">{t.desc}</div></div>)}</div>
+                :<div className="logro-none">Ningún título esta semana — sigue apuntando</div>}
+              <span className="section-lbl" style={{display:"block",marginTop:12}}>Logros desbloqueados</span>
+              {MILESTONES.length>0
+                ?<div className="logros-grid">{MILESTONES.map((m,i)=><div key={i} className="logro-card logro-milestone"><div className="logro-ico">{m.icon}</div><div className="logro-title">{m.title}</div><div className="logro-desc">{m.desc}</div></div>)}</div>
+                :<div className="logro-none">Aún sin logros — sigue apuntando días</div>}
+            </>);
+          })()}
+
           <div className="invite">
             <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Código — {group.name}</div>
             <div className="invite-code">{group.invite_code}</div>
@@ -1370,19 +1443,19 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
         </div>
       )}
 
-      {/* NAV */}
+      {/* NAV — 4 tabs, APUESTAS vía ⚡ topbar */}
       <nav className="nav">
-        {(([["hoy","🏠","Hoy"],["rank","🏆","Ranking"],["bets","⚔️","Apuestas"],["chat","💬","Chat"]] as [string,string,string][])).map(([id,icon,label])=>(
+        {(([["hoy","🏠","Hoy"],["rank","🏆","Ranking"],["chat","💬","Chat"]] as [string,string,string][])).map(([id,icon,label])=>(
           <button key={id} className={`nb${tab===id?" on":""}`} onClick={()=>setTab(id)}>
             <span className="nbi">{icon}</span>
             <span className="nbl">{label}</span>
             {tab===id&&<div className="nbp"/>}
           </button>
         ))}
-        <button className={`nb${tab==="perfil"?" on":""}`} onClick={()=>setTab("perfil")}>
+        <button className={`nb${tab==="perfil"||tab==="bets"?" on":""}`} onClick={()=>setTab("perfil")}>
           <span className="nbi">{profile?.avatar||"👤"}</span>
           <span className="nbl">Perfil</span>
-          {tab==="perfil"&&<div className="nbp"/>}
+          {(tab==="perfil"||tab==="bets")&&<div className="nbp"/>}
         </button>
       </nav>
 
