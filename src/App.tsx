@@ -353,7 +353,7 @@ const AMBITOS=[
   {id:"social",label:"Social",icon:"🍻",color:"#F2667A",habits:["quedada","familia","pareja"]},
   {id:"salud",label:"Salud",icon:"🥗",color:"#5DC98A",habits:["food","screen_good","meditation"]},
   {id:"cultura",label:"Cultura",icon:"📚",color:"#5B8DEF",habits:["book","course","podcast"]},
-] as const;
+];
 const REACTION_EMOJIS = ["🐐","💪","💀","🏳️‍🌈","💅"];
 const STREAK_MILESTONES = [3,7,14,21,30];
 
