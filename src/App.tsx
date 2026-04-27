@@ -384,7 +384,7 @@ const AMBITOS=[
 const REACTION_EMOJIS = ["🐐","💪","💀","🏳️‍🌈","💅"];
 const STREAK_MILESTONES = [3,7,14,21,30];
 
-type Bet = { id:number;label:string;p1Name:string;p1Avi:string;p1Pts:number;p2Name:string;p2Avi:string;p2Pts:number;pot:number;ends:string;status:"open"|"won"|"lost"|"cancelled";myPick:1|2|null; };
+type Bet = { id:number;label:string;p1Name:string;p1Avi:string;p1Pts:number;p1Id?:string;p2Name:string;p2Avi:string;p2Pts:number;p2Id?:string;pot:number;ends:string;status:"open"|"won"|"lost"|"cancelled";myPick:1|2|null; };
 const BETS_INIT: Bet[] = [
   { id:1,label:"Duelo semanal · Gym",p1Name:"Manu",p1Avi:"🐺",p1Pts:71,p2Name:"Emilio",p2Avi:"🦁",p2Pts:65,pot:8,ends:"2d 14h",status:"open",myPick:null },
   { id:2,label:"Apuesta de racha",p1Name:"Pedro",p1Avi:"🐙",p1Pts:62,p2Name:"Mario",p2Avi:"🐯",p2Pts:58,pot:3,ends:"domingo",status:"open",myPick:null },
@@ -848,9 +848,8 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
                   {m.text&&(()=>{
                     const refMatch=m.text.match(/^\[(.+?)\]\n?([\s\S]*)$/);
                     if(refMatch){return(<div className="msg-bubble" style={{padding:0,overflow:"hidden"}}>
-                      <div onClick={()=>onGoToFeed&&onGoToFeed()} style={{display:"flex",alignItems:"center",gap:6,background:"rgba(240,168,50,.12)",borderBottom:"1px solid rgba(240,168,50,.2)",padding:"6px 10px",cursor:"pointer"}}>
-                        <span style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--amber)",fontWeight:700}}>↗ Feed</span>
-                        <span style={{fontSize:11,color:"var(--text)",fontWeight:600,flex:1}}>{refMatch[1]}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(240,168,50,.1)",borderBottom:"1px solid rgba(240,168,50,.18)",padding:"6px 10px"}}>
+                        <span style={{fontSize:11,color:"var(--text)",fontWeight:600,flex:1,lineHeight:1.4}}>{refMatch[1]}</span>
                       </div>
                       {refMatch[2]&&<div style={{padding:"8px 10px",fontSize:13}}>{refMatch[2]}</div>}
                     </div>);}
@@ -864,7 +863,7 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
         </div>
         {uploading&&<div className="chat-sending">Subiendo foto…</div>}
         <div className="chat-input-bar" style={{flexDirection:"column",alignItems:"stretch",gap:0,paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 10px)"}}>
-          {sharedEvent&&<div className="quoted-event" style={{cursor:"pointer"}} onClick={()=>{onGoToFeed&&onGoToFeed();}}><div className="qe-bar" style={{background:sharedEvent.color}}/><span className="qe-text" style={{flex:1}}>{sharedEvent.text}</span><span style={{fontSize:10,color:"var(--muted)",marginRight:6}}>ver →</span><button className="qe-close" onClick={e=>{e.stopPropagation();onClearShared();}}>✕</button></div>}
+          {sharedEvent&&<div className="quoted-event"><div className="qe-bar" style={{background:sharedEvent.color}}/><span className="qe-text" style={{flex:1}}>{sharedEvent.text}</span><button className="qe-close" onClick={e=>{e.stopPropagation();onClearShared();}}>✕</button></div>}
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)sendPhoto(f);}}/>
             <button className="chat-photo-btn" onClick={()=>fileRef.current?.click()} disabled={uploading}>📷</button>
@@ -1476,7 +1475,14 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   async function loadRanking(){
     setLR(true);
     const{data}=await sb.from("group_ranking").select("*").eq("group_id",group.id).order("total_pts",{ascending:false});
-    setRanking(data||[]); setLR(false);
+    const ids=(data||[]).map((r:any)=>r.user_id);
+    let umap:Record<string,{name:string;avatar:string}>={};
+    if(ids.length){
+      const{data:us}=await sb.from("users").select("id,name,avatar").in("id",ids);
+      (us||[]).forEach((u:any)=>{umap[u.id]={name:u.name||"?",avatar:u.avatar||"👤"};});
+    }
+    setRanking((data||[]).map((r:any)=>({...r,...(umap[r.user_id]||{name:"?",avatar:"👤"})})));
+    setLR(false);
   }
   async function loadStreak(){
     // Racha solo cuenta días con al menos 1 hábito de Deporte (gym, running, sport)
@@ -1527,11 +1533,32 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
 
   function handleSendToChat(item:FeedItem){
     let text="";let color="var(--amber)";
-    if(item.type==="log"){const who=members[(item as FeedLogItem).user_id]||{name:"?"};text=`${who.name} registró ${(item as FeedLogItem).pts} pts`;color="var(--amber)";}
-    else if(item.type==="streak"){const who=members[(item as FeedStreakItem).user_id]||{name:"?"};text=`${who.name} lleva ${(item as FeedStreakItem).streak} días seguidos`;color="#F0A832";}
-    else if(item.type==="bet_open"){text=`Duelo: ${(item as FeedBetItem).bet.label}`;color="var(--blue)";}
-    else if(item.type==="bet_won"){text=`Apuesta ganada: ${(item as FeedBetItem).bet.label}`;color="var(--green)";}
-    else if(item.type==="dispute"){const d=(item as FeedDisputeItem).dispute;const who=members[d.disputed_user]||{name:"?"};text=`Disputa a ${who.name}`;color="#F2667A";}
+    if(item.type==="log"){
+      const who=members[(item as FeedLogItem).user_id]||{name:"?",avatar:"👤"};
+      const habits=(item as FeedLogItem).habits.map(h=>h.icon+" "+h.name).join(" · ");
+      text=`${who.avatar||"👤"} ${who.name} registró ${(item as FeedLogItem).pts} pts${habits?` · ${habits}`:""}`;
+      color="var(--amber)";
+    } else if(item.type==="streak"){
+      const who=members[(item as FeedStreakItem).user_id]||{name:"?",avatar:"👤"};
+      text=`🔥 ${who.name} lleva ${(item as FeedStreakItem).streak} días seguidos`;
+      color="#F0A832";
+    } else if(item.type==="bet_open"){
+      const b=(item as FeedBetItem).bet;
+      text=`⚔️ ${b.label} · ${b.p1Avi} ${b.p1Name} vs ${b.p2Avi} ${b.p2Name} · Bote: ${b.pot} pts`;
+      color="var(--blue)";
+    } else if(item.type==="bet_won"){
+      const b=(item as FeedBetItem).bet;
+      const win=b.myPick===1?`${b.p1Avi} ${b.p1Name}`:`${b.p2Avi} ${b.p2Name}`;
+      text=`🏆 ${win} ganó el duelo "${b.label}" · +${b.pot} pts`;
+      color="var(--green)";
+    } else if(item.type==="dispute"){
+      const d=(item as FeedDisputeItem).dispute;
+      const who=members[d.disputed_user]||{name:"?"};
+      const challenger=members[d.challenger]||{name:"?"};
+      const habit=QUESTIONS.find(q=>q.id===d.habit_id);
+      text=`⚠️ ${challenger.name} disputa a ${who.name} · ${habit?habit.icon+" "+habit.name:d.habit_id}${d.reason?` · "${d.reason}"`:""}`;
+      color="#F2667A";
+    }
     setSharedEvent({text,color});
     setTab("chat");
   }
@@ -1626,7 +1653,6 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
       {tab==="bets"&&(
         <div className="content content-fab" key="bets">
           {(()=>{
-            // Contar como duelist (p1/p2) + como apostador con stake
             const asPlayer=bets.filter(b=>b.status!=="open"&&(b.p1Id===user.id||b.p2Id===user.id));
             const asStaker=bets.filter(b=>betStakes[b.id]?.confirmed);
             const allResolved=[...new Map([...asPlayer,...asStaker].map(b=>[b.id,b])).values()];
@@ -1641,18 +1667,22 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
               return s+5;
             },0);
             const balance=ptsWon-ptsLost;
-            return(<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:14}}>
-              <div style={{background:"var(--s2)",borderRadius:10,padding:"10px 8px",textAlign:"center"}}>
-                <div style={{fontSize:18,fontWeight:800,color:"var(--green)"}}>{ptsWon}</div>
-                <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginTop:2}}>Ganados</div>
+            const balColor=balance>0?"var(--green)":balance<0?"var(--red)":"var(--muted)";
+            const balBorder=balance>0?"rgba(93,201,138,.35)":balance<0?"rgba(255,68,68,.3)":"var(--border)";
+            return(<div style={{background:"var(--s2)",border:`1.5px solid ${balBorder}`,borderRadius:16,padding:"14px 16px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+              <div style={{display:"flex",gap:20}}>
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontSize:22,fontWeight:800,color:"var(--green)",lineHeight:1}}>{ptsWon}</div>
+                  <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginTop:3}}>Ganados</div>
+                </div>
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontSize:22,fontWeight:800,color:"var(--red)",lineHeight:1}}>{ptsLost}</div>
+                  <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginTop:3}}>Perdidos</div>
+                </div>
               </div>
-              <div style={{background:"var(--s2)",borderRadius:10,padding:"10px 8px",textAlign:"center"}}>
-                <div style={{fontSize:18,fontWeight:800,color:"var(--red)"}}>{ptsLost}</div>
-                <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginTop:2}}>Perdidos</div>
-              </div>
-              <div style={{background:"var(--s2)",borderRadius:10,padding:"10px 8px",textAlign:"center",border:`1px solid ${balance>0?"rgba(93,201,138,.3)":balance<0?"rgba(255,68,68,.2)":"var(--border)"}`}}>
-                <div style={{fontSize:18,fontWeight:800,color:balance>0?"var(--green)":balance<0?"var(--red)":"var(--muted)"}}>{balance>0?"+":""}{balance}</div>
-                <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginTop:2}}>Saldo</div>
+              <div style={{textAlign:"center",background:"var(--bg)",borderRadius:12,padding:"10px 18px",border:`1px solid ${balBorder}`}}>
+                <div style={{fontSize:28,fontWeight:900,color:balColor,lineHeight:1}}>{balance>0?"+":""}{balance}</div>
+                <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginTop:3}}>Saldo pts</div>
               </div>
             </div>);
           })()}
@@ -1784,15 +1814,14 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
               {icon:"🔥",title:"Llama viva",desc:"Racha de 7 días",done:streak>=7},
               {icon:"🔱",title:"Imparable",desc:"Racha de 14 días",done:streak>=14},
               {icon:"⚡",title:"Apostador nato",desc:"1 apuesta realizada",done:Object.keys(betStakes).length>0},
-              {icon:"🦢",title:"Golden Swan",desc:"Mayor saldo positivo en apuestas",(()=>{
+              {icon:"🦢",title:"Golden Swan",desc:"Mayor saldo positivo en apuestas",done:(()=>{
                 const allRes=bets.filter(b=>b.status!=="open");
                 const myBal=allRes.reduce((s,b)=>{
                   if(betStakes[b.id]?.confirmed){return b.status==="won"?s+(betStakes[b.id].amount||0)*2:s-(betStakes[b.id].amount||0);}
                   return s;
                 },0);
-                const bestBal=Object.keys(betStakes).length>0?myBal:0;
-                return{done:myBal>0&&myBal===bestBal};
-              })()}.done},
+                return myBal>0;
+              })()},
               {icon:"🏅",title:"Al podio",desc:"Top 3 esta semana",done:myPosAdj>0&&myPosAdj<=3},
             ].filter(m=>m.done);
             return(<>
@@ -1960,10 +1989,10 @@ function CalHeatmap({logs,today}:{logs:{date:string;pts:number}[];today:string})
         const isToday=ds===today;
         const isFuture=ds>today;
         return(<div key={ds} className="cal-hm-cell"
-          style={{background:isFuture?"transparent":ptColor(pts),border:isToday?"2px solid var(--amber)":isFuture?"1px solid var(--border)":"none",opacity:isFuture?.4:1}}
+          style={{background:isFuture?"transparent":ptColor(pts),border:isToday?"2px solid var(--amber)":isFuture?"1px solid var(--border)":"none",opacity:isFuture?.4:1,color:pts>=10?"rgba(255,255,255,.95)":pts>0?"rgba(100,55,0,.95)":"transparent",fontSize:10}}
           onClick={()=>setSel(sel===ds?null:ds)}
           title={ds}
-        >{pts>=10?<span style={{color:"rgba(255,255,255,.9)"}}>{pts}</span>:pts>0?<span style={{color:"rgba(130,80,0,.9)"}}>{pts}</span>:""}</div>);
+        >{pts||""}</div>);
       })}
     </div>
     {sel&&<div style={{marginTop:8,fontSize:11,color:"var(--text)",background:"var(--s2)",borderRadius:8,padding:"6px 10px"}}>
