@@ -1186,7 +1186,7 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
   // last 7 days pts
   const last7=allLogs.slice(0,7).map((row:any)=>{const p=QUESTIONS.reduce((s,q)=>(row as any)[q.id]?s+q.pts:s,0);return{date:row.date,pts:p};});
 
-  const CARDIO_REC=[{key:"run_5k",label:"🏃 5 km",unit:"min"},{key:"run_10k",label:"🏃 10 km",unit:"min"},{key:"run_max",label:"🏃 Máx. dist.",unit:"km"},{key:"swim_500m",label:"🏊 500 m",unit:"min"},{key:"swim_max",label:"🏊 Máx. dist.",unit:"km"},{key:"bike_max",label:"🚴 Máx. dist.",unit:"km"}];
+  const CARDIO_REC=[{key:"run_5k",label:"🏃 5 km",unit:"min"},{key:"run_10k",label:"🏃 10 km",unit:"min"},{key:"run_max",label:"🏃 Máx. dist.",unit:"km"},{key:"bike_max",label:"🚴 Máx. dist.",unit:"km"}];
   const GYM_REC=[{key:"gym_deadlift",label:"💀 Peso muerto",unit:"kg"},{key:"gym_press",label:"🦵 Prensa",unit:"kg"},{key:"gym_bench",label:"🏋️ Press banca",unit:"kg"},{key:"gym_squat",label:"🦵 Sentadilla",unit:"kg"}];
   const hasRecords=[...CARDIO_REC,...GYM_REC].some(r=>userRecs[r.key]);
 
@@ -1771,8 +1771,6 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
               {key:"run_5k",label:"🏃 5 km",unit:"min",placeholder:"23:45"},
               {key:"run_10k",label:"🏃 10 km",unit:"min",placeholder:"52:00"},
               {key:"run_max",label:"🏃 Máxima distancia",unit:"km",placeholder:"21.0"},
-              {key:"swim_500m",label:"🏊 500 m",unit:"min",placeholder:"9:30"},
-              {key:"swim_max",label:"🏊 Máxima distancia",unit:"km",placeholder:"2.0"},
               {key:"bike_max",label:"🚴 Máxima distancia",unit:"km",placeholder:"50.0"},
             ];
             const GYM_RECORDS=[
