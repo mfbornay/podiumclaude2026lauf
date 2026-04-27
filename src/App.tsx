@@ -1827,7 +1827,6 @@ function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{use
             );
           })}
           {(betsTab==="activas"?bets.filter(b=>b.status==="open"):bets.filter(b=>b.status!=="open")).length===0&&<div className="empty">{betsTab==="activas"?"No hay apuestas activas.":"No hay historial todavía."}</div>}
-          <button className="new-bet-btn">⚔️ Crear nueva apuesta</button>
         </div>
       )}
 
