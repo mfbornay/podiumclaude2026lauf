@@ -429,9 +429,9 @@ function Loading({text="Cargando..."}:{text?:string}){
 }
 
 /* ══════════════════════════════════════════ AUTH */
-function AuthScreen({onAuth,bootError}:{onAuth:(u:any)=>void;bootError?:string}){
+function AuthScreen({onAuth,bootError,newUser}:{onAuth:(u:any)=>void;bootError?:string;newUser?:any}){
   // phase: "email" → "otp" → "profile" (if new user)
-  const [phase,setPhase]=useState<"email"|"otp"|"profile">("email");
+  const [phase,setPhase]=useState<"email"|"otp"|"profile">(newUser?"profile":"email");
   const [email,setEmail]=useState("");
   const [otp,setOtp]=useState("");
   const [profStep,setProfStep]=useState(0);
@@ -439,7 +439,7 @@ function AuthScreen({onAuth,bootError}:{onAuth:(u:any)=>void;bootError?:string})
   const [avatar,setAvatar]=useState("🐺");
   const [err,setErr]=useState(""); const [info,setInfo]=useState("");
   const [busy,setBusy]=useState(false);
-  const [verifiedUser,setVerifiedUser]=useState<any>(null);
+  const [verifiedUser,setVerifiedUser]=useState<any>(newUser||null);
   function clearMsgs(){setErr("");setInfo("");}
 
   async function sendOtp(){
@@ -495,7 +495,7 @@ function AuthScreen({onAuth,bootError}:{onAuth:(u:any)=>void;bootError?:string})
         {busy?"Enviando...":"Enviar código →"}
       </button>
       <div style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginTop:10,lineHeight:1.5}}>
-        Te enviamos un código de 6 dígitos al email.<br/>Sin contraseñas, sin complicaciones.
+        Te enviamos un enlace mágico al email.<br/>Sin contraseñas, sin complicaciones.
       </div>
     </div>
   );
@@ -557,7 +557,8 @@ function AuthScreen({onAuth,bootError}:{onAuth:(u:any)=>void;bootError?:string})
 
 /* ══════════════════════════════════════════ JOIN */
 function JoinScreen({userId,onJoin}:{userId:string;onJoin:(g:any)=>void}){
-  const [code,setCode]=useState(""); const [gname,setGname]=useState("");
+  const urlCode=new URLSearchParams(window.location.search).get("invite")||"";
+  const [code,setCode]=useState(urlCode.toUpperCase()); const [gname,setGname]=useState("");
   const [creating,setC]=useState(false); const [err,setErr]=useState(""); const [busy,setBusy]=useState(false);
   async function join(){
     if(code.length<4)return; setBusy(true);setErr("");
@@ -1529,7 +1530,8 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
 
   useEffect(()=>{loadToday();loadRanking();loadStreak();loadMembers();loadReactions();loadWeekDays();
     loadWeekLeaders();
-    loadProfileData();},[]);
+    loadProfileData();
+    registerPush(user.id,group.id);},[]);
 
   function closeBet(betId:number,winner:1|2){setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"won",myPick:winner}:b));}
   function cancelBet(betId:number){setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"cancelled"}:b));}
@@ -1887,6 +1889,26 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   );
 }
 
+
+/* ══════════════════════════════════════════ PUSH NOTIFICATIONS */
+async function registerPush(userId:string,groupId:string){
+  try{
+    if(!("serviceWorker" in navigator)||!("PushManager" in window))return;
+    const reg=await navigator.serviceWorker.register("/sw.js");
+    const perm=await Notification.requestPermission();
+    if(perm!=="granted")return;
+    const VAPID_PUBLIC="REEMPLAZAR_CON_TU_VAPID_PUBLIC_KEY";
+    const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:VAPID_PUBLIC});
+    const j=sub.toJSON();
+    await sb.from("push_subscriptions").upsert({
+      user_id:userId,group_id:groupId,
+      endpoint:j.endpoint!,
+      p256dh:(j.keys as any).p256dh,
+      auth:(j.keys as any).auth
+    },{onConflict:"endpoint"});
+  }catch(e){console.warn("Push registration failed:",e);}
+}
+
 /* ══════════════════════════════════════════ ROOT */
 type Phase="loading"|"auth"|"join"|"app";
 export default function Root(){
@@ -1895,6 +1917,7 @@ export default function Root(){
   const [profile,setProfile]=useState<any>(null);
   const [group,setGroup]=useState<any>(null);
   const [bootError,setBootError]=useState("");
+  const [newUserAuth,setNewUserAuth]=useState<any>(null);
 
   useEffect(()=>{
     const{data:{subscription}}=sb.auth.onAuthStateChange((event,session)=>{
@@ -1920,7 +1943,7 @@ export default function Root(){
         setBootError(msg);setAuthUser(null);await sb.auth.signOut();setPhase("auth");return;
       }
       setAuthUser(user);
-      if(!prof){setBootError("Login OK pero no encuentro tu fila en users (RLS sin policies).");await sb.auth.signOut();setPhase("auth");return;}
+      if(!prof){setNewUserAuth(user);setAuthUser(user);setBootError("");setPhase("auth");return;}
       setProfile(prof);
       const{data:membership,error:memErr}=await sb.from("group_members").select("group_id, groups(*)").eq("user_id",user.id).limit(1).maybeSingle();
       if(memErr){setBootError("Error cargando grupo: "+memErr.message);setPhase("join");return;}
@@ -1931,7 +1954,7 @@ export default function Root(){
     }
   }
 
-  async function handleAuth(user:any){setBootError("");setPhase("loading");await loadUserData(user);}
+  async function handleAuth(user:any){setBootError("");setNewUserAuth(null);setPhase("loading");await loadUserData(user);}
   async function handleJoin(g:any){setGroup(g);setPhase("app");}
   async function handleSignOut(){await sb.auth.signOut();}
 
@@ -1940,7 +1963,7 @@ export default function Root(){
       <style>{CSS}</style>
       <div className="app">
         {phase==="loading"&&<Loading text="Iniciando Podium…"/>}
-        {phase==="auth"&&<AuthScreen onAuth={handleAuth} bootError={bootError}/>}
+        {phase==="auth"&&<AuthScreen onAuth={handleAuth} bootError={bootError} newUser={newUserAuth}/>}
         {phase==="join"&&authUser&&<JoinScreen userId={authUser.id} onJoin={handleJoin}/>}
         {phase==="app"&&authUser&&profile&&group&&<MainApp user={authUser} profile={profile} group={group} onSignOut={handleSignOut}/>}
       </div>
