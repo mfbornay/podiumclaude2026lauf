@@ -598,24 +598,27 @@ function computeDisputeStatus(d:Dispute,votes:DisputeVote[],totalMembers:number)
 
 /* ══════════════════════════════════════════ DISPUTE MODAL */
 function DisputeModal({user,group,disputedUserId,onClose,onCreated,members}:{user:any;group:any;disputedUserId:string;onClose:()=>void;onCreated:(d:Dispute)=>void;members:Record<string,{name:string;avatar:string}>}){
+  const [daySel,setDaySel]=useState<"hoy"|"ayer">("hoy");
   const [yLog,setYLog]=useState<Record<string,boolean>|null>(null);
   const [yPts,setYPts]=useState(0);
   const [selHabit,setSelHabit]=useState("");
   const [reason,setReason]=useState("");
   const [showReason,setShowReason]=useState(false);
   const [saving,setSaving]=useState(false);
+  const targetDate=daySel==="hoy"?todayStr():yesterdayStr();
   useEffect(()=>{
+    setYLog(null);setYPts(0);setSelHabit("");
     (async()=>{
-      const{data}=await sb.from("daily_logs").select("*").eq("user_id",disputedUserId).eq("group_id",group.id).eq("date",yesterdayStr()).maybeSingle();
+      const{data}=await sb.from("daily_logs").select("*").eq("user_id",disputedUserId).eq("group_id",group.id).eq("date",targetDate).maybeSingle();
       const log:Record<string,boolean>={};
       let pts=0;
       if(data){QUESTIONS.forEach(q=>{if((data as any)[q.id]){log[q.id]=true;pts+=q.pts;}});}
       setYLog(log);setYPts(pts);
     })();
-  },[disputedUserId,group?.id]);
+  },[disputedUserId,group?.id,daySel]);
   async function submit(){
     if(!selHabit||saving)return; setSaving(true);
-    const{data,error}=await sb.from("disputes").insert({group_id:group.id,disputed_user:disputedUserId,challenger:user.id,day:yesterdayStr(),habit_id:selHabit,reason:reason.trim()||null}).select().single();
+    const{data,error}=await sb.from("disputes").insert({group_id:group.id,disputed_user:disputedUserId,challenger:user.id,day:targetDate,habit_id:selHabit,reason:reason.trim()||null}).select().single();
     setSaving(false);
     if(error){if(error.code==="23505")alert("Ya existe una disputa para ese hábito.");else alert("Error: "+error.message);return;}
     onCreated(data as Dispute); onClose();
@@ -638,6 +641,14 @@ function DisputeModal({user,group,disputedUserId,onClose,onCreated,members}:{use
               {!yLog?"Cargando...":`Apunte de ayer · ${yPts} pts`}
             </div>
           </div>
+        </div>
+        {/* Selector Hoy / Ayer */}
+        <div style={{display:"flex",gap:6,marginBottom:14}}>
+          {(["hoy","ayer"] as const).map(d=>(
+            <button key={d} onClick={()=>setDaySel(d)} style={{flex:1,padding:"8px 0",borderRadius:10,border:"1px solid",borderColor:daySel===d?"var(--amber)":"var(--border)",background:daySel===d?"rgba(240,168,50,.1)":"var(--s2)",color:daySel===d?"var(--amber)":"var(--muted)",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",textTransform:"capitalize"}}>
+              {d==="hoy"?"Hoy":"Ayer"}
+            </button>
+          ))}
         </div>
         {!yLog&&<div style={{textAlign:"center",color:"var(--muted)",padding:24,fontSize:13}}>Cargando hábitos...</div>}
         {yLog&&habitsDone.length===0&&(
@@ -667,7 +678,7 @@ function DisputeModal({user,group,disputedUserId,onClose,onCreated,members}:{use
             </>
           }
           <button className="btn" onClick={submit} disabled={!selHabit||saving} style={{opacity:selHabit?1:.5}}>
-            {saving?"Creando disputa...":(selHabit?`Disputar ${QUESTIONS.find(q=>q.id===selHabit)?.name}`:"Elige un hábito")}
+            {saving?"Creando disputa...":(selHabit?`Disputar ${QUESTIONS.find(q=>q.id===selHabit)?.name} (${daySel})`:"Elige un hábito")}
           </button>
         </>}
       </div>
@@ -1127,26 +1138,52 @@ function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,t
 }
 
 /* ══════════════════════════════════════════ USER PROFILE MODAL */
-function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,profile,onClose,onDispute,onSignOut}:{userId:string;currentUserId:string;group:any;members:Record<string,{name:string;avatar:string}>;adjRanking:any[];streak:number;profile:any;onClose:()=>void;onDispute?:()=>void;onSignOut?:()=>void}){
+function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,weekLeaders,weekAmbitoPts,profile,onClose,onDispute,onSignOut}:{userId:string;currentUserId:string;group:any;members:Record<string,{name:string;avatar:string}>;adjRanking:any[];streak:number;weekLeaders:Record<string,string>;weekAmbitoPts:Record<string,Record<string,number>>;profile:any;onClose:()=>void;onDispute?:()=>void;onSignOut?:()=>void}){
   const isMe=userId===currentUserId;
   const who=isMe?{name:profile?.name||"?",avatar:profile?.avatar||"👤"}:(members[userId]||{name:"?",avatar:"👤"});
   const rankRow=adjRanking.find(r=>r.user_id===userId);
   const pos=adjRanking.findIndex(r=>r.user_id===userId)+1;
-  const [recentLogs,setRecentLogs]=useState<any[]>([]);
+  const [allLogs,setAllLogs]=useState<any[]>([]);
   const [loadingLogs,setLoadingLogs]=useState(true);
+  const [userRecs,setUserRecs]=useState<Record<string,string>>({});
   useEffect(()=>{
     (async()=>{
-      const{data}=await sb.from("daily_logs").select("*").eq("user_id",userId).eq("group_id",group.id).order("date",{ascending:false}).limit(7);
-      setRecentLogs(data||[]); setLoadingLogs(false);
+      const[{data:logs},{data:recs}]=await Promise.all([
+        sb.from("daily_logs").select("*").eq("user_id",userId).eq("group_id",group.id).order("date",{ascending:false}).limit(365),
+        sb.from("user_records").select("record_key,record_value").eq("user_id",userId)
+      ]);
+      setAllLogs(logs||[]);
+      if(recs){const r:Record<string,string>={};recs.forEach((x:any)=>{r[x.record_key]=x.record_value;});setUserRecs(r);}
+      setLoadingLogs(false);
     })();
   },[userId]);
+
+  // streak (deporte only)
   const profileStreak=isMe?streak:(()=>{
-    if(!recentLogs.length)return 0;
-    const dates=recentLogs.map((l:any)=>l.date).sort((a:string,b:string)=>b.localeCompare(a));
-    let s=0; const check=new Date();
-    for(let i=0;i<7;i++){const d=check.toISOString().split("T")[0];if(dates.includes(d)){s++;check.setDate(check.getDate()-1);}else break;}
+    const deporteDays=allLogs.filter((r:any)=>r.gym||r.running||r.sport);
+    let s=0;const today=new Date();today.setHours(0,0,0,0);
+    const dates=deporteDays.map((r:any)=>{const d=new Date(r.date);d.setHours(0,0,0,0);return d.getTime();});
+    for(let i=0;i<90;i++){const exp=new Date(today);exp.setDate(today.getDate()-i);if(dates.includes(exp.getTime()))s++;else break;}
     return s;
   })();
+
+  // ámbito totals from all logs
+  const ambitoTotals:Record<string,number>={};
+  for(const row of allLogs){
+    for(const a of AMBITOS){
+      let p=0;for(const hId of a.habits){const q=QUESTIONS.find(x=>x.id===hId);if(q&&(row as any)[hId])p+=q.pts;}
+      ambitoTotals[a.id]=(ambitoTotals[a.id]||0)+p;
+    }
+  }
+  const maxAmbito=Math.max(...Object.values(ambitoTotals),1);
+
+  // last 7 days pts
+  const last7=allLogs.slice(0,7).map((row:any)=>{const p=QUESTIONS.reduce((s,q)=>(row as any)[q.id]?s+q.pts:s,0);return{date:row.date,pts:p};});
+
+  const CARDIO_REC=[{key:"run_5k",label:"🏃 5 km",unit:"min"},{key:"run_10k",label:"🏃 10 km",unit:"min"},{key:"run_max",label:"🏃 Máx. dist.",unit:"km"},{key:"swim_500m",label:"🏊 500 m",unit:"min"},{key:"swim_max",label:"🏊 Máx. dist.",unit:"km"},{key:"bike_max",label:"🚴 Máx. dist.",unit:"km"}];
+  const GYM_REC=[{key:"gym_deadlift",label:"💀 Peso muerto",unit:"kg"},{key:"gym_press",label:"🦵 Prensa",unit:"kg"},{key:"gym_bench",label:"🏋️ Press banca",unit:"kg"},{key:"gym_squat",label:"🦵 Sentadilla",unit:"kg"}];
+  const hasRecords=[...CARDIO_REC,...GYM_REC].some(r=>userRecs[r.key]);
+
   return(
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
@@ -1154,36 +1191,69 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
         <div className="pm-head">
           <div className="pm-avi">{who.avatar}</div>
           <div style={{flex:1}}>
-            <div className="pm-name">{who.name}{isMe?" (tú)":""}</div>
-            {isMe&&profile?.username&&<div className="pm-sub">@{profile.username}</div>}
+            <div className="pm-name">{who.name}{isMe?" · Tú":""}</div>
+            {profile?.username&&<div className="pm-sub">@{profile.username}</div>}
             {isMe&&profile?.role==="admin"&&<div className="admin-badge" style={{marginTop:4}}>⚙️ Admin</div>}
-            {pos>0&&<div style={{fontSize:12,color:"var(--amber)",fontWeight:600,marginTop:5}}>#{pos} en el ranking</div>}
+            {pos>0&&<div style={{fontSize:12,color:"var(--amber)",fontWeight:600,marginTop:4}}>#{pos} en el ranking</div>}
           </div>
         </div>
-        <div className="stats-row" style={{marginBottom:16}}>
+        <div className="stats-row" style={{marginBottom:14}}>
           <div className="stat"><div className="stat-val" style={{color:"var(--amber)"}}>{rankRow?.total_pts||0}</div><div className="stat-lbl">Puntos</div></div>
           <div className="stat"><div className="stat-val">{rankRow?.days_logged||0}</div><div className="stat-lbl">Días</div></div>
-          <div className="stat"><div className="stat-val">🔥{profileStreak}</div><div className="stat-lbl">Racha</div></div>
+          <div className="stat"><div className="stat-val">🔥{profileStreak}</div><div className="stat-lbl">Racha 💪</div></div>
         </div>
-        {!loadingLogs&&recentLogs.length>0&&<>
-          <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",marginBottom:8}}>Últimos días</div>
-          {recentLogs.slice(0,5).map((log:any)=>{
-            const habits=QUESTIONS.filter(q=>(log as any)[q.id]);
-            const pts=habits.reduce((s,q)=>s+q.pts,0);
-            return(
-              <div key={log.date} className="pm-log-row">
-                <div><div className="pm-log-date">{log.date}</div><div style={{display:"flex",gap:3,flexWrap:"wrap"}}>{habits.slice(0,5).map(h=><span key={h.id} style={{fontSize:14}}>{h.icon}</span>)}{habits.length>5&&<span style={{fontSize:11,color:"var(--muted)"}}>+{habits.length-5}</span>}</div></div>
-                <div className="pm-log-pts">+{pts}</div>
+
+        {/* Puntos por ámbito */}
+        {!loadingLogs&&Object.keys(ambitoTotals).length>0&&<>
+          <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",marginBottom:8}}>Puntos por ámbito</div>
+          {AMBITOS.map(a=>{
+            const total=ambitoTotals[a.id]||0;
+            return(<div key={a.id} className="ambito-bar-wrap">
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:12,fontWeight:600}}>{a.icon} {a.label}</span>
+                <span style={{fontSize:12,fontWeight:800}}>{total}</span>
               </div>
-            );
+              <div className="ambito-bar-track"><div className="ambito-bar-fill" style={{width:`${maxAmbito>0?Math.round(total/maxAmbito*100):0}%`,background:a.color}}/></div>
+            </div>);
           })}
         </>}
+
+        {/* Últimos 7 días */}
+        {!loadingLogs&&last7.length>0&&<>
+          <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",margin:"12px 0 6px"}}>Últimos 7 días</div>
+          <div className="last7-row">
+            {[...last7].reverse().map((d,i)=>{
+              const day=new Date(d.date+"T12:00:00");
+              const lbl=["L","M","X","J","V","S","D"][day.getDay()===0?6:day.getDay()-1];
+              const maxPts=Math.max(...last7.map(x=>x.pts),1);
+              const h=Math.max(14,Math.round(d.pts/maxPts*52));
+              return(<div key={i} className="last7-cell">
+                <div className="last7-bar" style={{height:h,background:d.pts>0?"rgba(240,168,50,.18)":"var(--s2)",border:d.pts>0?"1px solid rgba(240,168,50,.3)":"1px solid var(--border)"}}>
+                  {d.pts>0&&<span className="last7-pts">{d.pts}</span>}
+                </div>
+                <span className="last7-lbl">{lbl}</span>
+              </div>);
+            })}
+          </div>
+        </>}
+
+        {/* Récords — solo si tiene alguno */}
+        {!loadingLogs&&hasRecords&&<>
+          <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",margin:"12px 0 6px"}}>📊 Récords</div>
+          {[...CARDIO_REC,...GYM_REC].filter(r=>userRecs[r.key]).map(r=>(
+            <div key={r.key} className="records-row">
+              <div className="records-label">{r.label}</div>
+              <div className="records-val">{userRecs[r.key]} {r.unit}</div>
+            </div>
+          ))}
+        </>}
+
         {isMe&&<div className="invite" style={{marginTop:16}}>
           <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:4}}>Código — {group.name}</div>
           <div className="invite-code">{group.invite_code}</div>
           <div className="invite-sub">Comparte con tus amigos</div>
         </div>}
-        {!isMe&&onDispute&&<button className="btn-ghost" style={{marginTop:14}} onClick={()=>{onClose();onDispute();}}>⚖️ Disputar punto de ayer</button>}
+        {!isMe&&onDispute&&<button className="btn-ghost" style={{marginTop:14}} onClick={()=>{onClose();onDispute();}}>⚖️ Disputar puntos</button>}
         {isMe&&onSignOut&&<button className="btn-danger" style={{marginTop:14}} onClick={()=>{onClose();onSignOut();}}>Cerrar sesión</button>}
       </div>
     </div>
@@ -1778,7 +1848,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
         group={group} members={members} adjRanking={adjRanking}
         streak={streak} profile={profile}
         onClose={()=>setProfileModal(null)}
-        onDispute={profileModal!==user.id?()=>setDisputeModal(profileModal):undefined}
+        weekLeaders={weekLeaders} weekAmbitoPts={weekAmbitoPts} onDispute={profileModal!==user.id?()=>setDisputeModal(profileModal):undefined}
         onSignOut={profileModal===user.id?onSignOut:undefined}
       />}
 
