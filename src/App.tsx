@@ -396,13 +396,14 @@ type FeedDisputeItem = { type:"dispute";ref:string;dispute:Dispute;created_at:st
 type FeedItem = FeedLogItem|FeedStreakItem|FeedBetItem|FeedDisputeItem;
 
 /* ══════════════════════════════════════════ UTILS */
-function todayStr(){ return new Date().toISOString().split("T")[0]; }
-function yesterdayStr(){ const d=new Date();d.setDate(d.getDate()-1);return d.toISOString().split("T")[0]; }
+function localDate(d=new Date()){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
+function todayStr(){ return localDate(); }
+function yesterdayStr(){ const d=new Date();d.setDate(d.getDate()-1);return localDate(d); }
 function disputePenalty(habitId:string){ const q=QUESTIONS.find(x=>x.id===habitId);return q?Math.ceil(q.pts/2):0; }
 function calcPts(done:Record<string,boolean>){ return QUESTIONS.reduce((s,q)=>done[q.id]?s+q.pts:s,0); }
 function relTime(iso:string){ const m=Math.floor((Date.now()-new Date(iso).getTime())/60000);if(m<1)return"ahora";if(m<60)return`${m}m`;const h=Math.floor(m/60);if(h<24)return`${h}h`;return`${Math.floor(h/24)}d`; }
 function getWeekNum(d=new Date()){const jan1=new Date(d.getFullYear(),0,1);return Math.ceil(((d.getTime()-jan1.getTime())/86400000+jan1.getDay()+1)/7);}
-function getMondayStr(){const d=new Date();const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);return d.toISOString().split("T")[0];}
+function getMondayStr(){const d=new Date();const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);return localDate(d);}
 
 /* ══════════════════════════════════════════ PODIUM LOGO */
 function PodiumLogo({size=20}:{size?:number}){
