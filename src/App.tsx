@@ -740,8 +740,8 @@ function DisputesPanel({user,group,disputes,votes,members,totalMembers,onClose,o
 
 /* ══════════════════════════════════════════ CHAT */
 type ChatMsg={id:number;group_id:string;user_id:string;text:string|null;photo_url:string|null;created_at:string};
-type SharedEvent={text:string;color:string};
-function ChatTab({user,group,profile,sharedEvent,onClearShared}:{user:any;group:any;profile:any;sharedEvent:SharedEvent|null;onClearShared:()=>void}){
+type SharedEvent={text:string;color:string;ref?:string};
+function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user:any;group:any;profile:any;sharedEvent:SharedEvent|null;onClearShared:()=>void;onGoToFeed?:()=>void}){
   const [msgs,setMsgs]=useState<ChatMsg[]>([]);
   const [members,setMembers]=useState<Record<string,{name:string;avatar:string}>>({});
   const [text,setText]=useState("");
@@ -824,7 +824,17 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared}:{user:any;group:
                 <div className="msg-avi">{who.avatar}</div>
                 <div className="msg-body">
                   <div className="msg-meta">{!mine&&<span className="msg-name">{who.name}</span>}<span>{hh}</span></div>
-                  {m.text&&<div className="msg-bubble">{m.text}</div>}
+                  {m.text&&(()=>{
+                    const refMatch=m.text.match(/^\[(.+?)\]\n?([\s\S]*)$/);
+                    if(refMatch){return(<div className="msg-bubble" style={{padding:0,overflow:"hidden"}}>
+                      <div onClick={()=>onGoToFeed&&onGoToFeed()} style={{display:"flex",alignItems:"center",gap:6,background:"rgba(240,168,50,.12)",borderBottom:"1px solid rgba(240,168,50,.2)",padding:"6px 10px",cursor:"pointer"}}>
+                        <span style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--amber)",fontWeight:700}}>↗ Feed</span>
+                        <span style={{fontSize:11,color:"var(--text)",fontWeight:600,flex:1}}>{refMatch[1]}</span>
+                      </div>
+                      {refMatch[2]&&<div style={{padding:"8px 10px",fontSize:13}}>{refMatch[2]}</div>}
+                    </div>);}
+                    return <div className="msg-bubble">{m.text}</div>;
+                  })()}
                   {m.photo_url&&<img src={m.photo_url} alt="foto" className="msg-photo" onClick={()=>window.open(m.photo_url!,"_blank")}/>}
                 </div>
               </div>
@@ -833,7 +843,7 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared}:{user:any;group:
         </div>
         {uploading&&<div className="chat-sending">Subiendo foto…</div>}
         <div className="chat-input-bar" style={{flexDirection:"column",alignItems:"stretch",gap:0,paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 10px)"}}>
-          {sharedEvent&&<div className="quoted-event"><div className="qe-bar" style={{background:sharedEvent.color}}/><span className="qe-text">{sharedEvent.text}</span><button className="qe-close" onClick={onClearShared}>✕</button></div>}
+          {sharedEvent&&<div className="quoted-event" style={{cursor:"pointer"}} onClick={()=>{onGoToFeed&&onGoToFeed();}}><div className="qe-bar" style={{background:sharedEvent.color}}/><span className="qe-text" style={{flex:1}}>{sharedEvent.text}</span><span style={{fontSize:10,color:"var(--muted)",marginRight:6}}>ver →</span><button className="qe-close" onClick={e=>{e.stopPropagation();onClearShared();}}>✕</button></div>}
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)sendPhoto(f);}}/>
             <button className="chat-photo-btn" onClick={()=>fileRef.current?.click()} disabled={uploading}>📷</button>
@@ -881,7 +891,10 @@ function TodayBanner({weekPts,streak,saved,done,onApuntar,myPos,weekDays}:{weekP
         })}
       </div>
       {saved
-        ?<div style={{textAlign:"center",fontSize:12,color:"var(--green)",fontWeight:700,marginTop:10,letterSpacing:.5}}>✓ Día guardado · +{todayPts} pts</div>
+        ?<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginTop:10}}>
+           <span style={{fontSize:12,color:"var(--green)",fontWeight:700,letterSpacing:.5}}>✓ +{todayPts} pts guardados</span>
+           <button onClick={onApuntar} style={{fontSize:11,background:"none",border:"1px solid var(--border)",borderRadius:8,color:"var(--muted)",padding:"3px 10px",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Editar</button>
+         </div>
         :<button className="apuntar-btn" onClick={onApuntar} style={{marginTop:10}}>＋ Apuntar día</button>}
     </div>
   );
@@ -914,7 +927,7 @@ function ApuntarModal({done,saved,saving,onToggle,onSave,onClose}:{done:Record<s
               </div>
               <div className="q-grid">
                 {aHabits.map(q=>(
-                  <div key={q.id} className={`qi${done[q.id]?" on":""}${saved?" locked":""}`} onClick={()=>onToggle(q.id)}>
+                  <div key={q.id} className={`qi${done[q.id]?" on":""}`} onClick={()=>onToggle(q.id)}>
                     <div className="qi-icon">{q.icon}</div>
                     <div className="qi-name">{q.name}</div>
                     <div className="qi-pts">+{q.pts} pts</div>
@@ -925,8 +938,8 @@ function ApuntarModal({done,saved,saving,onToggle,onSave,onClose}:{done:Record<s
             </div>
           );
         })}
-        <button className="btn" style={{marginTop:14}} disabled={!anyDone||saved||saving} onClick={onSave}>
-          {saving?"Guardando...":saved?"✓ Guardado":`Guardar · +${Math.max(0,pts)} pts`}
+        <button className="btn" style={{marginTop:14}} disabled={!anyDone||saving} onClick={onSave}>
+          {saving?"Guardando...":`${saved?"Actualizar":"Guardar"} · +${Math.max(0,pts)} pts`}
         </button>
       </div>
     </div>
@@ -1468,7 +1481,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   }
   async function saveDay(){
     const anyDone=Object.values(done).some(Boolean);
-    if(!anyDone||saved||saving)return; setSaving(true);
+    if(!anyDone||saving)return; setSaving(true);
     const payload:any={user_id:user.id,date:todayStr(),total_pts:pts};
     QUESTIONS.forEach(q=>{payload[q.id]=!!done[q.id];});
     const{error}=await sb.from("daily_logs").upsert(payload,{onConflict:"user_id,date"});
@@ -1477,7 +1490,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
     setSaved(true); setShowApuntar(false);
     loadRanking(); loadStreak();
   }
-  function toggle(id:string){if(saved||saving)return; setDone(d=>({...d,[id]:!d[id]}));}
+  function toggle(id:string){if(saving)return; setDone(d=>({...d,[id]:!d[id]}));}
 
   async function loadReactions(){
     try{
@@ -1657,7 +1670,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
       )}
 
       {/* CHAT */}
-      {tab==="chat"&&<ChatTab user={user} group={group} profile={profile} sharedEvent={sharedEvent} onClearShared={()=>setSharedEvent(null)}/>}
+      {tab==="chat"&&<ChatTab user={user} group={group} profile={profile} sharedEvent={sharedEvent} onClearShared={()=>setSharedEvent(null)} onGoToFeed={()=>setTab("feed")}/>}
 
       {/* PERFIL */}
       {tab==="perfil"&&(
@@ -1853,7 +1866,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
       </nav>
 
       {/* APUNTAR MODAL */}
-      {showApuntar&&!saved&&<ApuntarModal done={done} saved={saved} saving={saving} onToggle={toggle} onSave={saveDay} onClose={()=>setShowApuntar(false)}/>}
+      {showApuntar&&<ApuntarModal done={done} saved={saved} saving={saving} onToggle={toggle} onSave={saveDay} onClose={()=>setShowApuntar(false)}/>}
 
       {/* PROFILE MODAL */}
       {profileModal&&<UserProfileModal
