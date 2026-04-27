@@ -1946,7 +1946,7 @@ async function registerPush(userId:string,groupId:string){
     const reg=await navigator.serviceWorker.register("/sw.js");
     const perm=await Notification.requestPermission();
     if(perm!=="granted")return;
-    const VAPID_PUBLIC="REEMPLAZAR_CON_TU_VAPID_PUBLIC_KEY";
+    const VAPID_PUBLIC="BJBul6FJr3LGLS2S5S3_leNky_oOQXgC1LVYBhlhsJx634aM2MaLgYjuij3dT1xqFsmqeVaHsPIp8uiUeRpUT48";
     const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:VAPID_PUBLIC});
     const j=sub.toJSON();
     await sb.from("push_subscriptions").upsert({
