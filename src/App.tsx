@@ -402,7 +402,7 @@ type FeedItem = FeedLogItem|FeedStreakItem|FeedBetItem|FeedDisputeItem;
 function localDate(d=new Date()){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
 function todayStr(){ return localDate(); }
 function yesterdayStr(){ const d=new Date();d.setDate(d.getDate()-1);return localDate(d); }
-function disputePenalty(habitId:string){ const q=QUESTIONS.find(x=>x.id===habitId);return q?Math.ceil(q.pts/2):0; }
+function disputePenalty(habitId:string){ const q=QUESTIONS.find(x=>x.id===habitId);return q?q.pts:0; }
 function calcPts(done:Record<string,boolean>){ return QUESTIONS.reduce((s,q)=>done[q.id]?s+q.pts:s,0); }
 function relTime(iso:string){ const m=Math.floor((Date.now()-new Date(iso).getTime())/60000);if(m<1)return"ahora";if(m<60)return`${m}m`;const h=Math.floor(m/60);if(h<24)return`${h}h`;return`${Math.floor(h/24)}d`; }
 function getWeekNum(d=new Date()){const jan1=new Date(d.getFullYear(),0,1);return Math.ceil(((d.getTime()-jan1.getTime())/86400000+jan1.getDay()+1)/7);}
@@ -688,7 +688,7 @@ function DisputeModal({user,group,disputedUserId,onClose,onCreated,members}:{use
                 <div className="dispute-grid-radio"/>
                 <div className="dispute-grid-icon">{q.icon}</div>
                 <div className="dispute-grid-name">{q.name}</div>
-                <div className="dispute-grid-penalty">si pierde: −{disputePenalty(q.id)}</div>
+                <div className="dispute-grid-penalty">si pasa: −{disputePenalty(q.id)}</div>
               </div>
             ))}
           </div>
@@ -1373,9 +1373,12 @@ function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{use
   }
   async function loadWeekLeaders(){
     const mon=getMondayStr();
+    const{data:gm}=await sb.from("group_members").select("user_id").eq("group_id",group.id);
+    const memberIds=(gm||[]).map((r:any)=>r.user_id);
+    if(!memberIds.length)return;
     const{data}=await sb.from("daily_logs")
       .select("user_id,gym,running,sport,quedada,familia,food,screen_good,pareja,book,course,podcast,meditation")
-      .in("user_id",Object.keys(members)).gte("date",mon);
+      .in("user_id",memberIds).gte("date",mon);
     if(!data)return;
     const counts:Record<string,Record<string,number>>={};
     for(const row of data){
@@ -1611,6 +1614,7 @@ function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{use
     loadWeekLeaders();
     loadProfileData();
     loadBets();loadBetStakes();
+    loadRecords();
     registerPush(user.id,group.id);},[]);
 
   async function closeBet(betId:number,winner:1|2){
@@ -1632,7 +1636,7 @@ function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{use
         </div>
         <div className="tb-r">
           <div className="gchip"><div className="gdot" style={{background:group.color||"var(--amber)"}}/><span className="gname">{group.emoji} {group.name}</span></div>
-          {bets.filter(b=>b.status==="open").length>0&&<div className="bets-chip" onClick={()=>setTab("bets")}><span className="bets-chip-ico">⚡</span><span className="bets-chip-n">{bets.filter(b=>b.status==="open").length}</span></div>}
+          <div className="bets-chip" onClick={()=>setTab("bets")}><span className="bets-chip-ico">⚡</span>{bets.filter(b=>b.status==="open").length>0&&<span className="bets-chip-n">{bets.filter(b=>b.status==="open").length}</span>}</div>
         </div>
       </div>
 
