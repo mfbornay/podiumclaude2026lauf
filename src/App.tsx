@@ -385,12 +385,7 @@ const REACTION_EMOJIS = ["🐐","💪","💀","🏳️‍🌈","💅"];
 const STREAK_MILESTONES = [3,7,14,21,30];
 
 type Bet = { id:number;label:string;p1Name:string;p1Avi:string;p1Pts:number;p1Id?:string;p2Name:string;p2Avi:string;p2Pts:number;p2Id?:string;pot:number;ends:string;status:"open"|"won"|"lost"|"cancelled";myPick:1|2|null; };
-const BETS_INIT: Bet[] = [
-  { id:1,label:"Duelo semanal · Gym",p1Name:"Manu",p1Avi:"🐺",p1Pts:71,p2Name:"Emilio",p2Avi:"🦁",p2Pts:65,pot:8,ends:"2d 14h",status:"open",myPick:null },
-  { id:2,label:"Apuesta de racha",p1Name:"Pedro",p1Avi:"🐙",p1Pts:62,p2Name:"Mario",p2Avi:"🐯",p2Pts:58,pot:3,ends:"domingo",status:"open",myPick:null },
-  { id:3,label:"Duelo · Running",p1Name:"Manu",p1Avi:"🐺",p1Pts:71,p2Name:"Nacho",p2Avi:"🐬",p2Pts:47,pot:6,ends:"cerrada",status:"won",myPick:1 },
-  { id:4,label:"Duelo · Sueño",p1Name:"Jaime",p1Avi:"🐻",p1Pts:60,p2Name:"Álvaro",p2Avi:"🦅",p2Pts:54,pot:4,ends:"cerrada",status:"lost",myPick:2 },
-];
+
 
 /* ══════════════════════════════════════════ TYPES */
 type Dispute = { id:number;group_id:string;disputed_user:string;challenger:string;day:string;habit_id:string;reason:string|null;created_at:string; };
@@ -1288,7 +1283,8 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
 }
 
 /* ══════════════════════════════════════════ MAIN APP */
-function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;onSignOut:()=>void}){
+function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{user:any;profile:any;group:any;onSignOut:()=>void;onProfileUpdate?:(p:any)=>void}){
+  const [profile,setLocalProfile]=useState<any>(profileInit);
   const [tab,setTab]=useState("hoy");
   const [done,setDone]=useState<Record<string,boolean>>({});
   const [saved,setSaved]=useState(false);
@@ -1296,7 +1292,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   const [ranking,setRanking]=useState<any[]>([]);
   const [streak,setStreak]=useState(0);
   const [loadingRank,setLR]=useState(false);
-  const [bets,setBets]=useState<Bet[]>(BETS_INIT);
+  const [bets,setBets]=useState<Bet[]>([]);
   const [betsTab,setBT]=useState<"activas"|"historial">("activas");
   const [disputes,setDisputes]=useState<Dispute[]>([]);
   const [disputeVotes,setDisputeVotes]=useState<DisputeVote[]>([]);
@@ -1313,6 +1309,16 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   const [weekAmbitoPts,setWeekAmbitoPts]=useState<Record<string,Record<string,number>>>({});
   const [userRecords,setUserRecords]=useState<Record<string,string>>({});
   const [editingRecords,setEditingRecords]=useState(false);
+  const [showCreateBet,setShowCreateBet]=useState(false);
+  const [newBetLabel,setNewBetLabel]=useState("");
+  const [newBetP1,setNewBetP1]=useState("");
+  const [newBetP2,setNewBetP2]=useState("");
+  const [newBetPot,setNewBetPot]=useState(5);
+  const [newBetEnds,setNewBetEnds]=useState("domingo");
+  const [savingBet,setSavingBet]=useState(false);
+  const [editingProfile,setEditingProfile]=useState(false);
+  const [editAvatar,setEditAvatar]=useState("");
+  const [editName,setEditName]=useState("");
   const [draftRecords,setDraftRecords]=useState<Record<string,string>>({});
   const [ambitoTotals,setAmbitoTotals]=useState<Record<string,number>>({});
   const [habitCounts,setHabitCounts]=useState<Record<string,number>>({});
@@ -1527,8 +1533,46 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
     }
   }
 
-  function handleBetStake(betId:number,side:1|2,amount:number){
+  async function loadBets(){
+    const{data}=await sb.from("bets").select("*").eq("group_id",group.id).order("created_at",{ascending:false});
+    if(!data?.length){setBets([]);return;}
+    const ids=[...new Set(data.flatMap((b:any)=>[b.p1_id,b.p2_id]))];
+    const{data:us}=await sb.from("users").select("id,name,avatar").in("id",ids as string[]);
+    const um:Record<string,any>={};(us||[]).forEach((u:any)=>{um[u.id]=u;});
+    setBets(data.map((b:any)=>({
+      id:b.id,label:b.label,
+      p1Name:um[b.p1_id]?.name||"?",p1Avi:um[b.p1_id]?.avatar||"👤",p1Pts:0,p1Id:b.p1_id,
+      p2Name:um[b.p2_id]?.name||"?",p2Avi:um[b.p2_id]?.avatar||"👤",p2Pts:0,p2Id:b.p2_id,
+      pot:b.pot,ends:b.ends_label,
+      status:b.status as "open"|"won"|"lost"|"cancelled",myPick:null
+    })));
+  }
+  async function loadBetStakes(){
+    const{data}=await sb.from("bet_stakes").select("*").eq("user_id",user.id);
+    const map:Record<number,BetStake>={};
+    (data||[]).forEach((s:any)=>{map[s.bet_id]={side:s.side,amount:s.amount,confirmed:true};});
+    setBetStakes(map);
+  }
+  async function handleBetStake(betId:number,side:1|2,amount:number){
+    await sb.from("bet_stakes").upsert({bet_id:betId,user_id:user.id,side,amount},{onConflict:"bet_id,user_id"});
     setBetStakes(prev=>({...prev,[betId]:{side,amount,confirmed:true}}));
+  }
+  async function createBet(){
+    if(!newBetLabel.trim()||!newBetP1||!newBetP2||newBetP1===newBetP2)return;
+    setSavingBet(true);
+    await sb.from("bets").insert({group_id:group.id,label:newBetLabel.trim(),p1_id:newBetP1,p2_id:newBetP2,pot:newBetPot,ends_label:newBetEnds});
+    await loadBets();
+    setNewBetLabel("");setNewBetP1("");setNewBetP2("");setNewBetPot(5);setNewBetEnds("domingo");
+    setShowCreateBet(false);setSavingBet(false);
+  }
+  async function saveProfile(){
+    if(!editName.trim())return;
+    await sb.from("users").update({name:editName.trim(),avatar:editAvatar}).eq("id",user.id);
+    const updated={...profile,name:editName.trim(),avatar:editAvatar};
+    setLocalProfile(updated);
+    onProfileUpdate&&onProfileUpdate(updated);
+    setEditingProfile(false);
+    loadMembers();loadRanking();
   }
 
   function handleSendToChat(item:FeedItem){
@@ -1566,10 +1610,17 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   useEffect(()=>{loadToday();loadRanking();loadStreak();loadMembers();loadReactions();loadWeekDays();
     loadWeekLeaders();
     loadProfileData();
+    loadBets();loadBetStakes();
     registerPush(user.id,group.id);},[]);
 
-  function closeBet(betId:number,winner:1|2){setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"won",myPick:winner}:b));}
-  function cancelBet(betId:number){setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"cancelled"}:b));}
+  async function closeBet(betId:number,winner:1|2){
+    await sb.from("bets").update({status:"won",winner_side:winner}).eq("id",betId);
+    setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"won",myPick:winner}:b));
+  }
+  async function cancelBet(betId:number){
+    await sb.from("bets").update({status:"cancelled"}).eq("id",betId);
+    setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"cancelled"}:b));
+  }
 
   return(
     <div className="app">
@@ -1697,8 +1748,44 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
           </div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
             <span className="section-lbl" style={{margin:0}}>Apuestas activas</span>
-            <span style={{fontSize:11,color:"var(--muted)"}}>{bets.filter(b=>b.status==="open").length} abiertas</span>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:11,color:"var(--muted)"}}>{bets.filter(b=>b.status==="open").length} abiertas</span>
+              {isAdmin&&<button onClick={()=>setShowCreateBet(v=>!v)} style={{background:"var(--amber)",border:"none",borderRadius:8,padding:"5px 11px",fontSize:12,fontWeight:800,color:"#000",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>{showCreateBet?"✕":"+ Duelo"}</button>}
+            </div>
           </div>
+          {isAdmin&&showCreateBet&&(
+            <div style={{background:"var(--s2)",border:"1px solid var(--border)",borderRadius:14,padding:"14px",marginBottom:14}}>
+              <div style={{fontSize:12,fontWeight:800,color:"var(--text)",marginBottom:10}}>⚔️ Nueva apuesta</div>
+              <input value={newBetLabel} onChange={e=>setNewBetLabel(e.target.value)} placeholder="Nombre (ej: Duelo semanal · Gym)" style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px 11px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",marginBottom:8,boxSizing:"border-box"}}/>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                <div>
+                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Jugador 1</div>
+                  <select value={newBetP1} onChange={e=>setNewBetP1(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif"}}>
+                    <option value="">Elegir…</option>
+                    {Object.entries(members).map(([id,m])=><option key={id} value={id}>{m.avatar} {m.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Jugador 2</div>
+                  <select value={newBetP2} onChange={e=>setNewBetP2(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif"}}>
+                    <option value="">Elegir…</option>
+                    {Object.entries(members).map(([id,m])=><option key={id} value={id}>{m.avatar} {m.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+                <div>
+                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Bote (pts)</div>
+                  <input type="number" min={1} max={50} value={newBetPot} onChange={e=>setNewBetPot(Number(e.target.value))} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box"}}/>
+                </div>
+                <div>
+                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Termina</div>
+                  <input value={newBetEnds} onChange={e=>setNewBetEnds(e.target.value)} placeholder="ej: domingo" style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box"}}/>
+                </div>
+              </div>
+              <button onClick={createBet} disabled={savingBet||!newBetLabel.trim()||!newBetP1||!newBetP2||newBetP1===newBetP2} style={{width:"100%",background:"var(--amber)",border:"none",borderRadius:10,padding:"11px",fontSize:14,fontWeight:800,color:"#000",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",opacity:(!newBetLabel.trim()||!newBetP1||!newBetP2||newBetP1===newBetP2)?.5:1}}>{savingBet?"Creando…":"⚔️ Crear apuesta"}</button>
+            </div>
+          )}
           <div className="bets-tabs">
             {(([["activas","⚔️ Activas"],["historial","📋 Historial"]] as ["activas"|"historial",string][])).map(([v,l])=>(
               <div key={v} className={`btab${betsTab===v?" on":""}`} onClick={()=>setBT(v)}>{l}</div>
@@ -1748,17 +1835,29 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
         <div className="content" key="perfil">
           <div className="prof-card">
             <div className="prof-top">
-              <div className="prof-avi">{profile?.avatar||"🐺"}</div>
+              <div className="prof-avi" style={{cursor:"pointer"}} onClick={()=>{if(!editingProfile){setEditAvatar(profile?.avatar||"🐺");setEditName(profile?.name||"");setEditingProfile(true);}}}>{profile?.avatar||"🐺"}</div>
               <div style={{flex:1}}>
                 <div className="prof-name">{profile?.name}</div>
                 <div className="prof-handle">@{profile?.username}</div>
                 {isAdmin&&<div className="admin-badge">⚙️ Admin</div>}
               </div>
-              <div style={{textAlign:"right"}}>
-                <div style={{fontFamily:"'Playfair Display',serif",fontSize:30,fontWeight:900,color:"var(--amber)",lineHeight:1}}>{myPos||"—"}</div>
-                <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase"}}>posición</div>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:30,fontWeight:900,color:"var(--amber)",lineHeight:1}}>{myPos||"—"}</div>
+                  <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase"}}>posición</div>
+                </div>
+                <button onClick={()=>{if(!editingProfile){setEditAvatar(profile?.avatar||"🐺");setEditName(profile?.name||"");setEditingProfile(true);}else setEditingProfile(false);}} style={{background:"var(--s2)",border:"1px solid var(--border)",borderRadius:8,padding:"4px 10px",fontSize:11,color:"var(--muted)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>{editingProfile?"✕ Cancelar":"✏️ Editar"}</button>
               </div>
             </div>
+            {editingProfile&&(
+              <div style={{marginTop:12,borderTop:"1px solid var(--border)",paddingTop:12}}>
+                <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:8,fontWeight:700}}>Nombre</div>
+                <input value={editName} onChange={e=>setEditName(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:10,padding:"9px 12px",fontSize:14,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",marginBottom:12,boxSizing:"border-box"}} placeholder="Tu nombre"/>
+                <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:8,fontWeight:700}}>Avatar</div>
+                <div className="avi-grid">{AVATARS.map(a=><div key={a} className={`avi-opt${editAvatar===a?" sel":""}`} onClick={()=>setEditAvatar(a)}>{a}</div>)}</div>
+                <button onClick={saveProfile} style={{width:"100%",background:"var(--amber)",border:"none",borderRadius:12,padding:"11px",fontSize:14,fontWeight:800,color:"#000",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",marginTop:4}}>Guardar cambios</button>
+              </div>
+            )}
           </div>
           <div className="stats-row">
             <div className="stat"><div className="stat-val" style={{color:"var(--amber)"}}>{myRow?.total_pts||0}</div><div className="stat-lbl">Puntos</div></div>
@@ -2077,7 +2176,7 @@ export default function Root(){
         {phase==="loading"&&<Loading text="Iniciando Podium…"/>}
         {phase==="auth"&&<AuthScreen onAuth={handleAuth} bootError={bootError} newUser={newUserAuth}/>}
         {phase==="join"&&authUser&&<JoinScreen userId={authUser.id} onJoin={handleJoin}/>}
-        {phase==="app"&&authUser&&profile&&group&&<MainApp user={authUser} profile={profile} group={group} onSignOut={handleSignOut}/>}
+        {phase==="app"&&authUser&&profile&&group&&<MainApp user={authUser} profile={profile} group={group} onSignOut={handleSignOut} onProfileUpdate={p=>setProfile(p)}/>}
       </div>
     </>
   );
