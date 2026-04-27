@@ -231,6 +231,25 @@ html,body{background:#0E0A07;height:100%}
 .dispute-vote-btn.reject.mine{background:rgba(242,102,122,.15);border-color:#F2667A;color:#F2667A}
 .dispute-tally{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:8px;padding:0 2px}
 .dispute-tally b{color:var(--text)}
+
+.dispute-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.dispute-grid-card{background:var(--s2);border:1.5px solid var(--border);border-radius:12px;padding:14px 10px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;transition:border-color .15s,background .15s}
+.dispute-grid-card:hover{border-color:rgba(240,168,50,.5)}
+.dispute-grid-card.sel{border-color:var(--amber);background:rgba(240,168,50,.08)}
+.dispute-grid-radio{position:absolute;top:8px;right:8px;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--border);background:var(--s3);transition:border-color .15s,background .15s}
+.dispute-grid-card.sel .dispute-grid-radio{border-color:var(--amber);background:var(--amber)}
+.dispute-grid-icon{font-size:24px;margin-bottom:2px}
+.dispute-grid-name{font-size:11px;font-weight:700;text-align:center;color:var(--text)}
+.dispute-grid-penalty{font-size:10px;color:#F2667A;text-align:center}
+.records-section{margin-top:18px}
+.records-cat{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin:10px 0 6px;font-weight:700}
+.records-row{display:flex;align-items:center;justify-content:space-between;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px}
+.records-label{font-size:12px;color:var(--text);font-weight:600}
+.records-val{font-size:13px;font-weight:800;color:var(--amber);min-width:48px;text-align:right}
+.records-input{background:var(--s3);border:1px solid var(--amber);border-radius:6px;color:var(--text);font-family:"DM Sans",sans-serif;font-size:13px;font-weight:700;text-align:right;width:72px;padding:3px 6px}
+.records-input:focus{outline:none}
+.records-edit-btn{font-size:11px;color:var(--amber);background:none;border:none;cursor:pointer;font-weight:700;padding:0;font-family:"DM Sans",sans-serif}
+
 .dispute-empty{text-align:center;color:var(--muted);font-size:12px;padding:30px 10px;font-style:italic}
 /* TODAY BANNER */
 .today-banner{background:linear-gradient(135deg,#1E1608,#2A1E08);border:1px solid rgba(240,168,50,.2);border-radius:20px;padding:18px;margin-bottom:14px;position:relative;overflow:hidden}
@@ -346,7 +365,7 @@ const QUESTIONS = [
   { id:"book",icon:"📚",name:"Lectura 30min",pts:3 },
   { id:"course",icon:"📖",name:"Estudio/Curso",pts:4 },
   { id:"podcast",icon:"🎧",name:"Podcast educ.",pts:2 },
-  { id:"meditation",icon:"🧘",name:"Meditación",pts:2 },
+  { id:"meditation",icon:"😴",name:"Sueño +8h",pts:3 },
 ];
 const AMBITOS=[
   {id:"deporte",label:"Deporte",icon:"💪",color:"#F0A832",habits:["gym","running","sport"]},
@@ -517,15 +536,18 @@ function computeDisputeStatus(d:Dispute,votes:DisputeVote[],totalMembers:number)
 /* ══════════════════════════════════════════ DISPUTE MODAL */
 function DisputeModal({user,group,disputedUserId,onClose,onCreated,members}:{user:any;group:any;disputedUserId:string;onClose:()=>void;onCreated:(d:Dispute)=>void;members:Record<string,{name:string;avatar:string}>}){
   const [yLog,setYLog]=useState<Record<string,boolean>|null>(null);
+  const [yPts,setYPts]=useState(0);
   const [selHabit,setSelHabit]=useState("");
   const [reason,setReason]=useState("");
+  const [showReason,setShowReason]=useState(false);
   const [saving,setSaving]=useState(false);
   useEffect(()=>{
     (async()=>{
       const{data}=await sb.from("daily_logs").select("*").eq("user_id",disputedUserId).eq("group_id",group.id).eq("date",yesterdayStr()).maybeSingle();
       const log:Record<string,boolean>={};
-      if(data) QUESTIONS.forEach(q=>{if((data as any)[q.id]) log[q.id]=true;});
-      setYLog(log);
+      let pts=0;
+      if(data){QUESTIONS.forEach(q=>{if((data as any)[q.id]){log[q.id]=true;pts+=q.pts;}});}
+      setYLog(log);setYPts(pts);
     })();
   },[disputedUserId,group?.id]);
   async function submit(){
@@ -541,28 +563,49 @@ function DisputeModal({user,group,disputedUserId,onClose,onCreated,members}:{use
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{fontSize:16,fontWeight:700}}>⚖️ Disputar punto de ayer</div>
-          <button onClick={onClose} style={{background:"none",border:"none",color:"var(--muted)",fontSize:18,cursor:"pointer"}}>✕</button>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div style={{fontSize:17,fontWeight:800,fontFamily:"'Playfair Display',serif"}}>⚖️ Disputar</div>
+          <button onClick={onClose} style={{background:"var(--s2)",border:"none",color:"var(--text)",fontSize:14,cursor:"pointer",borderRadius:20,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
         </div>
-        <div style={{background:"var(--s2)",borderRadius:12,padding:12,marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
-          <div style={{fontSize:28}}>{who.avatar}</div>
-          <div><div style={{fontWeight:700,fontSize:14}}>{who.name}</div><div style={{fontSize:11,color:"var(--muted)"}}>Punto del día anterior</div></div>
-        </div>
-        {!yLog&&<div style={{textAlign:"center",color:"var(--muted)",padding:20}}>Cargando...</div>}
-        {yLog&&habitsDone.length===0&&<div className="dispute-empty">No registró ningún hábito ayer.</div>}
-        {yLog&&habitsDone.length>0&&<>
-          <div style={{fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginBottom:8}}>¿Qué hábito disputas?</div>
-          {habitsDone.map(q=>(
-            <div key={q.id} className={"dispute-habit"+(selHabit===q.id?" sel":"")} onClick={()=>setSelHabit(q.id)}>
-              <div className="dispute-habit-info"><span className="dispute-habit-icon">{q.icon}</span><div><div className="dispute-habit-name">{q.name}</div><div className="dispute-habit-pts">+{q.pts} pts</div></div></div>
-              <div className="dispute-habit-penalty">si pierde: −{disputePenalty(q.id)}</div>
+        <div style={{background:"var(--s2)",borderRadius:14,padding:"12px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:12}}>
+          <div style={{fontSize:32,lineHeight:1}}>{who.avatar}</div>
+          <div>
+            <div style={{fontWeight:800,fontSize:15}}>{who.name}</div>
+            <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>
+              {!yLog?"Cargando...":`Apunte de ayer · ${yPts} pts`}
             </div>
-          ))}
-          <div style={{fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",margin:"12px 0 6px"}}>Motivo (opcional)</div>
-          <textarea className="dispute-reason" placeholder="Explica por qué…" value={reason} onChange={e=>setReason(e.target.value)} maxLength={280}/>
-          <div style={{fontSize:10,color:"var(--muted)",textAlign:"right"}}>{reason.length}/280</div>
-          <button className="btn" style={{marginTop:12}} onClick={submit} disabled={!selHabit||saving}>{saving?"Creando...":"Crear disputa"}</button>
+          </div>
+        </div>
+        {!yLog&&<div style={{textAlign:"center",color:"var(--muted)",padding:24,fontSize:13}}>Cargando hábitos...</div>}
+        {yLog&&habitsDone.length===0&&(
+          <div style={{textAlign:"center",padding:"28px 20px"}}>
+            <div style={{fontSize:32,marginBottom:8}}>🤷</div>
+            <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:4}}>Sin hábitos ayer</div>
+            <div style={{fontSize:11,color:"var(--muted)"}}>No hay nada que disputar si no apuntó ningún hábito.</div>
+          </div>
+        )}
+        {yLog&&habitsDone.length>0&&<>
+          <div style={{fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginBottom:10,fontWeight:700}}>¿Qué hábito quieres disputar?</div>
+          <div className="dispute-grid">
+            {habitsDone.map(q=>(
+              <div key={q.id} className={"dispute-grid-card"+(selHabit===q.id?" sel":"")} onClick={()=>setSelHabit(q.id)}>
+                <div className="dispute-grid-radio"/>
+                <div className="dispute-grid-icon">{q.icon}</div>
+                <div className="dispute-grid-name">{q.name}</div>
+                <div className="dispute-grid-penalty">si pierde: −{disputePenalty(q.id)}</div>
+              </div>
+            ))}
+          </div>
+          {!showReason
+            ?<button style={{background:"none",border:"none",color:"var(--muted)",fontSize:12,cursor:"pointer",padding:"0 0 10px",textDecoration:"underline"}} onClick={()=>setShowReason(true)}>+ Añadir motivo</button>
+            :<>
+              <textarea className="dispute-reason" placeholder="Explica por qué dudas de este hábito…" value={reason} onChange={e=>setReason(e.target.value)} maxLength={280} style={{marginBottom:4}}/>
+              <div style={{fontSize:10,color:"var(--muted)",textAlign:"right",marginBottom:8}}>{reason.length}/280</div>
+            </>
+          }
+          <button className="btn" onClick={submit} disabled={!selHabit||saving} style={{opacity:selHabit?1:.5}}>
+            {saving?"Creando disputa...":(selHabit?`Disputar ${QUESTIONS.find(q=>q.id===selHabit)?.name}`:"Elige un hábito")}
+          </button>
         </>}
       </div>
     </div>
@@ -1107,6 +1150,9 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   const [betStakes,setBetStakes]=useState<Record<number,BetStake>>({});
   const [sharedEvent,setSharedEvent]=useState<SharedEvent|null>(null);
   const [weekLeaders,setWeekLeaders]=useState<Record<string,string>>({});
+  const [userRecords,setUserRecords]=useState<Record<string,string>>({});
+  const [editingRecords,setEditingRecords]=useState(false);
+  const [draftRecords,setDraftRecords]=useState<Record<string,string>>({});
   const [ambitoTotals,setAmbitoTotals]=useState<Record<string,number>>({});
   const [habitCounts,setHabitCounts]=useState<Record<string,number>>({});
   const [last7Logs,setLast7Logs]=useState<{date:string;pts:number}[]>([]);
@@ -1145,6 +1191,17 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
     setLast7Logs(l7);
   }
 
+  async function loadRecords(){
+    const{data}=await sb.from("user_records").select("record_key,record_value").eq("user_id",user.id);
+    if(data){const r:Record<string,string>={};data.forEach((row:any)=>{r[row.record_key]=row.record_value;});setUserRecords(r);}
+  }
+  async function saveRecords(draft:Record<string,string>){
+    const rows=Object.entries(draft).filter(([,v])=>v.trim()!=="").map(([k,v])=>({user_id:user.id,record_key:k,record_value:v.trim()}));
+    if(rows.length>0) await sb.from("user_records").upsert(rows,{onConflict:"user_id,record_key"});
+    const toDelete=Object.entries(draft).filter(([,v])=>v.trim()==="").map(([k])=>k);
+    for(const k of toDelete) await sb.from("user_records").delete().eq("user_id",user.id).eq("record_key",k);
+    setUserRecords(draft);
+  }
   async function loadWeekLeaders(){
     const mon=getMondayStr();
     const{data}=await sb.from("daily_logs")
@@ -1502,7 +1559,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
               {id:"running",icon:"🏃",title:"El Corredor",desc:"Más veces running esta semana"},
               {id:"sport",icon:"🎾",title:"El Deportista",desc:"Líder en deporte de grupo"},
               {id:"book",icon:"📚",title:"El Lector",desc:"El que más ha leído esta semana"},
-              {id:"meditation",icon:"🧘",title:"El Monje",desc:"Meditación número 1 esta semana"},
+              {id:"meditation",icon:"😴",title:"El Dormilón",desc:"Más noches de 8h esta semana"},
               {id:"food",icon:"🥗",title:"El Sano",desc:"Comida limpia líder esta semana"},
               {id:"course",icon:"📖",title:"El Estudioso",desc:"Más horas de estudio esta semana"},
               {id:"podcast",icon:"🎧",title:"El Curioso",desc:"Más podcasts educativos esta semana"},
@@ -1539,6 +1596,58 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
             </>);
           })()}
 
+          {/* RÉCORDS PERSONALES */}
+          {(()=>{
+            const CARDIO_RECORDS=[
+              {key:"run_5k",label:"🏃 5 km",unit:"min",placeholder:"23:45"},
+              {key:"run_10k",label:"🏃 10 km",unit:"min",placeholder:"52:00"},
+              {key:"run_max",label:"🏃 Máxima distancia",unit:"km",placeholder:"21.0"},
+              {key:"swim_500m",label:"🏊 500 m",unit:"min",placeholder:"9:30"},
+              {key:"swim_max",label:"🏊 Máxima distancia",unit:"km",placeholder:"2.0"},
+              {key:"bike_max",label:"🚴 Máxima distancia",unit:"km",placeholder:"50.0"},
+            ];
+            const GYM_RECORDS=[
+              {key:"gym_deadlift",label:"💀 Peso muerto",unit:"kg",placeholder:"100"},
+              {key:"gym_press",label:"🦵 Prensa",unit:"kg",placeholder:"200"},
+              {key:"gym_bench",label:"🏋️ Press banca",unit:"kg",placeholder:"80"},
+              {key:"gym_squat",label:"🦵 Sentadilla",unit:"kg",placeholder:"90"},
+            ];
+            const allRec=[...CARDIO_RECORDS,...GYM_RECORDS];
+            function RecRow({r}:{r:{key:string;label:string;unit:string;placeholder:string}}){
+              const val=editingRecords?(draftRecords[r.key]??userRecords[r.key]??""):userRecords[r.key];
+              return(
+                <div className="records-row">
+                  <div className="records-label">{r.label}</div>
+                  {editingRecords
+                    ?<div style={{display:"flex",alignItems:"center",gap:4}}>
+                       <input className="records-input" value={draftRecords[r.key]??userRecords[r.key]??""} placeholder={r.placeholder} onChange={e=>{const v=e.target.value;setDraftRecords(prev=>({...prev,[r.key]:v}));}} style={{width:64}}/>
+                       <span style={{fontSize:10,color:"var(--muted)"}}>{r.unit}</span>
+                     </div>
+                    :<div className="records-val">{val?`${val} ${r.unit}`:<span style={{color:"var(--muted)",fontWeight:400,fontSize:11}}>—</span>}</div>
+                  }
+                </div>
+              );
+            }
+            return(
+              <div className="records-section">
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span className="section-lbl">📊 Récords</span>
+                  {!editingRecords
+                    ?<button className="records-edit-btn" onClick={()=>{setDraftRecords({...userRecords});setEditingRecords(true);}}>Editar</button>
+                    :<div style={{display:"flex",gap:10}}>
+                       <button className="records-edit-btn" style={{color:"var(--muted)"}} onClick={()=>setEditingRecords(false)}>Cancelar</button>
+                       <button className="records-edit-btn" onClick={async()=>{await saveRecords({...userRecords,...draftRecords});setEditingRecords(false);}}>Guardar</button>
+                     </div>
+                  }
+                </div>
+                <div className="records-cat">Cardio</div>
+                {CARDIO_RECORDS.map(r=><RecRow key={r.key} r={r}/>)}
+                <div className="records-cat">Gym — Máx. kg</div>
+                {GYM_RECORDS.map(r=><RecRow key={r.key} r={r}/>)}
+              </div>
+            );
+          })()}
+
           <div className="invite">
             <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Código — {group.name}</div>
             <div className="invite-code">{group.invite_code}</div>
@@ -1550,11 +1659,6 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
 
       {/* FAB — acción contextual por tab */}
 
-      {tab==="bets"&&(
-        <div className="fab-wrap">
-          <button className="fab fab-bets" onClick={()=>setTab("chat")}><span>⚡</span><span>Nueva apuesta</span></button>
-        </div>
-      )}
 
       {/* NAV — 4 tabs, APUESTAS vía ⚡ topbar */}
       <nav className="nav">
