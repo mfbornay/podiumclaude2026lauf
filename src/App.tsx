@@ -244,6 +244,11 @@ html,body{background:#0E0A07;height:100%;color:var(--text)}
 .dispute-grid-icon{font-size:24px;margin-bottom:2px}
 .dispute-grid-name{font-size:11px;font-weight:700;text-align:center;color:var(--text)}
 .dispute-grid-penalty{font-size:10px;color:#F2667A;text-align:center}
+.cal-hm-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:4px}
+.cal-hm-cell{aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;cursor:pointer;color:transparent;transition:transform .1s}
+.cal-hm-cell:hover{transform:scale(1.15);color:var(--text)!important}
+.cal-hm-lbl{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:2px}
+.cal-hm-dlbl{font-size:8px;color:var(--muted);text-align:center;letter-spacing:.5px}
 .records-section{margin-top:18px}
 .records-cat{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin:10px 0 6px;font-weight:700}
 .records-row{display:flex;align-items:center;justify-content:space-between;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px}
@@ -1240,24 +1245,10 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
           })}
         </>}
 
-        {/* Últimos 7 días */}
-        {!loadingLogs&&last7.length>0&&<>
-          <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",margin:"12px 0 6px"}}>Últimos 7 días</div>
-          <div className="last7-row">
-            {[...last7].reverse().map((d,i)=>{
-              const day=new Date(d.date+"T12:00:00");
-              const lbl=["L","M","X","J","V","S","D"][day.getDay()===0?6:day.getDay()-1];
-              const maxPts=Math.max(...last7.map(x=>x.pts),1);
-              const h=Math.max(14,Math.round(d.pts/maxPts*52));
-              return(<div key={i} className="last7-cell">
-                <div className="last7-bar" style={{height:h,background:d.pts>0?"rgba(240,168,50,.18)":"var(--s2)",border:d.pts>0?"1px solid rgba(240,168,50,.3)":"1px solid var(--border)"}}>
-                  {d.pts>0&&<span className="last7-pts">{d.pts}</span>}
-                </div>
-                <span className="last7-lbl">{lbl}</span>
-              </div>);
-            })}
-          </div>
-        </>}
+        {/* Calendario heatmap */}
+        {!loadingLogs&&allLogs.length>0&&<div style={{margin:"12px 0 0"}}>
+          <CalHeatmap logs={allLogs.map((r:any)=>({date:r.date,pts:QUESTIONS.reduce((s,q)=>(r as any)[q.id]?s+q.pts:s,0)}))} today={todayStr()}/>
+        </div>}
 
         {/* Récords — solo si tiene alguno */}
         {!loadingLogs&&hasRecords&&<>
@@ -1312,6 +1303,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   const [ambitoTotals,setAmbitoTotals]=useState<Record<string,number>>({});
   const [habitCounts,setHabitCounts]=useState<Record<string,number>>({});
   const [last7Logs,setLast7Logs]=useState<{date:string;pts:number}[]>([]);
+  const [profileLogsAll,setProfileLogsAll]=useState<{date:string;pts:number}[]>([]);
 
   const pts=calcPts(done);
   const isAdmin=profile?.role==="admin";
@@ -1345,6 +1337,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
     setHabitCounts(hc);
     const l7=data.slice(0,7).map(row=>{const p=QUESTIONS.reduce((s,q)=>(row as any)[q.id]?s+q.pts:s,0);return{date:row.date,pts:p};});
     setLast7Logs(l7);
+    setProfileLogsAll(data.map(row=>{const p=QUESTIONS.reduce((s,q)=>(row as any)[q.id]?s+q.pts:s,0);return{date:row.date,pts:p};}));
   }
 
   async function loadRecords(){
@@ -1617,6 +1610,27 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
       {/* APUESTAS */}
       {tab==="bets"&&(
         <div className="content content-fab" key="bets">
+          {(()=>{
+            const myBets=bets.filter(b=>betStakes[b.id]?.confirmed);
+            const ptsWon=myBets.filter(b=>b.status==="won").reduce((s,b)=>s+(betStakes[b.id]?.amount||0)*2,0);
+            const ptsLost=myBets.filter(b=>b.status==="lost").reduce((s,b)=>s+(betStakes[b.id]?.amount||0),0);
+            const balance=ptsWon-ptsLost;
+            if(!myBets.length)return null;
+            return(<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:14}}>
+              <div style={{background:"var(--s2)",borderRadius:10,padding:"10px 8px",textAlign:"center"}}>
+                <div style={{fontSize:18,fontWeight:800,color:"var(--green)"}}>{ptsWon}</div>
+                <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginTop:2}}>Ganados</div>
+              </div>
+              <div style={{background:"var(--s2)",borderRadius:10,padding:"10px 8px",textAlign:"center"}}>
+                <div style={{fontSize:18,fontWeight:800,color:"var(--red)"}}>{ptsLost}</div>
+                <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginTop:2}}>Perdidos</div>
+              </div>
+              <div style={{background:"var(--s2)",borderRadius:10,padding:"10px 8px",textAlign:"center",border:`1px solid ${balance>=0?"rgba(93,201,138,.3)":"rgba(255,68,68,.2)"}`}}>
+                <div style={{fontSize:18,fontWeight:800,color:balance>=0?"var(--green)":"var(--red)"}}>{balance>0?"+":""}{balance}</div>
+                <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginTop:2}}>Saldo</div>
+              </div>
+            </div>);
+          })()}
           <div style={{background:"rgba(240,168,50,.07)",border:"1px solid rgba(240,168,50,.25)",borderRadius:14,padding:"12px 14px",marginBottom:14}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
               <span style={{fontSize:18}}>⚡</span>
@@ -1715,29 +1729,10 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
             );
           })}
 
-          {/* ÚLTIMOS 7 DÍAS */}
-          {last7Logs.length>0&&(<>
-            <span className="section-lbl" style={{display:"block",marginTop:14}}>Últimos 7 días</span>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--muted)",marginBottom:4}}>
-              <span>hace 7d</span><span>hoy</span>
-            </div>
-            <div className="last7-row">
-              {[...last7Logs].reverse().map((d,i)=>{
-                const day=new Date(d.date+"T12:00:00");
-                const lbl=["L","M","X","J","V","S","D"][day.getDay()===0?6:day.getDay()-1];
-                const maxPts=Math.max(...last7Logs.map(x=>x.pts),1);
-                const h=Math.max(14,Math.round(d.pts/maxPts*52));
-                return(
-                  <div key={i} className="last7-cell">
-                    <div className="last7-bar" style={{height:h,background:d.pts>0?"rgba(240,168,50,.18)":"var(--s2)",border:d.pts>0?"1px solid rgba(240,168,50,.3)":"1px solid var(--border)"}}>
-                      {d.pts>0&&<span className="last7-pts">{d.pts}</span>}
-                    </div>
-                    <span className="last7-lbl">{lbl}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </>)}
+          {/* CALENDARIO HEATMAP */}
+          {profileLogsAll.length>0&&<div style={{marginTop:14}}>
+            <CalHeatmap logs={profileLogsAll} today={todayStr()}/>
+          </div>}
           {/* LOGROS */}
           {(()=>{
             const WEEKLY_TITLES=[
@@ -1889,6 +1884,60 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   );
 }
 
+
+
+/* ══════════════════════════════════════════ CALENDAR HEATMAP */
+function ptColor(pts:number){
+  if(!pts)return"var(--s2)";
+  if(pts<5)return"rgba(240,168,50,.18)";
+  if(pts<10)return"rgba(240,168,50,.38)";
+  if(pts<18)return"rgba(240,168,50,.62)";
+  if(pts<25)return"rgba(240,168,50,.82)";
+  return"rgba(240,168,50,1)";
+}
+function CalHeatmap({logs,today}:{logs:{date:string;pts:number}[];today:string}){
+  const [sel,setSel]=React.useState<string|null>(null);
+  const byDate=React.useMemo(()=>{const m:Record<string,number>={};logs.forEach(l=>m[l.date]=l.pts);return m;},[logs]);
+  const now=new Date(today+"T12:00:00");
+  const year=now.getFullYear(),month=now.getMonth();
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const firstDow=(new Date(year,month,1).getDay()+6)%7;
+  const monthName=now.toLocaleString("es-ES",{month:"long",year:"numeric"});
+  const selDay=sel?byDate[sel]:null;
+  const totalMonth=Object.entries(byDate).filter(([d])=>d.startsWith(today.slice(0,7))).reduce((s,[,p])=>s+p,0);
+  const cells=[];
+  for(let i=0;i<firstDow;i++)cells.push(null);
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=`${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    cells.push(ds);
+  }
+  return(<div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+      <span style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)"}}>{monthName}</span>
+      <span style={{fontSize:11,color:"var(--amber)",fontWeight:700}}>{totalMonth} pts este mes</span>
+    </div>
+    <div className="cal-hm-lbl">
+      {["L","M","X","J","V","S","D"].map(d=><div key={d} className="cal-hm-dlbl">{d}</div>)}
+    </div>
+    <div className="cal-hm-grid">
+      {cells.map((ds,i)=>{
+        if(!ds)return<div key={i} className="cal-hm-cell" style={{background:"transparent"}}/>;
+        const pts=byDate[ds]||0;
+        const isToday=ds===today;
+        const isFuture=ds>today;
+        return(<div key={ds} className="cal-hm-cell"
+          style={{background:isFuture?"transparent":ptColor(pts),border:isToday?"2px solid var(--amber)":isFuture?"1px solid var(--border)":"none",opacity:isFuture?.4:1}}
+          onClick={()=>setSel(sel===ds?null:ds)}
+          title={ds}
+        >{ds===sel?pts||"—":""}</div>);
+      })}
+    </div>
+    {sel&&<div style={{marginTop:8,fontSize:11,color:"var(--text)",background:"var(--s2)",borderRadius:8,padding:"6px 10px"}}>
+      <span style={{color:"var(--muted)"}}>{sel} · </span>
+      {(byDate[sel]||0)>0?<span style={{color:"var(--amber)",fontWeight:700}}>+{byDate[sel]} pts</span>:<span style={{color:"var(--muted)"}}>Sin actividad</span>}
+    </div>}
+  </div>);
+}
 
 /* ══════════════════════════════════════════ PUSH NOTIFICATIONS */
 async function registerPush(userId:string,groupId:string){
