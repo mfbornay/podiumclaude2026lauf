@@ -384,7 +384,7 @@ const AMBITOS=[
 const REACTION_EMOJIS = ["🐐","💪","💀","🏳️‍🌈","💅"];
 const STREAK_MILESTONES = [3,7,14,21,30];
 
-type Bet = { id:number;label:string;p1Name:string;p1Avi:string;p1Pts:number;p1Id?:string;p2Name:string;p2Avi:string;p2Pts:number;p2Id?:string;pot:number;ends:string;status:"open"|"won"|"lost"|"cancelled";myPick:1|2|null; };
+type Bet = { id:string|number;label:string;p1Name:string;p1Avi:string;p1Pts:number;p1Id?:string;p2Name:string;p2Avi:string;p2Pts:number;p2Id?:string;pot:number;ends:string;status:"open"|"won"|"lost"|"cancelled";myPick:1|2|null; };
 
 
 /* ══════════════════════════════════════════ TYPES */
