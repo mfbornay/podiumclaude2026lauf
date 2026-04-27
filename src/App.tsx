@@ -435,49 +435,16 @@ function Loading({text="Cargando..."}:{text?:string}){
 
 /* ══════════════════════════════════════════ AUTH */
 function AuthScreen({onAuth,bootError,newUser}:{onAuth:(u:any)=>void;bootError?:string;newUser?:any}){
-  // phase: "email" → "otp" → "profile" (if new user)
-  const [phase,setPhase]=useState<"email"|"otp"|"profile">(newUser?"profile":"email");
+  const [phase,setPhase]=useState<"login"|"register"|"profile">(newUser?"profile":"login");
   const [email,setEmail]=useState("");
-  const [otp,setOtp]=useState("");
+  const [password,setPassword]=useState("");
+  const [showPw,setShowPw]=useState(false);
   const [profStep,setProfStep]=useState(0);
   const [name,setName]=useState(""); const [uname,setUN]=useState("");
   const [avatar,setAvatar]=useState("🐺");
-  const [err,setErr]=useState(""); const [info,setInfo]=useState("");
+  const [err,setErr]=useState("");
   const [busy,setBusy]=useState(false);
   const [verifiedUser,setVerifiedUser]=useState<any>(newUser||null);
-  function clearMsgs(){setErr("");setInfo("");}
-
-  async function sendOtp(){
-    if(!email.trim())return; setBusy(true);clearMsgs();
-    const{error}=await sb.auth.signInWithOtp({email:email.trim().toLowerCase(),options:{shouldCreateUser:true}});
-    setBusy(false);
-    if(error){setErr(error.message);return;}
-    setPhase("otp");
-    setInfo("Enlace enviado — revisa tu bandeja de entrada (y spam).");
-  }
-
-  async function verifyOtp(){
-    if(otp.length<6)return; setBusy(true);clearMsgs();
-    const{data,error}=await sb.auth.verifyOtp({email:email.trim().toLowerCase(),token:otp.trim(),type:"email"});
-    setBusy(false);
-    if(error){setErr("Código incorrecto o expirado. Inténtalo de nuevo.");return;}
-    const u=data?.user;
-    if(!u){setErr("Error de autenticación.");return;}
-    // check if profile exists
-    const{data:prof}=await sb.from("users").select("id").eq("id",u.id).maybeSingle();
-    if(prof){onAuth(u);}
-    else{setVerifiedUser(u);setPhase("profile");}
-  }
-
-  async function createProfile(){
-    if(!verifiedUser)return;
-    if(profStep===0){if(!name.trim()||!uname.trim()){setErr("Rellena nombre y @username.");return;}setProfStep(1);return;}
-    setBusy(true);clearMsgs();
-    const{error}=await sb.from("users").insert({id:verifiedUser.id,email:email.toLowerCase().trim(),username:uname.replace("@","").toLowerCase().trim(),name:name.trim(),avatar,role:"user"});
-    setBusy(false);
-    if(error&&!error.message.includes("duplicate")){setErr(error.message);return;}
-    onAuth(verifiedUser);
-  }
 
   const Logo=()=>(
     <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
@@ -486,56 +453,96 @@ function AuthScreen({onAuth,bootError,newUser}:{onAuth:(u:any)=>void;bootError?:
     </div>
   );
 
-  if(phase==="email") return(
+  async function login(){
+    if(!email.trim()||!password)return; setBusy(true);setErr("");
+    const{data,error}=await sb.auth.signInWithPassword({email:email.trim().toLowerCase(),password});
+    setBusy(false);
+    if(error){setErr("Email o contraseña incorrectos.");return;}
+    onAuth(data.user);
+  }
+
+  async function register(){
+    if(!email.trim()||!password||!name.trim()||!uname.trim())return;
+    if(password.length<6){setErr("La contraseña debe tener al menos 6 caracteres.");return;}
+    if(profStep===0){setProfStep(1);return;}
+    setBusy(true);setErr("");
+    const{data,error}=await sb.auth.signUp({email:email.trim().toLowerCase(),password});
+    if(error){setBusy(false);setErr(error.message);return;}
+    const u=data.user;
+    if(!u){setBusy(false);setErr("Error al crear cuenta.");return;}
+    const{error:pErr}=await sb.from("users").insert({id:u.id,email:email.toLowerCase().trim(),username:uname.replace("@","").toLowerCase().trim(),name:name.trim(),avatar,role:"user"});
+    setBusy(false);
+    if(pErr&&!pErr.message.includes("duplicate")){setErr(pErr.message);return;}
+    setVerifiedUser(u);
+    onAuth(u);
+  }
+
+  if(phase==="login") return(
     <div className="page">
       <Logo/>
       <div className="tagline">Compite con tus amigos. Mejora cada día.</div>
       {bootError&&<div className="err">⚠️ {bootError}</div>}
       {err&&<div className="err">{err}</div>}
-      {info&&<div className="ok">{info}</div>}
-      <label className="lbl">Tu email</label>
-      <input className="inp" type="email" placeholder="tu@email.com" autoFocus value={email}
-        onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendOtp()}/>
-      <button className="btn" disabled={!email.trim()||busy} onClick={sendOtp}>
-        {busy?"Enviando...":"Enviar código →"}
-      </button>
-      <div style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginTop:10,lineHeight:1.5}}>
-        Te enviamos un enlace mágico al email.<br/>Sin contraseñas, sin complicaciones.
+      <label className="lbl">Email</label>
+      <input className="inp" type="email" placeholder="tu@email.com" autoFocus autoComplete="email"
+        value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}/>
+      <label className="lbl" style={{marginTop:10}}>Contraseña</label>
+      <div style={{position:"relative"}}>
+        <input className="inp" type={showPw?"text":"password"} placeholder="Tu contraseña" autoComplete="current-password"
+          value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}
+          style={{paddingRight:44}}/>
+        <button onClick={()=>setShowPw(p=>!p)} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:16,color:"var(--muted)"}}>
+          {showPw?"🙈":"👁"}
+        </button>
       </div>
+      <button className="btn" disabled={!email.trim()||!password||busy} onClick={login} style={{marginTop:14}}>
+        {busy?"Entrando...":"Entrar →"}
+      </button>
+      <div className="div"><div className="div-line"/><div className="div-txt">¿Primera vez?</div><div className="div-line"/></div>
+      <button className="btn-ghost" onClick={()=>{setPhase("register");setErr("");}}>Crear cuenta →</button>
     </div>
   );
 
-  if(phase==="otp") return(
+  if(phase==="register") return(
     <div className="page">
       <Logo/>
-      <div className="tagline">Revisa tu correo</div>
-      <div style={{textAlign:"center",fontSize:14,color:"var(--text)",marginBottom:8,lineHeight:1.7}}>
-        Hemos enviado un enlace a<br/><strong style={{color:"var(--amber)"}}>{email}</strong>
-      </div>
-      <div style={{textAlign:"center",fontSize:12,color:"var(--muted)",marginBottom:24,lineHeight:1.6}}>
-        Haz clic en <strong>"Log In"</strong> del correo para entrar.<br/>
-        (Revisa también la carpeta de spam.)
-      </div>
+      <div className="tagline">{profStep===0?"Crea tu cuenta":"Elige tu avatar"}</div>
+      <div className="prog">{[0,1].map(i=><div key={i} className="prog-dot" style={{background:i<=profStep?"var(--amber)":"var(--s3)"}}/>)}</div>
       {err&&<div className="err">{err}</div>}
-      {info&&<div className="ok">{info}</div>}
-      <div style={{textAlign:"center",fontSize:11,color:"var(--muted)",marginTop:8,marginBottom:4}}>
-        ¿Recibes un código de 6 dígitos en vez de enlace?
-      </div>
-      <input className="code-inp" placeholder="123456" maxLength={6} inputMode="numeric"
-        value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,""))}
-        onKeyDown={e=>e.key==="Enter"&&otp.length>=6&&verifyOtp()}
-        style={{letterSpacing:8,fontSize:24,textAlign:"center"}}/>
-      {otp.length>=6&&<button className="btn" disabled={busy} onClick={verifyOtp}>
-        {busy?"Verificando...":"Entrar con código →"}
-      </button>}
-      <div style={{display:"flex",justifyContent:"center",gap:16,marginTop:16,fontSize:12}}>
-        <span style={{color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{setPhase("email");setOtp("");clearMsgs();}}>← Cambiar email</span>
-        <span style={{color:"var(--amber)",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{setOtp("");setBusy(false);sendOtp();}}>Reenviar enlace</span>
+      {profStep===0&&<>
+        <label className="lbl">Email</label>
+        <input className="inp" type="email" placeholder="tu@email.com" autoComplete="email"
+          value={email} onChange={e=>setEmail(e.target.value)}/>
+        <label className="lbl" style={{marginTop:8}}>Contraseña</label>
+        <div style={{position:"relative"}}>
+          <input className="inp" type={showPw?"text":"password"} placeholder="Mínimo 6 caracteres" autoComplete="new-password"
+            value={password} onChange={e=>setPassword(e.target.value)} style={{paddingRight:44}}/>
+          <button onClick={()=>setShowPw(p=>!p)} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:16,color:"var(--muted)"}}>
+            {showPw?"🙈":"👁"}
+          </button>
+        </div>
+        <label className="lbl" style={{marginTop:8}}>Nombre</label>
+        <input className="inp" placeholder="Tu nombre" value={name} onChange={e=>setName(e.target.value)}/>
+        <label className="lbl" style={{marginTop:8}}>@Username</label>
+        <input className="inp" placeholder="@tunombre" value={uname} onChange={e=>setUN(e.target.value)}/>
+      </>}
+      {profStep===1&&<>
+        <label className="lbl">Elige tu avatar</label>
+        <div className="avi-grid">{AVATARS.map(a=><div key={a} className={`avi-opt${avatar===a?" sel":""}`} onClick={()=>setAvatar(a)}>{a}</div>)}</div>
+      </>}
+      <button className="btn" style={{marginTop:14}}
+        disabled={busy||(profStep===0&&(!email.trim()||!password||!name.trim()||!uname.trim()))}
+        onClick={register}>
+        {busy?"Creando cuenta...":profStep===0?"Siguiente →":"¡Empezar!"}
+      </button>
+      <div style={{display:"flex",justifyContent:"center",gap:16,marginTop:12,fontSize:12}}>
+        {profStep>0&&<span style={{color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{setProfStep(0);setErr("");}}>← Atrás</span>}
+        <span style={{color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{setPhase("login");setErr("");setProfStep(0);}}>¿Ya tienes cuenta?</span>
       </div>
     </div>
   );
 
-  // phase === "profile" (new user setup)
+  // phase === "profile" — usuario nuevo via magic link legacy (sin contraseña)
   return(
     <div className="page">
       <Logo/>
@@ -552,10 +559,18 @@ function AuthScreen({onAuth,bootError,newUser}:{onAuth:(u:any)=>void;bootError?:
         <label className="lbl">Elige tu avatar</label>
         <div className="avi-grid">{AVATARS.map(a=><div key={a} className={`avi-opt${avatar===a?" sel":""}`} onClick={()=>setAvatar(a)}>{a}</div>)}</div>
       </>}
-      <button className="btn" disabled={busy||(profStep===0&&(!name.trim()||!uname.trim()))} onClick={createProfile}>
+      <button className="btn" disabled={busy||(profStep===0&&(!name.trim()||!uname.trim()))} onClick={async()=>{
+        if(!verifiedUser)return;
+        if(profStep===0){if(!name.trim()||!uname.trim()){setErr("Rellena nombre y @username.");return;}setProfStep(1);return;}
+        setBusy(true);setErr("");
+        const{error}=await sb.from("users").insert({id:verifiedUser.id,email:verifiedUser.email||"",username:uname.replace("@","").toLowerCase().trim(),name:name.trim(),avatar,role:"user"});
+        setBusy(false);
+        if(error&&!error.message.includes("duplicate")){setErr(error.message);return;}
+        onAuth(verifiedUser);
+      }}>
         {busy?"Creando perfil...":profStep===0?"Siguiente →":"¡Empezar!"}
       </button>
-      {profStep>0&&<div className="switch"><span onClick={()=>{setProfStep(0);clearMsgs();}}>← Atrás</span></div>}
+      {profStep>0&&<div className="switch"><span onClick={()=>{setProfStep(0);setErr("");}}>← Atrás</span></div>}
     </div>
   );
 }
