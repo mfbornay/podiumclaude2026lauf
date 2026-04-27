@@ -103,6 +103,9 @@ html,body{background:#0E0A07;height:100%;color:var(--text)}
 .rh-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 .rh-lbl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
 .rh-btn{font-size:12px;color:var(--amber);font-weight:600;cursor:pointer;background:none;border:none;font-family:'DM Sans',sans-serif}
+.ambito-chip{display:inline-flex;align-items:center;gap:3px;border-radius:20px;font-size:9px;font-weight:700;padding:2px 7px;white-space:nowrap;border:1px solid transparent}
+.ambito-chip.leader{opacity:1}
+.ambito-chip.second{opacity:.55}
 .podium-row{display:flex;align-items:flex-end;justify-content:center;gap:8px}
 .pc{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer}
 .pc:hover .pavi{opacity:.82}
@@ -1210,6 +1213,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   const [betStakes,setBetStakes]=useState<Record<number,BetStake>>({});
   const [sharedEvent,setSharedEvent]=useState<SharedEvent|null>(null);
   const [weekLeaders,setWeekLeaders]=useState<Record<string,string>>({});
+  const [weekAmbitoPts,setWeekAmbitoPts]=useState<Record<string,Record<string,number>>>({});
   const [userRecords,setUserRecords]=useState<Record<string,string>>({});
   const [editingRecords,setEditingRecords]=useState(false);
   const [draftRecords,setDraftRecords]=useState<Record<string,string>>({});
@@ -1283,6 +1287,18 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
       if(bestUid&&best>0)leaders[q.id]=bestUid;
     }
     setWeekLeaders(leaders);
+    // pts por ámbito por usuario esta semana
+    const ap:Record<string,Record<string,number>>={};
+    for(const row of data){
+      const uid=row.user_id;
+      if(!ap[uid])ap[uid]={};
+      for(const a of AMBITOS){
+        let p=0;
+        for(const hId of a.habits){const q=QUESTIONS.find(x=>x.id===hId);if(q&&(row as any)[hId])p+=q.pts;}
+        ap[uid][a.id]=(ap[uid][a.id]||0)+p;
+      }
+    }
+    setWeekAmbitoPts(ap);
   }
 
   async function loadWeekDays(){
@@ -1338,6 +1354,17 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   const adjRanking=[...ranking].map((r:any)=>({...r,penalty:penalties[r.user_id]||0,total_pts:Math.max(0,(r.total_pts||0)-(penalties[r.user_id]||0))})).sort((a:any,b:any)=>(b.total_pts||0)-(a.total_pts||0));
   const top3=adjRanking.slice(0,3);
   const rest=adjRanking.slice(3);
+  // per-user ámbito badges: líder = #1 en el grupo, second = #2 más cercano al top
+  function getAmbitoBadges(uid:string):{label:string;color:string;icon:string;leader:boolean}[]{
+    return AMBITOS.map(a=>{
+      const myPts=weekAmbitoPts[uid]?.[a.id]||0;
+      const ranked=[...Object.entries(weekAmbitoPts)].map(([u,ap])=>({u,p:ap[a.id]||0})).sort((x,y)=>y.p-x.p);
+      const pos=ranked.findIndex(r=>r.u===uid);
+      if(pos===0&&myPts>0) return{label:a.label,color:a.color,icon:a.icon,leader:true};
+      if(pos===1&&myPts>0) return{label:a.label,color:a.color,icon:a.icon,leader:false};
+      return null;
+    }).filter(Boolean) as {label:string;color:string;icon:string;leader:boolean}[];
+  }
 
   async function loadToday(){
     const{data}=await sb.from("daily_logs").select("*").eq("user_id",user.id).eq("group_id",group.id).eq("date",todayStr()).maybeSingle();
@@ -1456,17 +1483,20 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
                 {top3[1]&&<div className="pc" onClick={()=>setProfileModal(top3[1].user_id)}>
                   <div className="pavi p2">{top3[1].avatar||"🐺"}</div>
                   <div className="pname">{top3[1].name}</div><div className="ppts">{top3[1].total_pts} pts</div>
+                  <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:3,margin:"3px 0"}}>{getAmbitoBadges(top3[1].user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
                   <div className="pblk p2"><span className="pnum p2">2</span></div>
                 </div>}
                 <div className="pc" onClick={()=>setProfileModal(top3[0].user_id)}>
                   <div style={{fontSize:11,color:"var(--amber)",textAlign:"center",marginBottom:3}}>👑</div>
                   <div className="pavi p1">{top3[0].avatar||"🐺"}</div>
                   <div className="pname">{top3[0].name}</div><div className="ppts">{top3[0].total_pts} pts</div>
+                  <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:3,margin:"3px 0"}}>{getAmbitoBadges(top3[0].user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
                   <div className="pblk p1"><span className="pnum p1">1</span></div>
                 </div>
                 {top3[2]&&<div className="pc" onClick={()=>setProfileModal(top3[2].user_id)}>
                   <div className="pavi p3">{top3[2].avatar||"🐺"}</div>
                   <div className="pname">{top3[2].name}</div><div className="ppts">{top3[2].total_pts} pts</div>
+                  <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:3,margin:"3px 0"}}>{getAmbitoBadges(top3[2].user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
                   <div className="pblk p3"><span className="pnum p3">3</span></div>
                 </div>}
               </div>
@@ -1481,6 +1511,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
                   <div className="rinfo">
                     <div className="rname">{p.name}{p.user_id===user.id?" · Tú":""}</div>
                     <div className="rdetail">{p.days_logged} días{p.penalty?<span className="rr-penalty">−{p.penalty}pts disputa</span>:null}</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:3}}>{getAmbitoBadges(p.user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
                   </div>
                   <div className="rright"><div className="rpts">{p.total_pts}</div></div>
                 </div>
