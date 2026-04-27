@@ -9,15 +9,15 @@ const sb = createClient(
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;font-family:'DM Sans',sans-serif}
-html,body{background:#0E0A07;height:100%}
+html,body{background:#0E0A07;height:100%;color:var(--text)}
 :root{
   --bg:#0E0A07;--s1:#161109;--s2:#1E180B;--s3:#2A220F;--s4:#352B14;
   --border:rgba(240,190,80,.1);--amber:#F0A832;--coral:#E8623A;
   --green:#5DC98A;--rose:#E87B9E;--blue:#6EB5FF;--red:#FF4444;
   --text:#F5EDD8;--muted:#7A6A4A;--muted2:#3A2E18;
 }
-.app{max-width:430px;margin:0 auto;min-height:100vh;background:var(--bg);overflow-x:hidden}
-.page{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:40px 28px}
+.app{max-width:430px;margin:0 auto;min-height:100vh;background:var(--bg);overflow-x:hidden;color:var(--text)}
+.page{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:40px 28px;color:var(--text)}
 .logo{font-family:'Playfair Display',serif;font-size:42px;font-weight:900;color:var(--text);margin-bottom:6px}
 .logo span{color:var(--amber)}
 .tagline{font-size:14px;color:var(--muted);margin-bottom:36px;line-height:1.5}
@@ -147,7 +147,7 @@ html,body{background:#0E0A07;height:100%}
 .invite-code{font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:var(--amber);letter-spacing:8px;margin:8px 0}
 .invite-sub{font-size:12px;color:var(--muted)}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(14px);z-index:200;display:flex;align-items:flex-end;justify-content:center}
-.sheet{background:var(--s1);border:1px solid var(--border);border-radius:26px 26px 0 0;width:100%;max-width:430px;padding:18px 18px calc(env(safe-area-inset-bottom,0px) + 28px);max-height:88vh;overflow-y:auto}
+.sheet{background:var(--s1);border:1px solid var(--border);border-radius:26px 26px 0 0;width:100%;max-width:430px;padding:18px 18px calc(env(safe-area-inset-bottom,0px) + 28px);max-height:88vh;overflow-y:auto;color:var(--text)}
 .sheet::-webkit-scrollbar{display:none}
 .handle{width:34px;height:4px;background:var(--s3);border-radius:2px;margin:0 auto 18px}
 .code-inp{width:100%;background:var(--s2);border:1px solid rgba(240,168,50,.3);border-radius:13px;padding:18px;font-size:28px;font-weight:700;color:var(--amber);font-family:'Playfair Display',serif;text-align:center;letter-spacing:8px;outline:none;margin-bottom:14px;text-transform:uppercase}
@@ -844,7 +844,7 @@ function TodayBanner({weekPts,streak,saved,done,onApuntar,myPos,weekDays}:{weekP
         <div style={{textAlign:"right"}}>
           <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:2}}>Posición</div>
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:30,fontWeight:900,color:"var(--text)",lineHeight:1}}>#{myPos||"—"}</div>
-          {streak>0&&<div className="streak" style={{marginTop:5,display:"inline-block"}}>🔥 {streak} días</div>}
+          {streak>0&&<div className="streak" style={{marginTop:5,display:"inline-block"}}>🔥 {streak} días deporte</div>}
         </div>
       </div>
       <div className="day-grid">
@@ -1351,11 +1351,13 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
     setRanking(data||[]); setLR(false);
   }
   async function loadStreak(){
-    const{data}=await sb.from("daily_logs").select("date").eq("user_id",user.id).eq("group_id",group.id).order("date",{ascending:false}).limit(60);
+    // Racha solo cuenta días con al menos 1 hábito de Deporte (gym, running, sport)
+    const{data}=await sb.from("daily_logs").select("date,gym,running,sport").eq("user_id",user.id).eq("group_id",group.id).order("date",{ascending:false}).limit(90);
     if(!data?.length)return;
+    const deporteDays=data.filter((r:any)=>r.gym||r.running||r.sport);
     let s=0; const today=new Date();today.setHours(0,0,0,0);
-    const dates=data.map(r=>{const d=new Date(r.date);d.setHours(0,0,0,0);return d.getTime();});
-    for(let i=0;i<60;i++){const exp=new Date(today);exp.setDate(today.getDate()-i);if(dates.includes(exp.getTime()))s++;else break;}
+    const dates=deporteDays.map((r:any)=>{const d=new Date(r.date);d.setHours(0,0,0,0);return d.getTime();});
+    for(let i=0;i<90;i++){const exp=new Date(today);exp.setDate(today.getDate()-i);if(dates.includes(exp.getTime()))s++;else break;}
     setStreak(s);
   }
   async function saveDay(){
@@ -1567,7 +1569,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
           <div className="stats-row">
             <div className="stat"><div className="stat-val" style={{color:"var(--amber)"}}>{myRow?.total_pts||0}</div><div className="stat-lbl">Puntos</div></div>
             <div className="stat"><div className="stat-val">{myRow?.days_logged||0}</div><div className="stat-lbl">Días</div></div>
-            <div className="stat"><div className="stat-val">🔥{streak}</div><div className="stat-lbl">Racha</div></div>
+            <div className="stat"><div className="stat-val">🔥{streak}</div><div className="stat-lbl">Racha 💪</div></div>
           </div>
 
           {/* PUNTOS POR ÁMBITO */}
