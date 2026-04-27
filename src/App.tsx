@@ -245,8 +245,8 @@ html,body{background:#0E0A07;height:100%;color:var(--text)}
 .dispute-grid-name{font-size:11px;font-weight:700;text-align:center;color:var(--text)}
 .dispute-grid-penalty{font-size:10px;color:#F2667A;text-align:center}
 .cal-hm-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:4px}
-.cal-hm-cell{aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;cursor:pointer;color:transparent;transition:transform .1s}
-.cal-hm-cell:hover{transform:scale(1.15);color:var(--text)!important}
+.cal-hm-cell{aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;cursor:pointer;transition:transform .1s}
+.cal-hm-cell:hover{transform:scale(1.15)}
 .cal-hm-lbl{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:2px}
 .cal-hm-dlbl{font-size:8px;color:var(--muted);text-align:center;letter-spacing:.5px}
 .records-section{margin-top:18px}
@@ -1626,11 +1626,21 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
       {tab==="bets"&&(
         <div className="content content-fab" key="bets">
           {(()=>{
-            const myBets=bets.filter(b=>betStakes[b.id]?.confirmed);
-            const ptsWon=myBets.filter(b=>b.status==="won").reduce((s,b)=>s+(betStakes[b.id]?.amount||0)*2,0);
-            const ptsLost=myBets.filter(b=>b.status==="lost").reduce((s,b)=>s+(betStakes[b.id]?.amount||0),0);
+            // Contar como duelist (p1/p2) + como apostador con stake
+            const asPlayer=bets.filter(b=>b.status!=="open"&&(b.p1Id===user.id||b.p2Id===user.id));
+            const asStaker=bets.filter(b=>betStakes[b.id]?.confirmed);
+            const allResolved=[...new Map([...asPlayer,...asStaker].map(b=>[b.id,b])).values()];
+            const ptsWon=allResolved.filter(b=>b.status==="won").reduce((s,b)=>{
+              if(betStakes[b.id]?.confirmed)return s+(betStakes[b.id].amount||0)*2;
+              if(b.p1Id===user.id&&b.myPick===1)return s+(b.pot||0);
+              if(b.p2Id===user.id&&b.myPick===2)return s+(b.pot||0);
+              return s;
+            },0);
+            const ptsLost=allResolved.filter(b=>b.status==="lost").reduce((s,b)=>{
+              if(betStakes[b.id]?.confirmed)return s+(betStakes[b.id].amount||0);
+              return s+5;
+            },0);
             const balance=ptsWon-ptsLost;
-            if(!myBets.length)return null;
             return(<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:14}}>
               <div style={{background:"var(--s2)",borderRadius:10,padding:"10px 8px",textAlign:"center"}}>
                 <div style={{fontSize:18,fontWeight:800,color:"var(--green)"}}>{ptsWon}</div>
@@ -1640,8 +1650,8 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
                 <div style={{fontSize:18,fontWeight:800,color:"var(--red)"}}>{ptsLost}</div>
                 <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginTop:2}}>Perdidos</div>
               </div>
-              <div style={{background:"var(--s2)",borderRadius:10,padding:"10px 8px",textAlign:"center",border:`1px solid ${balance>=0?"rgba(93,201,138,.3)":"rgba(255,68,68,.2)"}`}}>
-                <div style={{fontSize:18,fontWeight:800,color:balance>=0?"var(--green)":"var(--red)"}}>{balance>0?"+":""}{balance}</div>
+              <div style={{background:"var(--s2)",borderRadius:10,padding:"10px 8px",textAlign:"center",border:`1px solid ${balance>0?"rgba(93,201,138,.3)":balance<0?"rgba(255,68,68,.2)":"var(--border)"}`}}>
+                <div style={{fontSize:18,fontWeight:800,color:balance>0?"var(--green)":balance<0?"var(--red)":"var(--muted)"}}>{balance>0?"+":""}{balance}</div>
                 <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginTop:2}}>Saldo</div>
               </div>
             </div>);
@@ -1774,6 +1784,15 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
               {icon:"🔥",title:"Llama viva",desc:"Racha de 7 días",done:streak>=7},
               {icon:"🔱",title:"Imparable",desc:"Racha de 14 días",done:streak>=14},
               {icon:"⚡",title:"Apostador nato",desc:"1 apuesta realizada",done:Object.keys(betStakes).length>0},
+              {icon:"🦢",title:"Golden Swan",desc:"Mayor saldo positivo en apuestas",(()=>{
+                const allRes=bets.filter(b=>b.status!=="open");
+                const myBal=allRes.reduce((s,b)=>{
+                  if(betStakes[b.id]?.confirmed){return b.status==="won"?s+(betStakes[b.id].amount||0)*2:s-(betStakes[b.id].amount||0);}
+                  return s;
+                },0);
+                const bestBal=Object.keys(betStakes).length>0?myBal:0;
+                return{done:myBal>0&&myBal===bestBal};
+              })()}.done},
               {icon:"🏅",title:"Al podio",desc:"Top 3 esta semana",done:myPosAdj>0&&myPosAdj<=3},
             ].filter(m=>m.done);
             return(<>
@@ -1944,7 +1963,7 @@ function CalHeatmap({logs,today}:{logs:{date:string;pts:number}[];today:string})
           style={{background:isFuture?"transparent":ptColor(pts),border:isToday?"2px solid var(--amber)":isFuture?"1px solid var(--border)":"none",opacity:isFuture?.4:1}}
           onClick={()=>setSel(sel===ds?null:ds)}
           title={ds}
-        >{ds===sel?pts||"—":""}</div>);
+        >{pts>=10?<span style={{color:"rgba(255,255,255,.9)"}}>{pts}</span>:pts>0?<span style={{color:"rgba(130,80,0,.9)"}}>{pts}</span>:""}</div>);
       })}
     </div>
     {sel&&<div style={{marginTop:8,fontSize:11,color:"var(--text)",background:"var(--s2)",borderRadius:8,padding:"6px 10px"}}>
