@@ -994,7 +994,7 @@ function ReactionsBar({feedType,feedRef,userId,reactions,onReact}:{feedType:stri
 
 /* ══════════════════════════════════════════ FEED CARD */
 type BetStake={side:1|2;amount:number;confirmed:boolean};
-function BetFeedCard({item,userId,reactions,onReact,betStakes,onBetStake,onSendToChat}:{item:FeedBetItem;userId:string;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;betStakes:Record<number,BetStake>;onBetStake:(id:number,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote?:(id:number,v:"support"|"reject")=>Promise<void>}){
+function BetFeedCard({item,userId,reactions,onReact,betStakes,onBetStake,onSendToChat}:{item:FeedBetItem;userId:string;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;betStakes:Record<string,BetStake>;onBetStake:(id:string,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote?:(id:number,v:"support"|"reject")=>Promise<void>}){
   const b=item.bet;
   const myStake=betStakes[b.id];
   const [selSide,setSelSide]=React.useState<1|2|null>(null);
@@ -1035,7 +1035,7 @@ function BetFeedCard({item,userId,reactions,onReact,betStakes,onBetStake,onSendT
   );
 }
 
-function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembers,betStakes,onBetStake,onSendToChat,onVote,onDispute}:{item:FeedItem;userId:string;members:Record<string,{name:string;avatar:string}>;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;disputeVotes:DisputeVote[];totalMembers:number;betStakes:Record<number,BetStake>;onBetStake:(id:number,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote?:(id:number,v:"support"|"reject")=>Promise<void>;onDispute?:(uid:string)=>void}){
+function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembers,betStakes,onBetStake,onSendToChat,onVote,onDispute}:{item:FeedItem;userId:string;members:Record<string,{name:string;avatar:string}>;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;disputeVotes:DisputeVote[];totalMembers:number;betStakes:Record<string,BetStake>;onBetStake:(id:string,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote?:(id:number,v:"support"|"reject")=>Promise<void>;onDispute?:(uid:string)=>void}){
   if(item.type==="log"){
     const who=members[item.user_id]||{name:"?",avatar:"👤"};
     const isMe=item.user_id===userId;
@@ -1112,7 +1112,7 @@ function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembe
 }
 
 /* ══════════════════════════════════════════ FEED */
-function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,totalMembers,betStakes,onBetStake,onSendToChat,onVote,onDispute}:{user:any;group:any;members:Record<string,{name:string;avatar:string}>;disputes:Dispute[];disputeVotes:DisputeVote[];bets:Bet[];reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;totalMembers:number;betStakes:Record<number,BetStake>;onBetStake:(id:number,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote:(id:number,v:"support"|"reject")=>Promise<void>;onDispute?:(uid:string)=>void}){
+function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,totalMembers,betStakes,onBetStake,onSendToChat,onVote,onDispute}:{user:any;group:any;members:Record<string,{name:string;avatar:string}>;disputes:Dispute[];disputeVotes:DisputeVote[];bets:Bet[];reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;totalMembers:number;betStakes:Record<string,BetStake>;onBetStake:(id:string,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote:(id:number,v:"support"|"reject")=>Promise<void>;onDispute?:(uid:string)=>void}){
   const [logs,setLogs]=useState<any[]>([]);
   const [loading,setLoading]=useState(true);
   useEffect(()=>{
@@ -1303,7 +1303,7 @@ function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{use
   const [profileModal,setProfileModal]=useState<string|null>(null);
   const [members,setMembers]=useState<Record<string,{name:string;avatar:string}>>({});
   const [weekDays,setWeekDays]=useState<boolean[]>([false,false,false,false,false,false,false]);
-  const [betStakes,setBetStakes]=useState<Record<number,BetStake>>({});
+  const [betStakes,setBetStakes]=useState<Record<string,BetStake>>({});
   const [sharedEvent,setSharedEvent]=useState<SharedEvent|null>(null);
   const [weekLeaders,setWeekLeaders]=useState<Record<string,string>>({});
   const [weekAmbitoPts,setWeekAmbitoPts]=useState<Record<string,Record<string,number>>>({});
@@ -1552,11 +1552,11 @@ function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{use
   }
   async function loadBetStakes(){
     const{data}=await sb.from("bet_stakes").select("*").eq("user_id",user.id);
-    const map:Record<number,BetStake>={};
+    const map:Record<string,BetStake>={};
     (data||[]).forEach((s:any)=>{map[s.bet_id]={side:s.side,amount:s.amount,confirmed:true};});
     setBetStakes(map);
   }
-  async function handleBetStake(betId:number,side:1|2,amount:number){
+  async function handleBetStake(betId:string,side:1|2,amount:number){
     await sb.from("bet_stakes").upsert({bet_id:betId,user_id:user.id,side,amount},{onConflict:"bet_id,user_id"});
     setBetStakes(prev=>({...prev,[betId]:{side,amount,confirmed:true}}));
   }
@@ -1617,11 +1617,11 @@ function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{use
     loadRecords();
     registerPush(user.id,group.id);},[]);
 
-  async function closeBet(betId:number,winner:1|2){
+  async function closeBet(betId:string|number,winner:1|2){
     await sb.from("bets").update({status:"won",winner_side:winner}).eq("id",betId);
     setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"won",myPick:winner}:b));
   }
-  async function cancelBet(betId:number){
+  async function cancelBet(betId:string|number){
     await sb.from("bets").update({status:"cancelled"}).eq("id",betId);
     setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"cancelled"}:b));
   }
