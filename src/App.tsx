@@ -615,7 +615,7 @@ function DisputeModal({user,group,disputedUserId,onClose,onCreated,members}:{use
   useEffect(()=>{
     setYLog(null);setYPts(0);setSelHabit("");
     (async()=>{
-      const{data}=await sb.from("daily_logs").select("*").eq("user_id",disputedUserId).eq("group_id",group.id).eq("date",targetDate).maybeSingle();
+      const{data}=await sb.from("daily_logs").select("*").eq("user_id",disputedUserId).eq("date",targetDate).maybeSingle();
       const log:Record<string,boolean>={};
       let pts=0;
       if(data){QUESTIONS.forEach(q=>{if((data as any)[q.id]){log[q.id]=true;pts+=q.pts;}});}
@@ -1089,14 +1089,16 @@ function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,t
   const [loading,setLoading]=useState(true);
   useEffect(()=>{
     if(!group?.id)return;
+    const memberIds=Object.keys(members);
+    if(!memberIds.length)return;
     (async()=>{
       setLoading(true);
       const since=new Date(Date.now()-7*24*3600*1000).toISOString().split("T")[0];
-      const{data}=await sb.from("daily_logs").select("*").eq("group_id",group.id).gte("date",since).order("created_at",{ascending:false}).limit(40);
+      const{data}=await sb.from("daily_logs").select("*").in("user_id",memberIds).gte("date",since).order("created_at",{ascending:false}).limit(40);
       setLogs(data||[]);
       setLoading(false);
     })();
-  },[group?.id]);
+  },[group?.id,members]);
 
   const items:FeedItem[]=[];
   const byUser:Record<string,any[]>={};
@@ -1155,7 +1157,7 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
   useEffect(()=>{
     (async()=>{
       const[{data:logs},{data:recs}]=await Promise.all([
-        sb.from("daily_logs").select("*").eq("user_id",userId).eq("group_id",group.id).order("date",{ascending:false}).limit(365),
+        sb.from("daily_logs").select("*").eq("user_id",userId).order("date",{ascending:false}).limit(365),
         sb.from("user_records").select("record_key,record_value").eq("user_id",userId)
       ]);
       setAllLogs(logs||[]);
@@ -1313,7 +1315,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   }
 
   async function loadProfileData(){
-    const{data}=await sb.from("daily_logs").select("*").eq("user_id",user.id).eq("group_id",group.id).order("date",{ascending:false}).limit(365);
+    const{data}=await sb.from("daily_logs").select("*").eq("user_id",user.id).order("date",{ascending:false}).limit(365);
     if(!data)return;
     const at:Record<string,number>={};
     const hc:Record<string,number>={};
@@ -1346,7 +1348,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
     const mon=getMondayStr();
     const{data}=await sb.from("daily_logs")
       .select("user_id,gym,running,sport,quedada,familia,food,screen_good,pareja,book,course,podcast,meditation")
-      .eq("group_id",group.id).gte("date",mon);
+      .in("user_id",Object.keys(members)).gte("date",mon);
     if(!data)return;
     const counts:Record<string,Record<string,number>>={};
     for(const row of data){
@@ -1380,7 +1382,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   async function loadWeekDays(){
     try{
       const mon=getMondayStr();
-      const{data}=await sb.from("daily_logs").select("date").eq("user_id",user.id).eq("group_id",group.id).gte("date",mon);
+      const{data}=await sb.from("daily_logs").select("date").eq("user_id",user.id).gte("date",mon);
       const days=[false,false,false,false,false,false,false];
       (data||[]).forEach((r:any)=>{const d=new Date(r.date+"T12:00:00");const idx=(d.getDay()+6)%7;if(idx>=0&&idx<7)days[idx]=true;});
       setWeekDays(days);
@@ -1443,7 +1445,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   }
 
   async function loadToday(){
-    const{data}=await sb.from("daily_logs").select("*").eq("user_id",user.id).eq("group_id",group.id).eq("date",todayStr()).maybeSingle();
+    const{data}=await sb.from("daily_logs").select("*").eq("user_id",user.id).eq("date",todayStr()).maybeSingle();
     if(!data)return; setSaved(true);
     const d:Record<string,boolean>={};
     QUESTIONS.forEach(q=>{if((data as any)[q.id])d[q.id]=true;});
@@ -1456,7 +1458,7 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   }
   async function loadStreak(){
     // Racha solo cuenta días con al menos 1 hábito de Deporte (gym, running, sport)
-    const{data}=await sb.from("daily_logs").select("date,gym,running,sport").eq("user_id",user.id).eq("group_id",group.id).order("date",{ascending:false}).limit(90);
+    const{data}=await sb.from("daily_logs").select("date,gym,running,sport").eq("user_id",user.id).order("date",{ascending:false}).limit(90);
     if(!data?.length)return;
     const deporteDays=data.filter((r:any)=>r.gym||r.running||r.sport);
     let s=0; const today=new Date();today.setHours(0,0,0,0);
@@ -1467,9 +1469,9 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
   async function saveDay(){
     const anyDone=Object.values(done).some(Boolean);
     if(!anyDone||saved||saving)return; setSaving(true);
-    const payload:any={user_id:user.id,group_id:group.id,date:todayStr(),total_pts:pts};
+    const payload:any={user_id:user.id,date:todayStr(),total_pts:pts};
     QUESTIONS.forEach(q=>{payload[q.id]=!!done[q.id];});
-    const{error}=await sb.from("daily_logs").upsert(payload,{onConflict:"user_id,group_id,date"});
+    const{error}=await sb.from("daily_logs").upsert(payload,{onConflict:"user_id,date"});
     setSaving(false);
     if(error){alert("Error: "+error.message);return;}
     setSaved(true); setShowApuntar(false);
