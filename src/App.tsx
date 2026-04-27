@@ -1782,21 +1782,6 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
               {key:"gym_squat",label:"🦵 Sentadilla",unit:"kg",placeholder:"90"},
             ];
             const allRec=[...CARDIO_RECORDS,...GYM_RECORDS];
-            function RecRow({r}:{r:{key:string;label:string;unit:string;placeholder:string}}){
-              const val=editingRecords?(draftRecords[r.key]??userRecords[r.key]??""):userRecords[r.key];
-              return(
-                <div className="records-row">
-                  <div className="records-label">{r.label}</div>
-                  {editingRecords
-                    ?<div style={{display:"flex",alignItems:"center",gap:4}}>
-                       <input className="records-input" value={draftRecords[r.key]??userRecords[r.key]??""} placeholder={r.placeholder} onChange={e=>{const v=e.target.value;setDraftRecords(prev=>({...prev,[r.key]:v}));}} style={{width:64}}/>
-                       <span style={{fontSize:10,color:"var(--muted)"}}>{r.unit}</span>
-                     </div>
-                    :<div className="records-val">{val?`${val} ${r.unit}`:<span style={{color:"var(--muted)",fontWeight:400,fontSize:11}}>—</span>}</div>
-                  }
-                </div>
-              );
-            }
             return(
               <div className="records-section">
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -1810,9 +1795,31 @@ function MainApp({user,profile,group,onSignOut}:{user:any;profile:any;group:any;
                   }
                 </div>
                 <div className="records-cat">Cardio</div>
-                {CARDIO_RECORDS.map(r=><RecRow key={r.key} r={r}/>)}
+                {CARDIO_RECORDS.map(r=>(
+                  <div key={r.key} className="records-row">
+                    <div className="records-label">{r.label}</div>
+                    {editingRecords
+                      ?<div style={{display:"flex",alignItems:"center",gap:4}}>
+                         <input className="records-input" value={draftRecords[r.key]??userRecords[r.key]??""} placeholder={r.placeholder} onChange={e=>{const v=e.target.value;setDraftRecords(prev=>({...prev,[r.key]:v}));}} style={{width:64}}/>
+                         <span style={{fontSize:10,color:"var(--muted)"}}>{r.unit}</span>
+                       </div>
+                      :<div className="records-val">{userRecords[r.key]?`${userRecords[r.key]} ${r.unit}`:<span style={{color:"var(--muted)",fontWeight:400,fontSize:11}}>—</span>}</div>
+                    }
+                  </div>
+                ))}
                 <div className="records-cat">Gym — Máx. kg</div>
-                {GYM_RECORDS.map(r=><RecRow key={r.key} r={r}/>)}
+                {GYM_RECORDS.map(r=>(
+                  <div key={r.key} className="records-row">
+                    <div className="records-label">{r.label}</div>
+                    {editingRecords
+                      ?<div style={{display:"flex",alignItems:"center",gap:4}}>
+                         <input className="records-input" value={draftRecords[r.key]??userRecords[r.key]??""} placeholder={r.placeholder} onChange={e=>{const v=e.target.value;setDraftRecords(prev=>({...prev,[r.key]:v}));}} style={{width:64}}/>
+                         <span style={{fontSize:10,color:"var(--muted)"}}>{r.unit}</span>
+                       </div>
+                      :<div className="records-val">{userRecords[r.key]?`${userRecords[r.key]} ${r.unit}`:<span style={{color:"var(--muted)",fontWeight:400,fontSize:11}}>—</span>}</div>
+                    }
+                  </div>
+                ))}
               </div>
             );
           })()}
