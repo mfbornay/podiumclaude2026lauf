@@ -448,7 +448,7 @@ function AuthScreen({onAuth,bootError}:{onAuth:(u:any)=>void;bootError?:string})
     setBusy(false);
     if(error){setErr(error.message);return;}
     setPhase("otp");
-    setInfo("Código enviado — revisa tu bandeja de entrada (y spam).");
+    setInfo("Enlace enviado — revisa tu bandeja de entrada (y spam).");
   }
 
   async function verifyOtp(){
@@ -503,23 +503,29 @@ function AuthScreen({onAuth,bootError}:{onAuth:(u:any)=>void;bootError?:string})
   if(phase==="otp") return(
     <div className="page">
       <Logo/>
-      <div className="tagline">Revisa tu email</div>
-      <div style={{textAlign:"center",fontSize:13,color:"var(--muted)",marginBottom:20,lineHeight:1.6}}>
-        Enviamos un código a<br/><strong style={{color:"var(--text)"}}>{email}</strong>
+      <div className="tagline">Revisa tu correo</div>
+      <div style={{textAlign:"center",fontSize:14,color:"var(--text)",marginBottom:8,lineHeight:1.7}}>
+        Hemos enviado un enlace a<br/><strong style={{color:"var(--amber)"}}>{email}</strong>
+      </div>
+      <div style={{textAlign:"center",fontSize:12,color:"var(--muted)",marginBottom:24,lineHeight:1.6}}>
+        Haz clic en <strong>"Log In"</strong> del correo para entrar.<br/>
+        (Revisa también la carpeta de spam.)
       </div>
       {err&&<div className="err">{err}</div>}
       {info&&<div className="ok">{info}</div>}
-      <label className="lbl">Código de 6 dígitos</label>
-      <input className="code-inp" placeholder="123456" maxLength={6} inputMode="numeric" autoFocus
+      <div style={{textAlign:"center",fontSize:11,color:"var(--muted)",marginTop:8,marginBottom:4}}>
+        ¿Recibes un código de 6 dígitos en vez de enlace?
+      </div>
+      <input className="code-inp" placeholder="123456" maxLength={6} inputMode="numeric"
         value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,""))}
-        onKeyDown={e=>e.key==="Enter"&&verifyOtp()}
+        onKeyDown={e=>e.key==="Enter"&&otp.length>=6&&verifyOtp()}
         style={{letterSpacing:8,fontSize:24,textAlign:"center"}}/>
-      <button className="btn" disabled={otp.length<6||busy} onClick={verifyOtp}>
-        {busy?"Verificando...":"Entrar →"}
-      </button>
-      <div style={{display:"flex",justifyContent:"center",gap:16,marginTop:12,fontSize:12}}>
+      {otp.length>=6&&<button className="btn" disabled={busy} onClick={verifyOtp}>
+        {busy?"Verificando...":"Entrar con código →"}
+      </button>}
+      <div style={{display:"flex",justifyContent:"center",gap:16,marginTop:16,fontSize:12}}>
         <span style={{color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{setPhase("email");setOtp("");clearMsgs();}}>← Cambiar email</span>
-        <span style={{color:"var(--amber)",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{setOtp("");setBusy(false);sendOtp();}}>Reenviar código</span>
+        <span style={{color:"var(--amber)",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{setOtp("");setBusy(false);sendOtp();}}>Reenviar enlace</span>
       </div>
     </div>
   );
@@ -1871,10 +1877,14 @@ export default function Root(){
   const [bootError,setBootError]=useState("");
 
   useEffect(()=>{
-    sb.auth.getSession().then(({data:{session}})=>{
-      if(session?.user)loadUserData(session.user);else setPhase("auth");
-    });
-    const{data:{subscription}}=sb.auth.onAuthStateChange((event)=>{
+    const{data:{subscription}}=sb.auth.onAuthStateChange((event,session)=>{
+      if(event==="INITIAL_SESSION"){
+        if(session?.user)loadUserData(session.user);else setPhase("auth");
+      }
+      if(event==="SIGNED_IN"){
+        // handles magic-link redirect and manual OTP verify
+        if(session?.user)loadUserData(session.user);
+      }
       if(event==="SIGNED_OUT"){setAuthUser(null);setProfile(null);setGroup(null);setPhase("auth");}
     });
     return()=>subscription.unsubscribe();
