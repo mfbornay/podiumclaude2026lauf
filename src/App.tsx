@@ -1697,7 +1697,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   async function loadWeekDays(){
     try{
       const mon=getMondayStr();
-      const{data}=await sb.from("daily_logs").select("date,total_pts").eq("user_id",user.id).gte("date",mon);
+      const{data}=await sb.from("daily_logs").select("date,total_pts").eq("user_id",user.id).eq("group_id",group.id).gte("date",mon);
       const days=[false,false,false,false,false,false,false];
       let wpts=0;
       (data||[]).forEach((r:any)=>{const d=new Date(r.date+"T12:00:00");const idx=(d.getDay()+6)%7;if(idx>=0&&idx<7)days[idx]=true;wpts+=(r.total_pts||0);});
@@ -1929,7 +1929,8 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   async function saveDay(proofUrl?:string){
     const anyDone=Object.values(done).some(Boolean);
     if(!anyDone||saving)return; setSaving(true);
-    const payload:any={user_id:user.id,group_id:group.id,date:todayStr(),total_pts:pts};
+    const actualPts=groupHabits.reduce((s,q)=>done[q.id]?s+q.pts:s,0);
+    const payload:any={user_id:user.id,group_id:group.id,date:todayStr(),total_pts:actualPts};
     QUESTIONS.forEach(q=>{payload[q.id]=!!done[q.id];});
     if(proofUrl!==undefined)payload.proof_photo_url=proofUrl;
     const{error}=await sb.from("daily_logs").upsert(payload,{onConflict:"user_id,date"});
