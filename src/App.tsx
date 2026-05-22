@@ -2105,7 +2105,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       {/* HOY */}
       {tab==="hoy"&&(
         <div className="content" key="hoy">
-          <TodayBanner weekPts={myRow?.total_pts||pts} streak={streak} saved={saved} done={done} onApuntar={()=>setShowApuntar(true)} myPos={myPos} weekDays={weekDays}/>
+          <TodayBanner weekPts={(()=>{const d=new Date();const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);const mon=d.toISOString().slice(0,10);return weeklyHistory[user.id]?.[mon]||0;})()} streak={streak} saved={saved} done={done} onApuntar={()=>setShowApuntar(true)} myPos={myPos} weekDays={weekDays}/>
           <Feed user={user} group={group} members={members} disputes={disputes} disputeVotes={disputeVotes} bets={bets} reactions={reactions} onReact={handleReact} totalMembers={totalMembers} betStakes={betStakes} onBetStake={handleBetStake} onSendToChat={handleSendToChat} onVote={castVote} onDispute={(uid)=>{setProfileModal(null);setDisputeModal(uid);}} myPts={myRow?.total_pts||0}/>
         </div>
       )}
