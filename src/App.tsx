@@ -1330,6 +1330,19 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   const [showGroupConfig,setShowGroupConfig]=useState(false);
   const [configHabits,setConfigHabits]=useState<string[]>(groupInit.active_habits||QUESTIONS.map(q=>q.id));
   const [savingConfig,setSavingConfig]=useState(false);
+  // Admin panel state
+  const [adminSection,setAdminSection]=useState<"liga"|"temporada"|"habitos"|"miembros">("liga");
+  const [adminMembers,setAdminMembers]=useState<any[]>([]);
+  const [adminSeasons,setAdminSeasons]=useState<any[]>([]);
+  const [adminGroupName,setAdminGroupName]=useState(groupInit.name||"");
+  const [adminGroupEmoji,setAdminGroupEmoji]=useState(groupInit.emoji||"🏆");
+  const [adminNextHabits,setAdminNextHabits]=useState<string[]>(
+    (groupInit.next_season_config?.active_habits)||(groupInit.active_habits||QUESTIONS.map(q=>q.id))
+  );
+  const [adminNextName,setAdminNextName]=useState(groupInit.next_season_config?.name||groupInit.season_name||"Temporada 1");
+  const [adminSavingLiga,setAdminSavingLiga]=useState(false);
+  const [adminSavingNext,setAdminSavingNext]=useState(false);
+  const [adminSavingHabitos,setAdminSavingHabitos]=useState(false);
 
   // Hábitos activos para este grupo (filtrados por configuración del admin)
   const groupHabits=React.useMemo(()=>{
@@ -1485,6 +1498,58 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       if(pos===1&&myPts>0) return{label:a.label,color:a.color,icon:a.icon,leader:false};
       return null;
     }).filter(Boolean) as {label:string;color:string;icon:string;leader:boolean}[];
+  }
+
+  async function loadAdminData(){
+    // Load members with full profile
+    const{data:gm}=await sb.from("group_members").select("user_id").eq("group_id",group.id);
+    const ids=(gm||[]).map((r:any)=>r.user_id);
+    if(ids.length){
+      const{data:us}=await sb.from("users").select("id,name,username,avatar,role").in("id",ids);
+      setAdminMembers(us||[]);
+    }
+    // Load seasons if table exists
+    const{data:seas}=await sb.from("seasons").select("*").eq("group_id",group.id).order("created_at",{ascending:false}).limit(10);
+    setAdminSeasons(seas||[]);
+  }
+
+  async function adminSaveLiga(){
+    setAdminSavingLiga(true);
+    const{error}=await sb.from("groups").update({name:adminGroupName.trim(),emoji:adminGroupEmoji}).eq("id",group.id);
+    setAdminSavingLiga(false);
+    if(error){alert("Error: "+error.message);return;}
+    setGroupLocal((g:any)=>({...g,name:adminGroupName.trim(),emoji:adminGroupEmoji}));
+  }
+
+  async function adminSaveNextSeason(){
+    setAdminSavingNext(true);
+    const cfg={name:adminNextName,active_habits:adminNextHabits.length===QUESTIONS.length?null:adminNextHabits};
+    const{error}=await sb.from("groups").update({next_season_config:cfg}).eq("id",group.id);
+    setAdminSavingNext(false);
+    if(error){alert("Error: "+error.message);return;}
+    setGroupLocal((g:any)=>({...g,next_season_config:cfg}));
+  }
+
+  async function adminSaveHabitos(){
+    setAdminSavingHabitos(true);
+    const habitsToSave=configHabits.length===QUESTIONS.length?null:configHabits;
+    const{error}=await sb.from("groups").update({active_habits:habitsToSave}).eq("id",group.id);
+    setAdminSavingHabitos(false);
+    if(error){alert("Error: "+error.message);return;}
+    setGroupLocal((g:any)=>({...g,active_habits:habitsToSave}));
+  }
+
+  async function adminSetRole(userId:string,newRole:string){
+    const{error}=await sb.from("users").update({role:newRole}).eq("id",userId);
+    if(error){alert("Error: "+error.message);return;}
+    setAdminMembers(prev=>prev.map(m=>m.id===userId?{...m,role:newRole}:m));
+  }
+
+  async function adminKickMember(userId:string){
+    if(!window.confirm("¿Eliminar a este miembro del grupo?"))return;
+    const{error}=await sb.from("group_members").delete().eq("group_id",group.id).eq("user_id",userId);
+    if(error){alert("Error: "+error.message);return;}
+    setAdminMembers(prev=>prev.filter(m=>m.id!==userId));
   }
 
   async function saveGroupConfig(){
@@ -1672,7 +1737,6 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
             <span className="gname">{group.emoji} {group.name}</span>
             {allGroups.length>1&&<span style={{fontSize:9,color:"var(--muted)",marginLeft:1}}>▾</span>}
           </div>
-          {isAdmin&&<button onClick={()=>{setConfigHabits(group.active_habits||QUESTIONS.map(q=>q.id));setShowGroupConfig(true);}} style={{background:"var(--s2)",border:"1px solid var(--border)",borderRadius:8,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,cursor:"pointer",color:"var(--muted)"}}>⚙️</button>}
           <div className="bets-chip" onClick={()=>setTab("bets")}><span className="bets-chip-ico">⚡</span>{bets.filter(b=>b.status==="open").length>0&&<span className="bets-chip-n">{bets.filter(b=>b.status==="open").length}</span>}</div>
         </div>
       </div>
@@ -2042,6 +2106,204 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
             <div className="invite-sub">Invita a tus amigos</div>
           </div>
           <button className="btn-danger" onClick={onSignOut}>Cerrar sesión</button>
+          {isAdmin&&(
+            <div style={{textAlign:"center",marginTop:28,paddingBottom:4}}>
+              <button onClick={()=>{setAdminSection("liga");loadAdminData();setTab("admin");}} style={{background:"none",border:"none",color:"var(--muted)",fontSize:11,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",letterSpacing:.5,display:"inline-flex",alignItems:"center",gap:5,padding:"6px 10px",borderRadius:8,transition:"color .15s"}}
+                onMouseEnter={e=>(e.currentTarget.style.color="var(--amber)")} onMouseLeave={e=>(e.currentTarget.style.color="var(--muted)")}>
+                ⚙️ Ajustes de liga
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ADMIN PANEL */}
+      {tab==="admin"&&isAdmin&&(
+        <div className="content" key="admin">
+          {/* Header */}
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
+            <button onClick={()=>setTab("perfil")} style={{background:"var(--s2)",border:"1px solid var(--border)",borderRadius:9,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,cursor:"pointer",flexShrink:0}}>←</button>
+            <div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:900,color:"var(--text)"}}>Panel de admin</div>
+              <div style={{fontSize:11,color:"var(--muted)",marginTop:1}}>{group.name}</div>
+            </div>
+          </div>
+          {/* Section tabs */}
+          <div style={{display:"flex",gap:6,marginBottom:18,overflowX:"auto",paddingBottom:2}}>
+            {([["liga","🏆","Liga"],["temporada","📅","Temporada"],["habitos","⚡","Hábitos"],["miembros","👥","Miembros"]] as [string,string,string][]).map(([id,ico,lbl])=>(
+              <button key={id} onClick={()=>setAdminSection(id as any)} style={{flexShrink:0,background:adminSection===id?"rgba(240,168,50,.12)":"var(--s2)",border:`1px solid ${adminSection===id?"var(--amber)":"var(--border)"}`,borderRadius:10,padding:"7px 13px",fontSize:12,fontWeight:700,color:adminSection===id?"var(--amber)":"var(--muted)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:5,transition:"all .15s"}}>
+                <span>{ico}</span>{lbl}
+              </button>
+            ))}
+          </div>
+
+          {/* ── LIGA ── */}
+          {adminSection==="liga"&&(
+            <div>
+              <span className="section-lbl">Nombre e identidad</span>
+              <div className="card" style={{marginBottom:10}}>
+                <div style={{fontSize:11,color:"var(--muted)",marginBottom:6,letterSpacing:.5}}>Emoji de la liga</div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
+                  {["🏆","⚡","🔥","💪","🎯","🏅","🦁","🐺","🎽","🥇","🌟","🚀"].map(e=>(
+                    <button key={e} onClick={()=>setAdminGroupEmoji(e)} style={{background:adminGroupEmoji===e?"rgba(240,168,50,.12)":"var(--s2)",border:`1px solid ${adminGroupEmoji===e?"var(--amber)":"var(--border)"}`,borderRadius:10,width:38,height:38,fontSize:20,cursor:"pointer",transition:"all .15s"}}>{e}</button>
+                  ))}
+                </div>
+                <div style={{fontSize:11,color:"var(--muted)",marginBottom:6,letterSpacing:.5}}>Nombre de la liga</div>
+                <input value={adminGroupName} onChange={e=>setAdminGroupName(e.target.value)} className="inp" placeholder="Nombre de la liga" style={{marginBottom:4}}/>
+                <button className="btn" disabled={adminSavingLiga||!adminGroupName.trim()} onClick={adminSaveLiga} style={{marginTop:4}}>
+                  {adminSavingLiga?"Guardando...":"💾 Guardar cambios"}
+                </button>
+              </div>
+              <div className="card">
+                <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>Código de invitación</div>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:34,fontWeight:900,color:"var(--amber)",letterSpacing:8,textAlign:"center",margin:"8px 0"}}>{group.invite_code}</div>
+                <div style={{fontSize:12,color:"var(--muted)",textAlign:"center"}}>Comparte este código para que otros se unan</div>
+              </div>
+            </div>
+          )}
+
+          {/* ── TEMPORADA ── */}
+          {adminSection==="temporada"&&(
+            <div>
+              <div className="card" style={{marginBottom:10,background:"rgba(240,168,50,.04)",borderColor:"rgba(240,168,50,.2)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                  <span style={{fontSize:16}}>ℹ️</span>
+                  <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>Configuración de la siguiente temporada</div>
+                </div>
+                <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.6}}>Los cambios aquí <b style={{color:"var(--text)"}}>no afectan la temporada en curso</b>. Se aplicarán cuando inicies una nueva temporada.</div>
+              </div>
+              <div className="card">
+                <div style={{fontSize:11,color:"var(--muted)",marginBottom:6,letterSpacing:.5}}>Nombre de la próxima temporada</div>
+                <input value={adminNextName} onChange={e=>setAdminNextName(e.target.value)} className="inp" placeholder="ej. Temporada 2" style={{marginBottom:12}}/>
+                <button className="btn" disabled={adminSavingNext||!adminNextName.trim()} onClick={adminSaveNextSeason} style={{marginTop:4}}>
+                  {adminSavingNext?"Guardando...":"💾 Guardar nombre"}
+                </button>
+              </div>
+              {adminSeasons.length>0&&(
+                <div style={{marginTop:14}}>
+                  <span className="section-lbl">Historial de temporadas</span>
+                  {adminSeasons.map((s:any)=>(
+                    <div key={s.id} className="card" style={{marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div>
+                        <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{s.name}</div>
+                        <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>{s.starts_at} → {s.ends_at}</div>
+                      </div>
+                      <div style={{padding:"3px 9px",borderRadius:8,fontSize:10,fontWeight:700,background:s.status==="active"?"rgba(93,201,138,.12)":s.status==="closed"?"rgba(120,100,60,.2)":"rgba(100,100,100,.12)",color:s.status==="active"?"var(--green)":s.status==="closed"?"var(--muted)":"var(--muted)"}}>
+                        {s.status==="active"?"✅ Activa":s.status==="closed"?"🔒 Cerrada":"📝 Borrador"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {adminSeasons.length===0&&(
+                <div style={{textAlign:"center",color:"var(--muted)",fontSize:12,padding:"20px 10px",fontStyle:"italic"}}>
+                  Sin temporadas aún.<br/>Ejecuta el script SQL <code style={{color:"var(--amber)",fontSize:11}}>supabase_seasons.sql</code> para activar este módulo.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── HÁBITOS ── */}
+          {adminSection==="habitos"&&(
+            <div>
+              <div className="card" style={{marginBottom:12,background:"rgba(240,168,50,.04)",borderColor:"rgba(240,168,50,.2)"}}>
+                <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.5}}>Hábitos activos <b style={{color:"var(--text)"}}>ahora mismo</b> en la liga. Los cambios surten efecto inmediatamente.</div>
+              </div>
+              {AMBITOS.map(a=>{
+                const aHabits=QUESTIONS.filter(q=>a.habits.includes(q.id as any));
+                const allOn=aHabits.every(q=>configHabits.includes(q.id));
+                return(
+                  <div key={a.id} style={{marginBottom:14}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                      <span style={{fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:a.color}}>{a.icon} {a.label}</span>
+                      <button onClick={()=>{if(allOn)setConfigHabits(p=>p.filter(id=>!aHabits.map(q=>q.id).includes(id)));else setConfigHabits(p=>[...new Set([...p,...aHabits.map(q=>q.id)])]);}} style={{fontSize:10,background:"none",border:`1px solid ${a.color}55`,borderRadius:8,padding:"2px 8px",color:a.color,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>
+                        {allOn?"Desmarcar":"Todos"}
+                      </button>
+                    </div>
+                    {aHabits.map(q=>{
+                      const on=configHabits.includes(q.id);
+                      return(
+                        <div key={q.id} onClick={()=>setConfigHabits(p=>on?p.filter(id=>id!==q.id):[...p,q.id])} style={{display:"flex",alignItems:"center",gap:10,background:on?"rgba(240,168,50,.06)":"var(--s2)",border:`1px solid ${on?"rgba(240,168,50,.3)":"var(--border)"}`,borderRadius:11,padding:"9px 12px",marginBottom:5,cursor:"pointer",transition:"all .15s"}}>
+                          <span style={{fontSize:18,width:24,textAlign:"center"}}>{q.icon}</span>
+                          <span style={{flex:1,fontSize:13,fontWeight:600,color:"var(--text)"}}>{q.name}</span>
+                          <span style={{fontSize:11,color:"var(--muted)",marginRight:6}}>+{q.pts}pts</span>
+                          <div style={{width:18,height:18,borderRadius:5,border:`1.5px solid ${on?"var(--amber)":"var(--muted2)"}`,background:on?"var(--amber)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#000",flexShrink:0,transition:"all .15s"}}>{on?"✓":""}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+              <div style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginBottom:10}}>{configHabits.length} de {QUESTIONS.length} hábitos · {configHabits.reduce((s,id)=>{const q=QUESTIONS.find(x=>x.id===id);return s+(q?.pts||0);},0)} pts máx/día</div>
+              <button className="btn" disabled={adminSavingHabitos||configHabits.length===0} onClick={adminSaveHabitos}>
+                {adminSavingHabitos?"Guardando...":"💾 Guardar hábitos"}
+              </button>
+              <div style={{height:1,background:"var(--border)",margin:"20px 0 14px"}}/>
+              <div style={{fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",fontWeight:700,marginBottom:10}}>🔮 Próxima temporada</div>
+              <div style={{fontSize:12,color:"var(--muted)",marginBottom:10,lineHeight:1.5}}>Configura los hábitos que tendrá la siguiente temporada sin afectar a la actual.</div>
+              {AMBITOS.map(a=>{
+                const aHabits=QUESTIONS.filter(q=>a.habits.includes(q.id as any));
+                const allOn=aHabits.every(q=>adminNextHabits.includes(q.id));
+                return(
+                  <div key={`next-${a.id}`} style={{marginBottom:14}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                      <span style={{fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:a.color,opacity:.7}}>{a.icon} {a.label}</span>
+                      <button onClick={()=>{if(allOn)setAdminNextHabits(p=>p.filter(id=>!aHabits.map(q=>q.id).includes(id)));else setAdminNextHabits(p=>[...new Set([...p,...aHabits.map(q=>q.id)])]);}} style={{fontSize:10,background:"none",border:`1px solid ${a.color}44`,borderRadius:8,padding:"2px 8px",color:a.color,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontWeight:600,opacity:.7}}>
+                        {allOn?"Desmarcar":"Todos"}
+                      </button>
+                    </div>
+                    {aHabits.map(q=>{
+                      const on=adminNextHabits.includes(q.id);
+                      return(
+                        <div key={q.id} onClick={()=>setAdminNextHabits(p=>on?p.filter(id=>id!==q.id):[...p,q.id])} style={{display:"flex",alignItems:"center",gap:10,background:on?"rgba(93,201,138,.06)":"var(--s2)",border:`1px solid ${on?"rgba(93,201,138,.3)":"var(--border)"}`,borderRadius:11,padding:"9px 12px",marginBottom:5,cursor:"pointer",transition:"all .15s",opacity:.85}}>
+                          <span style={{fontSize:18,width:24,textAlign:"center"}}>{q.icon}</span>
+                          <span style={{flex:1,fontSize:13,fontWeight:600,color:"var(--text)"}}>{q.name}</span>
+                          <span style={{fontSize:11,color:"var(--muted)",marginRight:6}}>+{q.pts}pts</span>
+                          <div style={{width:18,height:18,borderRadius:5,border:`1.5px solid ${on?"var(--green)":"var(--muted2)"}`,background:on?"var(--green)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#000",flexShrink:0,transition:"all .15s"}}>{on?"✓":""}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+              <button className="btn" style={{background:"var(--s2)",color:"var(--text)",border:"1px solid var(--border)",marginTop:4}} disabled={adminSavingNext||adminNextHabits.length===0} onClick={adminSaveNextSeason}>
+                {adminSavingNext?"Guardando...":"🔮 Guardar config próxima temporada"}
+              </button>
+            </div>
+          )}
+
+          {/* ── MIEMBROS ── */}
+          {adminSection==="miembros"&&(
+            <div>
+              <span className="section-lbl">{adminMembers.length} miembros</span>
+              {adminMembers.length===0&&<div style={{textAlign:"center",color:"var(--muted)",fontSize:12,padding:"20px 0",fontStyle:"italic"}}>Cargando...</div>}
+              {adminMembers.map(m=>(
+                <div key={m.id} className="card" style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
+                  <div style={{width:40,height:40,background:"var(--s3)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{m.avatar||"👤"}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:14,fontWeight:700,color:"var(--text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{m.name}</div>
+                    <div style={{fontSize:11,color:"var(--muted)",marginTop:1}}>@{m.username}</div>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:5}}>
+                    {m.role==="admin"
+                      ?<span style={{fontSize:10,background:"rgba(240,168,50,.12)",border:"1px solid rgba(240,168,50,.3)",borderRadius:8,padding:"2px 7px",color:"var(--amber)",fontWeight:700}}>Admin</span>
+                      :<span style={{fontSize:10,background:"var(--s3)",borderRadius:8,padding:"2px 7px",color:"var(--muted)"}}>Miembro</span>
+                    }
+                    {m.id!==user.id&&(
+                      <div style={{display:"flex",gap:5}}>
+                        <button onClick={()=>adminSetRole(m.id,m.role==="admin"?"user":"admin")} style={{background:"var(--s3)",border:"1px solid var(--border)",borderRadius:7,padding:"3px 8px",fontSize:10,color:"var(--muted)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+                          {m.role==="admin"?"→ Miembro":"→ Admin"}
+                        </button>
+                        <button onClick={()=>adminKickMember(m.id)} style={{background:"rgba(255,68,68,.06)",border:"1px solid rgba(255,68,68,.2)",borderRadius:7,padding:"3px 8px",fontSize:10,color:"var(--red)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+                          Expulsar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -2057,10 +2319,10 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
             {tab===id&&<div className="nbp"/>}
           </button>
         ))}
-        <button className={`nb${tab==="perfil"||tab==="bets"?" on":""}`} onClick={()=>setTab("perfil")}>
+        <button className={`nb${tab==="perfil"||tab==="bets"||tab==="admin"?" on":""}`} onClick={()=>setTab("perfil")}>
           <span className="nbi">{profile?.avatar||"👤"}</span>
           <span className="nbl">Perfil</span>
-          {(tab==="perfil"||tab==="bets")&&<div className="nbp"/>}
+          {(tab==="perfil"||tab==="bets"||tab==="admin")&&<div className="nbp"/>}
         </button>
       </nav>
 
