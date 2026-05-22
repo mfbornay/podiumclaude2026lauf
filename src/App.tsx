@@ -2809,8 +2809,60 @@ async function registerPush(userId:string,groupId:string){
   }catch(e){console.warn("Push registration failed:",e);}
 }
 
+/* ══════════════════════════════════════════ RESET PASSWORD SCREEN */
+function ResetPasswordScreen({onDone}:{onDone:()=>void}){
+  const [pw,setPw]=useState("");
+  const [pw2,setPw2]=useState("");
+  const [saving,setSaving]=useState(false);
+  const [msg,setMsg]=useState("");
+  const [ok,setOk]=useState(false);
+
+  async function save(){
+    if(pw.length<6){setMsg("Mínimo 6 caracteres");return;}
+    if(pw!==pw2){setMsg("Las contraseñas no coinciden");return;}
+    setSaving(true);setMsg("");
+    const{error}=await sb.auth.updateUser({password:pw});
+    setSaving(false);
+    if(error){setMsg("Error: "+error.message);return;}
+    setOk(true);
+    setTimeout(onDone,2000);
+  }
+
+  return(
+    <div className="auth-wrap">
+      <div style={{textAlign:"center",marginBottom:28}}>
+        <div style={{fontSize:48,marginBottom:8}}>🔑</div>
+        <h2 style={{margin:0,fontSize:22,fontWeight:800,color:"var(--text)"}}>Nueva contraseña</h2>
+        <p style={{margin:"8px 0 0",fontSize:14,color:"var(--muted)"}}>Elige una contraseña nueva para tu cuenta</p>
+      </div>
+      {ok?(
+        <div style={{textAlign:"center",padding:24,borderRadius:16,background:"rgba(93,201,138,.12)",border:"1px solid rgba(93,201,138,.3)"}}>
+          <div style={{fontSize:36,marginBottom:8}}>✅</div>
+          <p style={{margin:0,color:"var(--text)",fontWeight:600}}>¡Contraseña actualizada!</p>
+          <p style={{margin:"6px 0 0",fontSize:13,color:"var(--muted)"}}>Entrando a la app…</p>
+        </div>
+      ):(
+        <>
+          <div className="auth-field">
+            <label className="auth-label">Nueva contraseña</label>
+            <input className="auth-input" type="password" placeholder="Mínimo 6 caracteres" value={pw} onChange={e=>setPw(e.target.value)}/>
+          </div>
+          <div className="auth-field">
+            <label className="auth-label">Repetir contraseña</label>
+            <input className="auth-input" type="password" placeholder="Repite la contraseña" value={pw2} onChange={e=>setPw2(e.target.value)} onKeyDown={e=>e.key==="Enter"&&save()}/>
+          </div>
+          {msg&&<p style={{color:"var(--danger,#e55)",fontSize:13,margin:"4px 0 8px",textAlign:"center"}}>{msg}</p>}
+          <button className="auth-btn" onClick={save} disabled={saving}>
+            {saving?"Guardando…":"Guardar contraseña"}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════ ROOT */
-type Phase="loading"|"auth"|"join"|"app";
+type Phase="loading"|"auth"|"join"|"app"|"reset";
 export default function Root(){
   const [phase,setPhase]=useState<Phase>("loading");
   const [authUser,setAuthUser]=useState<any>(null);
@@ -2822,6 +2874,7 @@ export default function Root(){
 
   useEffect(()=>{
     const{data:{subscription}}=sb.auth.onAuthStateChange((event,session)=>{
+      if(event==="PASSWORD_RECOVERY"){setPhase("reset");return;}
       if(event==="INITIAL_SESSION"){
         if(session?.user)loadUserData(session.user);else setPhase("auth");
       }
@@ -2875,6 +2928,7 @@ export default function Root(){
       <style>{CSS}</style>
       <div className="app">
         {phase==="loading"&&<Loading text="Iniciando Podium…"/>}
+        {phase==="reset"&&<ResetPasswordScreen onDone={()=>setPhase("auth")}/>}
         {phase==="auth"&&<AuthScreen onAuth={handleAuth} bootError={bootError} newUser={newUserAuth}/>}
         {phase==="join"&&authUser&&<JoinScreen userId={authUser.id} onJoin={handleJoin}/>}
         {phase==="app"&&authUser&&profile&&group&&(
