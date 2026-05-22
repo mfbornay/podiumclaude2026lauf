@@ -183,8 +183,8 @@ html,body{background:#0E0A07;height:100%;color:var(--text)}
 .my-pick{background:rgba(240,168,50,.08);border-radius:10px;padding:8px;font-size:12px;color:var(--amber);text-align:center;margin-top:4px;display:flex;justify-content:center;align-items:center}
 .new-bet-btn{width:100%;background:none;border:1px dashed var(--muted2);border-radius:14px;padding:14px;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'DM Sans',sans-serif}
 .new-bet-btn:hover{border-color:var(--amber);color:var(--amber)}
-.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 200px);padding-bottom:80px}
-.chat-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:8px 0}
+.chat-wrap{display:flex;flex-direction:column;flex:1;overflow:hidden}
+.chat-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:8px 0 4px}
 .chat-empty{text-align:center;color:var(--muted);font-size:12px;padding:20px;font-style:italic}
 .msg{display:flex;align-items:flex-end;gap:8px;max-width:85%}
 .msg.me{align-self:flex-end;flex-direction:row-reverse}
@@ -196,7 +196,7 @@ html,body{background:#0E0A07;height:100%;color:var(--text)}
 .msg-bubble{background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:8px 12px;font-size:13px;line-height:1.4;word-wrap:break-word;white-space:pre-wrap}
 .msg.me .msg-bubble{background:rgba(240,168,50,.15);border-color:rgba(240,168,50,.3)}
 .msg-photo{max-width:220px;max-height:280px;border-radius:12px;border:1px solid var(--border);display:block;cursor:pointer}
-.chat-input-bar{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(14,10,7,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);padding:10px 15px calc(env(safe-area-inset-bottom,0px) + 10px);display:flex;gap:8px;align-items:center;z-index:99}
+.chat-input-bar{flex-shrink:0;background:rgba(14,10,7,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);padding:10px 15px calc(env(safe-area-inset-bottom,0px) + 10px);display:flex;gap:8px;align-items:center}
 .chat-input{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:9px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none}
 .chat-input:focus{border-color:var(--amber)}
 .chat-photo-btn{background:var(--s2);border:1px solid var(--border);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;flex-shrink:0}
@@ -928,7 +928,8 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
   }
   const isAdmin=profile?.role==="admin";
   return(
-    <div className="content" key="chat">
+    <div className="content" key="chat" style={{paddingBottom:0,display:"flex",flexDirection:"column",height:"calc(100vh - 112px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))"}}>
+
       <div className="chat-wrap">
         {isAdmin&&<div style={{display:"flex",justifyContent:"flex-end",padding:"4px 2px 8px"}}><button onClick={clearChat} style={{background:"transparent",border:"1px solid var(--border)",borderRadius:8,color:"var(--muted)",padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>🧹 Vaciar chat</button></div>}
         <div className="chat-list" ref={listRef}>
