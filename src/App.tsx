@@ -1195,11 +1195,12 @@ function ReactionsBar({feedType,feedRef,userId,reactions,onReact}:{feedType:stri
 
 /* ══════════════════════════════════════════ FEED CARD */
 type BetStake={side:1|2;amount:number;confirmed:boolean};
-function BetFeedCard({item,userId,reactions,onReact,betStakes,onBetStake,onSendToChat}:{item:FeedBetItem;userId:string;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;betStakes:Record<string,BetStake>;onBetStake:(id:string,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote?:(id:number,v:"support"|"reject")=>Promise<void>}){
+function BetFeedCard({item,userId,reactions,onReact,betStakes,onBetStake,onSendToChat,myPts}:{item:FeedBetItem;userId:string;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;betStakes:Record<string,BetStake>;onBetStake:(id:string,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote?:(id:number,v:"support"|"reject")=>Promise<void>;myPts:number}){
   const b=item.bet;
   const myStake=betStakes[b.id];
   const [selSide,setSelSide]=React.useState<1|2|null>(null);
-  const [stakeAmt,setStakeAmt]=React.useState(5);
+  const maxStake=Math.min(10,myPts);
+  const [stakeAmt,setStakeAmt]=React.useState(Math.min(5,Math.max(1,myPts)));
   const total=b.p1Pts+b.p2Pts;
   const p1Pct=total>0?Math.round(b.p1Pts/total*100):50;
   const isBetWon=item.type==="bet_won";
@@ -1227,8 +1228,11 @@ function BetFeedCard({item,userId,reactions,onReact,betStakes,onBetStake,onSendT
       <div className="bet-pot-labels"><span>{b.p1Name}: {b.p1Pts}pts</span><span>{b.p2Name}: {b.p2Pts}pts</span></div>
       <div className="bet-rules-lbl">Elige un lado · máx 10 pts · ganador dobla · perdedor 0</div>
       {selSide&&!myStake?.confirmed&&<>
-        <div className="stake-row"><span style={{fontSize:11,color:"var(--muted)",whiteSpace:"nowrap"}}>Apostar:</span><input type="range" className="stake-range" min={1} max={10} value={stakeAmt} onChange={e=>setStakeAmt(+e.target.value)}/><span className="stake-amt">{stakeAmt}pts</span></div>
-        <div className="stake-actions"><button className="stake-confirm" onClick={()=>{onBetStake(String(b.id),selSide,stakeAmt);setSelSide(null);}}>Apostar por {selSide===1?b.p1Name:b.p2Name}</button><button className="stake-cancel" onClick={()=>setSelSide(null)}>✕</button></div>
+        {maxStake<1?(<div style={{fontSize:12,color:"var(--red)",textAlign:"center",padding:"8px 0"}}>⚠️ No tienes puntos disponibles para apostar.</div>):(<>
+          <div className="stake-row"><span style={{fontSize:11,color:"var(--muted)",whiteSpace:"nowrap"}}>Apostar:</span><input type="range" className="stake-range" min={1} max={maxStake} value={Math.min(stakeAmt,maxStake)} onChange={e=>setStakeAmt(+e.target.value)}/><span className="stake-amt">{Math.min(stakeAmt,maxStake)}pts</span></div>
+          <div style={{fontSize:10,color:"var(--muted)",textAlign:"right",marginBottom:4}}>Tienes {myPts} pts · máx 10</div>
+          <div className="stake-actions"><button className="stake-confirm" onClick={()=>{onBetStake(String(b.id),selSide,Math.min(stakeAmt,maxStake));setSelSide(null);}}>Apostar por {selSide===1?b.p1Name:b.p2Name}</button><button className="stake-cancel" onClick={()=>setSelSide(null)}>✕</button></div>
+        </>)}
       </>}
       {myStake?.confirmed&&<div className="bet-locked"><span>✓ {myStake.amount}pts por <b style={{marginLeft:3}}>{myStake.side===1?b.p1Name:b.p2Name}</b></span><span style={{color:"var(--green)"}}>+{myStake.amount*2} si gana 🏆</span></div>}
       <div className="card-footer"><ReactionsBar feedType="bet_open" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/><button className="chat-link-btn" onClick={()=>onSendToChat(item)}>💬 Chat</button></div>
@@ -1236,7 +1240,7 @@ function BetFeedCard({item,userId,reactions,onReact,betStakes,onBetStake,onSendT
   );
 }
 
-function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembers,betStakes,onBetStake,onSendToChat,onVote,onDispute}:{item:FeedItem;userId:string;members:Record<string,{name:string;avatar:string}>;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;disputeVotes:DisputeVote[];totalMembers:number;betStakes:Record<string,BetStake>;onBetStake:(id:string,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote?:(id:number,v:"support"|"reject")=>Promise<void>;onDispute?:(uid:string)=>void}){
+function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembers,betStakes,onBetStake,onSendToChat,onVote,onDispute,myPts}:{item:FeedItem;userId:string;members:Record<string,{name:string;avatar:string}>;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;disputeVotes:DisputeVote[];totalMembers:number;betStakes:Record<string,BetStake>;onBetStake:(id:string,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote?:(id:number,v:"support"|"reject")=>Promise<void>;onDispute?:(uid:string)=>void;myPts:number}){
   if(item.type==="log"){
     const who=members[item.user_id]||{name:"?",avatar:"👤"};
     const isMe=item.user_id===userId;
@@ -1302,7 +1306,7 @@ function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembe
     );
   }
   if(item.type==="bet_open"||item.type==="bet_won"){
-    return <BetFeedCard item={item as FeedBetItem} userId={userId} reactions={reactions} onReact={onReact} betStakes={betStakes} onBetStake={onBetStake} onSendToChat={onSendToChat}/>;
+    return <BetFeedCard item={item as FeedBetItem} userId={userId} reactions={reactions} onReact={onReact} betStakes={betStakes} onBetStake={onBetStake} onSendToChat={onSendToChat} myPts={myPts}/>;
   }
   if(item.type==="dispute"){
     const d=item.dispute;
@@ -1340,7 +1344,7 @@ function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembe
 }
 
 /* ══════════════════════════════════════════ FEED */
-function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,totalMembers,betStakes,onBetStake,onSendToChat,onVote,onDispute}:{user:any;group:any;members:Record<string,{name:string;avatar:string}>;disputes:Dispute[];disputeVotes:DisputeVote[];bets:Bet[];reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;totalMembers:number;betStakes:Record<string,BetStake>;onBetStake:(id:string,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote:(id:number,v:"support"|"reject")=>Promise<void>;onDispute?:(uid:string)=>void}){
+function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,totalMembers,betStakes,onBetStake,onSendToChat,onVote,onDispute,myPts}:{user:any;group:any;members:Record<string,{name:string;avatar:string}>;disputes:Dispute[];disputeVotes:DisputeVote[];bets:Bet[];reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;totalMembers:number;betStakes:Record<string,BetStake>;onBetStake:(id:string,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote:(id:number,v:"support"|"reject")=>Promise<void>;onDispute?:(uid:string)=>void;myPts:number}){
   const [logs,setLogs]=useState<any[]>([]);
   const [loading,setLoading]=useState(true);
   useEffect(()=>{
@@ -1395,7 +1399,7 @@ function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,t
     <div className="feed">
       <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",fontWeight:500,marginBottom:2}}>Actividad reciente</div>
       {items.map(item=>(
-        <FeedCard key={item.ref} item={item} userId={user.id} members={members} reactions={reactions} onReact={onReact} disputeVotes={disputeVotes} totalMembers={totalMembers} betStakes={betStakes} onBetStake={onBetStake} onSendToChat={onSendToChat} onVote={onVote} onDispute={onDispute}/>
+        <FeedCard key={item.ref} item={item} userId={user.id} members={members} reactions={reactions} onReact={onReact} disputeVotes={disputeVotes} totalMembers={totalMembers} betStakes={betStakes} onBetStake={onBetStake} onSendToChat={onSendToChat} onVote={onVote} onDispute={onDispute} myPts={myPts}/>
       ))}
     </div>
   );
@@ -1543,7 +1547,11 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   const [newBetP1,setNewBetP1]=useState("");
   const [newBetP2,setNewBetP2]=useState("");
   const [newBetPot,setNewBetPot]=useState(5);
-  const [newBetEnds,setNewBetEnds]=useState("domingo");
+  const [newBetEnds,setNewBetEnds]=useState(()=>{const d=new Date();d.setDate(d.getDate()+7);return d.toISOString().slice(0,10);});
+  const [tabStakeState,setTabStakeState]=useState<Record<string,{selSide?:1|2;amt:number}>>({});
+  const [adminSeasonDuration,setAdminSeasonDuration]=useState<number>((groupInit as any).season_duration_days||56);
+  const [adminSeasonEndDate,setAdminSeasonEndDate]=useState<string>((groupInit as any).season_end_date||"");
+  const [adminSavingSeasonDates,setAdminSavingSeasonDates]=useState(false);
   const [savingBet,setSavingBet]=useState(false);
   const [editingProfile,setEditingProfile]=useState(false);
   const [editAvatar,setEditAvatar]=useState("");
@@ -1780,6 +1788,33 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     setGroupLocal((g:any)=>({...g,next_season_config:cfg}));
   }
 
+  async function adminSaveSeasonDates(){
+    setAdminSavingSeasonDates(true);
+    const{error}=await sb.from("groups").update({season_duration_days:adminSeasonDuration||56,season_end_date:adminSeasonEndDate||null}).eq("id",group.id);
+    setAdminSavingSeasonDates(false);
+    if(error){alert("Error: "+error.message);return;}
+    setGroupLocal((g:any)=>({...g,season_duration_days:adminSeasonDuration,season_end_date:adminSeasonEndDate}));
+    alert("✅ Fechas de temporada guardadas.");
+  }
+  async function adminRotateSeason(){
+    if(!window.confirm("¿Rotar a la siguiente temporada ahora? Se archivará la actual y se aplicará la configuración de la próxima."))return;
+    const cfg=(group as any).next_season_config;
+    const newEndDate=new Date();
+    newEndDate.setDate(newEndDate.getDate()+(adminSeasonDuration||56));
+    const newEndStr=newEndDate.toISOString().slice(0,10);
+    // Archive current season
+    await sb.from("seasons").insert({group_id:group.id,name:(group as any).season_name||"Temporada",ended_at:new Date().toISOString()});
+    // Apply next config
+    await sb.from("groups").update({
+      active_habits:cfg?.active_habits||null,
+      season_name:cfg?.name||"Nueva temporada",
+      next_season_config:null,
+      season_end_date:newEndStr,
+      season_duration_days:adminSeasonDuration||56,
+    }).eq("id",group.id);
+    alert("✅ Temporada rotada correctamente. Recarga la app para ver los cambios.");
+    loadAdminData();
+  }
   async function adminSaveHabitPts(){
     setAdminSavingHabitos(true);
     // Only save pts that differ from defaults
@@ -1932,7 +1967,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       id:b.id,label:b.label,
       p1Name:um[b.p1_id]?.name||"?",p1Avi:um[b.p1_id]?.avatar||"👤",p1Pts:0,p1Id:b.p1_id,
       p2Name:um[b.p2_id]?.name||"?",p2Avi:um[b.p2_id]?.avatar||"👤",p2Pts:0,p2Id:b.p2_id,
-      pot:b.pot,ends:b.ends_label,
+      pot:b.pot,ends:b.ends_at?new Date(b.ends_at).toLocaleDateString("es-ES",{day:"numeric",month:"short"}):(b.ends_label||"?"),
       status:b.status as "open"|"won"|"lost"|"cancelled",myPick:null
     })));
   }
@@ -1943,15 +1978,22 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     setBetStakes(map);
   }
   async function handleBetStake(betId:string,side:1|2,amount:number){
-    await sb.from("bet_stakes").upsert({bet_id:betId,user_id:user.id,side,amount},{onConflict:"bet_id,user_id"});
-    setBetStakes(prev=>({...prev,[betId]:{side,amount,confirmed:true}}));
+    const myPts=myRow?.total_pts||0;
+    const cappedAmt=Math.min(Math.max(1,amount),10);
+    if(cappedAmt>myPts){alert(`No tienes suficientes puntos. Tienes ${myPts} pts disponibles.`);return;}
+    if(myPts<1){alert("Necesitas al menos 1 punto para apostar.");return;}
+    await sb.from("bet_stakes").upsert({bet_id:betId,user_id:user.id,side,amount:cappedAmt},{onConflict:"bet_id,user_id"});
+    setBetStakes(prev=>({...prev,[betId]:{side,amount:cappedAmt,confirmed:true}}));
   }
   async function createBet(){
     if(!newBetLabel.trim()||!newBetP1||!newBetP2||newBetP1===newBetP2)return;
+    const cappedPot=Math.min(Math.max(1,newBetPot),10);
     setSavingBet(true);
-    await sb.from("bets").insert({group_id:group.id,label:newBetLabel.trim(),p1_id:newBetP1,p2_id:newBetP2,pot:newBetPot,ends_label:newBetEnds});
+    const endsLabel=newBetEnds?new Date(newBetEnds).toLocaleDateString("es-ES",{day:"numeric",month:"short"}):newBetEnds;
+    await sb.from("bets").insert({group_id:group.id,label:newBetLabel.trim(),p1_id:newBetP1,p2_id:newBetP2,pot:cappedPot,ends_at:newBetEnds||null,ends_label:endsLabel});
     await loadBets();
-    setNewBetLabel("");setNewBetP1("");setNewBetP2("");setNewBetPot(5);setNewBetEnds("domingo");
+    const d=new Date();d.setDate(d.getDate()+7);
+    setNewBetLabel("");setNewBetP1("");setNewBetP2("");setNewBetPot(5);setNewBetEnds(d.toISOString().slice(0,10));
     setShowCreateBet(false);setSavingBet(false);
   }
   async function saveProfile(){
@@ -2064,7 +2106,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       {tab==="hoy"&&(
         <div className="content" key="hoy">
           <TodayBanner weekPts={myRow?.total_pts||pts} streak={streak} saved={saved} done={done} onApuntar={()=>setShowApuntar(true)} myPos={myPos} weekDays={weekDays}/>
-          <Feed user={user} group={group} members={members} disputes={disputes} disputeVotes={disputeVotes} bets={bets} reactions={reactions} onReact={handleReact} totalMembers={totalMembers} betStakes={betStakes} onBetStake={handleBetStake} onSendToChat={handleSendToChat} onVote={castVote} onDispute={(uid)=>{setProfileModal(null);setDisputeModal(uid);}}/>
+          <Feed user={user} group={group} members={members} disputes={disputes} disputeVotes={disputeVotes} bets={bets} reactions={reactions} onReact={handleReact} totalMembers={totalMembers} betStakes={betStakes} onBetStake={handleBetStake} onSendToChat={handleSendToChat} onVote={castVote} onDispute={(uid)=>{setProfileModal(null);setDisputeModal(uid);}} myPts={myRow?.total_pts||0}/>
         </div>
       )}
 
@@ -2331,11 +2373,11 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
                 <div>
                   <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Bote (pts)</div>
-                  <input type="number" min={1} max={50} value={newBetPot} onChange={e=>setNewBetPot(Number(e.target.value))} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box"}}/>
+                  <input type="number" min={1} max={10} value={newBetPot} onChange={e=>setNewBetPot(Math.min(10,Math.max(1,Number(e.target.value))))} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box"}}/>
                 </div>
                 <div>
                   <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Termina</div>
-                  <input value={newBetEnds} onChange={e=>setNewBetEnds(e.target.value)} placeholder="ej: domingo" style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box"}}/>
+                  <input type="date" value={newBetEnds} onChange={e=>setNewBetEnds(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box",colorScheme:"dark"}}/>
                 </div>
               </div>
               <button onClick={createBet} disabled={savingBet||!newBetLabel.trim()||!newBetP1||!newBetP2||newBetP1===newBetP2} style={{width:"100%",background:"var(--amber)",border:"none",borderRadius:10,padding:"11px",fontSize:14,fontWeight:800,color:"#000",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",opacity:(!newBetLabel.trim()||!newBetP1||!newBetP2||newBetP1===newBetP2)?.5:1}}>{savingBet?"Creando…":"⚔️ Crear apuesta"}</button>
@@ -2359,10 +2401,29 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                   <div className="bet-vs-lbl">VS</div>
                   <div className="bet-player"><div className="bet-avi">{b.p2Avi}</div><div className="bet-pname">{b.p2Name}</div><div className="bet-pstat">{b.p2Pts} pts</div></div>
                 </div>
-                {s==="open"&&!betStakes[b.id]?.confirmed&&<div className="bet-actions">
-                  <button className="bet-btn" onClick={()=>handleBetStake(String(b.id),1,5)}>Por {b.p1Name}</button>
-                  <button className="bet-btn" onClick={()=>handleBetStake(String(b.id),2,5)}>Por {b.p2Name}</button>
-                </div>}
+                {s==="open"&&!betStakes[b.id]?.confirmed&&(()=>{
+                  const ts=tabStakeState[String(b.id)]||{amt:Math.min(5,Math.max(1,myRow?.total_pts||0))};
+                  const maxStk=Math.min(10,myRow?.total_pts||0);
+                  return(<>
+                    <div className="bet-sides">
+                      <div className={`bet-side${ts.selSide===1?" sel":""}`} onClick={()=>setTabStakeState(p=>({...p,[String(b.id)]:{...ts,selSide:ts.selSide===1?undefined:1}}))}>
+                        <div className="bet-side-avi">{b.p1Avi}</div><div className="bet-side-name">{b.p1Name}</div>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",fontSize:11,fontWeight:700,color:"var(--muted)",padding:"0 4px"}}>VS</div>
+                      <div className={`bet-side${ts.selSide===2?" sel":""}`} onClick={()=>setTabStakeState(p=>({...p,[String(b.id)]:{...ts,selSide:ts.selSide===2?undefined:2}}))}>
+                        <div className="bet-side-avi">{b.p2Avi}</div><div className="bet-side-name">{b.p2Name}</div>
+                      </div>
+                    </div>
+                    {ts.selSide&&(maxStk<1?(<div style={{fontSize:12,color:"var(--red)",textAlign:"center",padding:"6px 0"}}>⚠️ Sin puntos para apostar</div>):(<>
+                      <div className="stake-row"><span style={{fontSize:11,color:"var(--muted)",whiteSpace:"nowrap"}}>Apostar:</span><input type="range" className="stake-range" min={1} max={maxStk} value={Math.min(ts.amt,maxStk)} onChange={e=>setTabStakeState(p=>({...p,[String(b.id)]:{...ts,amt:+e.target.value}}))}/><span className="stake-amt">{Math.min(ts.amt,maxStk)}pts</span></div>
+                      <div style={{fontSize:10,color:"var(--muted)",textAlign:"right",marginBottom:4}}>Tienes {myRow?.total_pts||0} pts · máx 10</div>
+                      <div className="stake-actions">
+                        <button className="stake-confirm" onClick={()=>{handleBetStake(String(b.id),ts.selSide!,Math.min(ts.amt,maxStk));setTabStakeState(p=>{const n={...p};delete n[String(b.id)];return n;});}}>Apostar por {ts.selSide===1?b.p1Name:b.p2Name}</button>
+                        <button className="stake-cancel" onClick={()=>setTabStakeState(p=>{const n={...p};delete n[String(b.id)];return n;})}>✕</button>
+                      </div>
+                    </>))}
+                  </>);
+                })()}
                 {betStakes[b.id]?.confirmed&&s==="open"&&<div className="my-pick">✓ Apostaste por <b style={{marginLeft:4}}>{betStakes[b.id].side===1?b.p1Name:b.p2Name}</b></div>}
                 {s!=="open"&&betStakes[b.id]?.side&&<div className="my-pick">Tu apuesta: <b style={{marginLeft:4}}>{betStakes[b.id].side===1?b.p1Name:b.p2Name}</b></div>}
                 {s==="open"&&<div className="bet-timer">⏱ {b.ends}</div>}
@@ -2639,11 +2700,35 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                 </div>
                 <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.6}}>Los cambios aquí <b style={{color:"var(--text)"}}>no afectan la temporada en curso</b>. Se aplicarán cuando inicies una nueva temporada.</div>
               </div>
-              <div className="card">
+              <div className="card" style={{marginBottom:10}}>
                 <div style={{fontSize:11,color:"var(--muted)",marginBottom:6,letterSpacing:.5}}>Nombre de la próxima temporada</div>
                 <input value={adminNextName} onChange={e=>setAdminNextName(e.target.value)} className="inp" placeholder="ej. Temporada 2" style={{marginBottom:12}}/>
                 <button className="btn" disabled={adminSavingNext||!adminNextName.trim()} onClick={adminSaveNextSeason} style={{marginTop:4}}>
                   {adminSavingNext?"Guardando...":"💾 Guardar nombre"}
+                </button>
+              </div>
+              <div className="card" style={{marginBottom:10}}>
+                <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:10}}>⏳ Duración y fin de temporada</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+                  <div>
+                    <div style={{fontSize:10,color:"var(--muted)",marginBottom:5,letterSpacing:1,textTransform:"uppercase"}}>Duración (días)</div>
+                    <input type="number" min={7} max={365} value={adminSeasonDuration} onChange={e=>setAdminSeasonDuration(Math.max(7,Number(e.target.value)))} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box"}}/>
+                    <div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>{Math.round(adminSeasonDuration/7)} semanas</div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:10,color:"var(--muted)",marginBottom:5,letterSpacing:1,textTransform:"uppercase"}}>Fecha fin actual</div>
+                    <input type="date" value={adminSeasonEndDate} onChange={e=>setAdminSeasonEndDate(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box",colorScheme:"dark"}}/>
+                  </div>
+                </div>
+                <button className="btn" disabled={adminSavingSeasonDates} onClick={adminSaveSeasonDates} style={{marginBottom:0}}>
+                  {adminSavingSeasonDates?"Guardando...":"💾 Guardar fechas"}
+                </button>
+              </div>
+              <div className="card" style={{marginBottom:10,background:"rgba(232,98,58,.04)",borderColor:"rgba(232,98,58,.25)"}}>
+                <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:6}}>🔄 Rotar temporada manualmente</div>
+                <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.5,marginBottom:10}}>Archiva la temporada actual y aplica la configuración de la próxima. Se usará solo si la rotación automática no se ha ejecutado.</div>
+                <button onClick={adminRotateSeason} style={{width:"100%",background:"rgba(232,98,58,.12)",border:"1px solid rgba(232,98,58,.3)",borderRadius:10,padding:"10px",fontSize:13,fontWeight:700,color:"var(--coral)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+                  🔄 Rotar ahora
                 </button>
               </div>
               {adminSeasons.length>0&&(
