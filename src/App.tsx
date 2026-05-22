@@ -395,7 +395,7 @@ type Dispute = { id:number;group_id:string;disputed_user:string;challenger:strin
 type DisputeVote = { dispute_id:number;voter_id:string;vote:"support"|"reject"; };
 type DisputeStatus = "active"|"failed"|"passed";
 type FeedReaction = { id:number;user_id:string;group_id:string;feed_type:string;feed_ref:string;emoji:string; };
-type FeedLogItem = { type:"log";ref:string;user_id:string;date:string;habits:Array<{id:string;icon:string;name:string;pts:number}>;pts:number;created_at:string; };
+type FeedLogItem = { type:"log";ref:string;user_id:string;date:string;habits:Array<{id:string;icon:string;name:string;pts:number}>;pts:number;created_at:string;proof_photo_url?:string|null; };
 type FeedStreakItem = { type:"streak";ref:string;user_id:string;streak:number;date:string;created_at:string; };
 type FeedBetItem = { type:"bet_open"|"bet_won";ref:string;bet:Bet;created_at:string; };
 type FeedDisputeItem = { type:"dispute";ref:string;dispute:Dispute;created_at:string; };
@@ -919,12 +919,42 @@ function TodayBanner({weekPts,streak,saved,done,onApuntar,myPos,weekDays}:{weekP
 }
 
 /* ══════════════════════════════════════════ APUNTAR MODAL */
-function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits}:{done:Record<string,boolean>;saved:boolean;saving:boolean;onToggle:(id:string)=>void;onSave:()=>void;onClose:()=>void;groupHabits:typeof QUESTIONS}){
+function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits,userId,groupId}:{done:Record<string,boolean>;saved:boolean;saving:boolean;onToggle:(id:string)=>void;onSave:(proofUrl?:string)=>void;onClose:()=>void;groupHabits:typeof QUESTIONS;userId:string;groupId:string}){
   const pts=groupHabits.reduce((s,q)=>done[q.id]?s+q.pts:s,0);
   const anyDone=groupHabits.some(q=>done[q.id]);
+  const [proofPreview,setProofPreview]=useState<string|null>(null);
+  const [proofFile,setProofFile]=useState<File|null>(null);
+  const [uploading,setUploading]=useState(false);
+  const fileRef=useRef<HTMLInputElement>(null);
+
+  async function handleSave(){
+    let proofUrl:string|undefined=undefined;
+    if(proofFile){
+      setUploading(true);
+      const ext=proofFile.name.split(".").pop()||"jpg";
+      const path=`${groupId}/${userId}/${todayStr()}.${ext}`;
+      const{data,error}=await sb.storage.from("proofs").upload(path,proofFile,{upsert:true,contentType:proofFile.type});
+      setUploading(false);
+      if(!error&&data){
+        const{data:{publicUrl}}=sb.storage.from("proofs").getPublicUrl(path);
+        proofUrl=publicUrl;
+      }
+    }
+    onSave(proofUrl);
+  }
+
+  function handleFile(e:React.ChangeEvent<HTMLInputElement>){
+    const f=e.target.files?.[0];
+    if(!f)return;
+    setProofFile(f);
+    const reader=new FileReader();
+    reader.onload=ev=>setProofPreview(ev.target?.result as string);
+    reader.readAsDataURL(f);
+  }
+
   return(
     <div className="overlay" onClick={onClose}>
-      <div className="sheet" style={{maxHeight:"80vh"}} onClick={e=>e.stopPropagation()}>
+      <div className="sheet" style={{maxHeight:"88vh"}} onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:"var(--text)"}}>¿Qué has hecho hoy?</div>
@@ -957,8 +987,28 @@ function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits}:{d
             </div>
           );
         })}
-        <button className="btn" style={{marginTop:14}} disabled={!anyDone||saving} onClick={onSave}>
-          {saving?"Guardando...":`${saved?"Actualizar":"Guardar"} · +${Math.max(0,pts)} pts`}
+
+        {/* ── PRUEBA FOTOGRÁFICA ── */}
+        <div style={{marginTop:4,marginBottom:14}}>
+          <div style={{fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",fontWeight:700,marginBottom:8}}>📷 Prueba (opcional)</div>
+          {proofPreview?(
+            <div style={{position:"relative",marginBottom:8}}>
+              <img src={proofPreview} alt="preview" style={{width:"100%",maxHeight:180,objectFit:"cover",borderRadius:12,border:"1px solid rgba(240,168,50,.3)"}}/>
+              <button onClick={()=>{setProofPreview(null);setProofFile(null);}} style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,.6)",border:"none",borderRadius:20,width:26,height:26,color:"#fff",fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+            </div>
+          ):(
+            <button onClick={()=>fileRef.current?.click()} style={{width:"100%",background:"var(--s2)",border:"1px dashed rgba(240,168,50,.3)",borderRadius:12,padding:"12px",fontSize:13,color:"var(--muted)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontFamily:"'DM Sans',sans-serif",transition:"all .15s"}}
+              onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.borderColor="var(--amber)";(e.currentTarget as HTMLElement).style.color="var(--amber)"}}
+              onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.borderColor="rgba(240,168,50,.3)";(e.currentTarget as HTMLElement).style.color="var(--muted)"}}>
+              📷 Foto del gym / deporte
+            </button>
+          )}
+          <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={handleFile}/>
+          <div style={{fontSize:10,color:"var(--muted)",marginTop:5,textAlign:"center"}}>Cámara o galería · la foto se borra en 24h</div>
+        </div>
+
+        <button className="btn" disabled={!anyDone||saving||uploading} onClick={handleSave}>
+          {uploading?"Subiendo foto...":(saving?"Guardando...":`${saved?"Actualizar":"Guardar"} · +${Math.max(0,pts)} pts${proofFile?" 📷":""}`)}
         </button>
       </div>
     </div>
@@ -1043,19 +1093,46 @@ function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembe
   if(item.type==="log"){
     const who=members[item.user_id]||{name:"?",avatar:"👤"};
     const isMe=item.user_id===userId;
+    const [photoOpen,setPhotoOpen]=React.useState(false);
     return(
-      <div className="feed-card">
+      <>
+      <div className="feed-card" style={item.proof_photo_url?{borderColor:"rgba(240,168,50,.2)"}:{}}>
         <div className="feed-head">
           <div className="feed-avi">{who.avatar}</div>
           <div style={{flex:1,minWidth:0}}>
-            <div className="feed-name">{isMe?"Tú":who.name} <span style={{fontWeight:400,color:"var(--muted)"}}>registró actividad</span></div>
+            <div className="feed-name">
+              {isMe?"Tú":who.name} <span style={{fontWeight:400,color:"var(--muted)"}}>registró actividad</span>
+              {item.proof_photo_url&&<span style={{marginLeft:6,fontSize:11,background:"rgba(240,168,50,.12)",border:"1px solid rgba(240,168,50,.3)",borderRadius:8,padding:"1px 6px",color:"var(--amber)",fontWeight:700}}>📷</span>}
+            </div>
             <div className="feed-when">{relTime(item.created_at)} · {item.date}</div>
           </div>
           <div style={{textAlign:"right",flexShrink:0}}><div className="feed-pts-big">+{item.pts}</div><div style={{fontSize:10,color:"var(--muted)"}}>pts</div></div>
         </div>
         {item.habits.length>0&&<div className="feed-habits">{item.habits.map(h=><div key={h.id} className="feed-habit-chip">{h.icon} {h.name}</div>)}</div>}
-        <div className="card-footer"><ReactionsBar feedType="log" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/><div style={{display:"flex",gap:6}}>{!isMe&&<button className="chat-link-btn" style={{color:"#F2667A"}} onClick={()=>onDispute&&onDispute(item.user_id)}>⚠️ Disputar</button>}<button className="chat-link-btn" onClick={()=>onSendToChat(item)}>💬 Chat</button></div></div>
+        {item.proof_photo_url&&(
+          <div style={{marginBottom:8,marginTop:4}}>
+            <img src={item.proof_photo_url} alt="prueba" onClick={()=>setPhotoOpen(true)}
+              style={{width:"100%",maxHeight:220,objectFit:"cover",borderRadius:12,cursor:"pointer",border:"1px solid rgba(240,168,50,.2)"}}/>
+          </div>
+        )}
+        <div className="card-footer">
+          <ReactionsBar feedType="log" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/>
+          <div style={{display:"flex",gap:6}}>
+            {!isMe&&<button className="chat-link-btn" style={{color:"#F2667A"}} onClick={()=>onDispute&&onDispute(item.user_id)}>⚠️ Disputar</button>}
+            <button className="chat-link-btn" onClick={()=>onSendToChat(item)}>💬 Chat</button>
+          </div>
+        </div>
       </div>
+      {photoOpen&&item.proof_photo_url&&(
+        <div className="overlay" style={{zIndex:500}} onClick={()=>setPhotoOpen(false)}>
+          <div style={{width:"100%",maxWidth:430,padding:"20px 16px"}} onClick={e=>e.stopPropagation()}>
+            <img src={item.proof_photo_url} alt="prueba" style={{width:"100%",borderRadius:18,display:"block"}}/>
+            <div style={{textAlign:"center",marginTop:12,fontSize:12,color:"var(--muted)"}}>Prueba de {isMe?"ti":who.name} · {item.date}</div>
+            <button onClick={()=>setPhotoOpen(false)} style={{width:"100%",marginTop:14,background:"var(--s2)",border:"1px solid var(--border)",borderRadius:13,padding:12,color:"var(--muted)",fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Cerrar</button>
+          </div>
+        </div>
+      )}
+      </>
     );
   }
   if(item.type==="streak"){
@@ -1139,7 +1216,7 @@ function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,t
     byUser[log.user_id].push(log);
     const habits=QUESTIONS.filter(q=>(log as any)[q.id]);
     const pts=habits.reduce((s,q)=>s+q.pts,0);
-    items.push({type:"log",ref:`${log.user_id}:${log.date}`,user_id:log.user_id,date:log.date,habits,pts,created_at:log.created_at} as FeedLogItem);
+    items.push({type:"log",ref:`${log.user_id}:${log.date}`,user_id:log.user_id,date:log.date,habits,pts,created_at:log.created_at,proof_photo_url:log.proof_photo_url||null} as FeedLogItem);
   }
   // Streak milestone cards
   const today=todayStr();
@@ -1624,11 +1701,12 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     for(let i=0;i<90;i++){const exp=new Date(today);exp.setDate(today.getDate()-i);if(dates.includes(exp.getTime()))s++;else break;}
     setStreak(s);
   }
-  async function saveDay(){
+  async function saveDay(proofUrl?:string){
     const anyDone=Object.values(done).some(Boolean);
     if(!anyDone||saving)return; setSaving(true);
-    const payload:any={user_id:user.id,date:todayStr(),total_pts:pts};
+    const payload:any={user_id:user.id,group_id:group.id,date:todayStr(),total_pts:pts};
     QUESTIONS.forEach(q=>{payload[q.id]=!!done[q.id];});
+    if(proofUrl!==undefined)payload.proof_photo_url=proofUrl;
     const{error}=await sb.from("daily_logs").upsert(payload,{onConflict:"user_id,date"});
     setSaving(false);
     if(error){alert("Error: "+error.message);return;}
@@ -2477,7 +2555,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       </nav>
 
       {/* APUNTAR MODAL */}
-      {showApuntar&&<ApuntarModal done={done} saved={saved} saving={saving} onToggle={toggle} onSave={saveDay} onClose={()=>setShowApuntar(false)} groupHabits={groupHabits}/>}
+      {showApuntar&&<ApuntarModal done={done} saved={saved} saving={saving} onToggle={toggle} onSave={saveDay} onClose={()=>setShowApuntar(false)} groupHabits={groupHabits} userId={user.id} groupId={group.id}/>}
 
       {/* GROUP SWITCHER */}
       {showGroupSwitcher&&(

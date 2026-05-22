@@ -1,15 +1,11 @@
 {
   "functions": {
-    "api/send-push.ts": { "runtime": "nodejs20.x" }
+    "api/send-push.ts":      { "runtime": "nodejs20.x" },
+    "api/cleanup-proofs.ts": { "runtime": "nodejs20.x" }
   },
   "crons": [
-    {
-      "path": "/api/send-push",
-      "schedule": "0 20 * * *"
-    },
-    {
-      "path": "/api/send-push",
-      "schedule": "0 7 * * 1"
-    }
+    { "path": "/api/send-push",      "schedule": "0 20 * * *"  },
+    { "path": "/api/send-push",      "schedule": "0 7 * * 1"   },
+    { "path": "/api/cleanup-proofs", "schedule": "0 3 * * *"   }
   ]
 }
