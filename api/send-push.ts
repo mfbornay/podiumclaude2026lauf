@@ -13,7 +13,9 @@ webpush.setVapidDetails(
 );
 
 // ─── Pool de mensajes personalizados ───────────────────────────────────────
-// {nombre} = usuario que no ha apuntado | {rival} = el que va primero esta semana
+// {nombre} = usuario que no ha apuntado
+// {rival}  = persona 1 puesto por encima en el ranking (o por debajo si eres 1º)
+// {lider}  = el primero del ranking general
 const MSGS = [
   { title:"⏰ Podium te llama", body:"Ey {nombre}, llevas todo el día sin meterlo. ¿Te has vuelto blandito?" },
   { title:"🏆 Podium", body:"Son las 10. Como no metas los puntos {nombre}, {rival} te mea en la cara mañana." },
@@ -45,17 +47,25 @@ const MSGS = [
   { title:"🌟 Oye {nombre}", body:"Hoy puedes remontar. Mete los puntos ahora y mañana {rival} te mira desde abajo." },
   { title:"🦥 Modo vago activado", body:"{nombre}: detectado. ¿Lo desactivamos juntos? Abre la app y apunta algo." },
   { title:"📱 Podium", body:"Llevas el día con el móvil en la mano y no has abierto Podium. Prioridades, {nombre}." },
+  { title:"👑 {lider} manda", body:"Mientras {lider} sigue primero, tú, {nombre}, ni has abierto la app. Reflexiona." },
+  { title:"🔝 {nombre}", body:"{lider} lleva semanas arriba. Hoy podrías acercarte. O no apuntar. Como siempre." },
 ];
 
-function pickMsg(nombre: string, rival: string): { title: string; body: string } {
+function pickMsg(nombre: string, rival: string, lider: string): { title: string; body: string } {
   // Seed by day so same message all night, different each day
   const dayIdx = Math.floor(Date.now() / 86400000);
   const userHash = nombre.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
   const idx = (dayIdx + userHash) % MSGS.length;
   const m = MSGS[idx];
   return {
-    title: m.title.replace(/{nombre}/g, nombre).replace(/{rival}/g, rival),
-    body: m.body.replace(/{nombre}/g, nombre).replace(/{rival}/g, rival),
+    title: m.title
+      .replace(/{nombre}/g, nombre)
+      .replace(/{rival}/g, rival)
+      .replace(/{lider}/g, lider),
+    body: m.body
+      .replace(/{nombre}/g, nombre)
+      .replace(/{rival}/g, rival)
+      .replace(/{lider}/g, lider),
   };
 }
 
@@ -110,34 +120,39 @@ export default async function handler(req: any, res: any) {
   const nameMap: Record<string, string> = {};
   (users || []).forEach((u: any) => { nameMap[u.id] = u.name || "tío"; });
 
-  // Get current week leaders per group
+  // Get full weekly ranking per group to find rival (adjacent position) and lider (1st)
   const groupIds = [...new Set(pendingSubs.map((s: any) => s.group_id))];
-  const weekStart = getWeekMonday(today);
-  const leaderMap: Record<string, string> = {}; // group_id → leader name
+  // rankingMap: group_id → ordered array of { user_id, name }
+  const rankingMap: Record<string, Array<{ user_id: string; name: string }>> = {};
   for (const gid of groupIds) {
     if (!gid) continue;
     const { data: ranking } = await sb
       .from("group_ranking")
       .select("user_id")
       .eq("group_id", gid)
-      .order("total_pts", { ascending: false })
-      .limit(1);
-    if (ranking?.[0]) {
-      const { data: lu } = await sb
-        .from("users")
-        .select("name")
-        .eq("id", ranking[0].user_id)
-        .maybeSingle();
-      leaderMap[gid] = lu?.name || "el primero";
-    }
+      .order("total_pts", { ascending: false });
+    if (!ranking?.length) continue;
+    const uids = ranking.map((r: any) => r.user_id);
+    const { data: unames } = await sb.from("users").select("id, name").in("id", uids);
+    const umap: Record<string, string> = {};
+    (unames || []).forEach((u: any) => { umap[u.id] = u.name || "alguien"; });
+    rankingMap[gid] = ranking.map((r: any) => ({ user_id: r.user_id, name: umap[r.user_id] || "alguien" }));
   }
 
   // Send notifications
   const results = await Promise.allSettled(
     pendingSubs.map(async (sub: any) => {
       const nombre = nameMap[sub.user_id] || "tío";
-      const rival = leaderMap[sub.group_id] || "el líder";
-      const msg = pickMsg(nombre.split(" ")[0], rival.split(" ")[0]);
+      const ranked = rankingMap[sub.group_id] || [];
+      const pos = ranked.findIndex((r) => r.user_id === sub.user_id);
+      // rival = person 1 above (pos-1), or 1 below if already 1st
+      let rival = "tu rival";
+      if (ranked.length > 1) {
+        if (pos <= 0) rival = ranked[1].name; // 1st: rival is 2nd
+        else rival = ranked[pos - 1].name;    // others: rival is person above
+      }
+      const lider = ranked[0]?.name || "el líder";
+      const msg = pickMsg(nombre.split(" ")[0], rival.split(" ")[0], lider.split(" ")[0]);
       return webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         JSON.stringify({ title: msg.title, body: msg.body, url: "/" })
