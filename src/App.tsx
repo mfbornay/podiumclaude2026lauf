@@ -369,7 +369,9 @@ const QUESTIONS = [
   { id:"familia",icon:"🏠",name:"Plan familiar",pts:4 },
   { id:"food",icon:"🥗",name:"Comida limpia",pts:4 },
   { id:"screen_good",icon:"📵",name:"Redes sociales <2h",pts:4 },
-  { id:"no_alcohol",icon:"🚫",name:"Sin alcohol (finde)",pts:2 },
+  { id:"no_alcohol",icon:"🍺",name:"Sin alcohol (finde)",pts:2 },
+  { id:"sin_movil",icon:"🌅",name:"Sin móvil al despertar",pts:1 },
+  { id:"vitamina_d",icon:"☀️",name:"Tomar el sol 20'",pts:1 },
   { id:"pareja",icon:"❤️",name:"Plan de pareja",pts:3 },
   { id:"book",icon:"📚",name:"Lectura 30min",pts:3 },
   { id:"course",icon:"📖",name:"Estudio/Curso",pts:4 },
@@ -379,7 +381,7 @@ const QUESTIONS = [
 const AMBITOS=[
   {id:"deporte",label:"Deporte",icon:"💪",color:"#F0A832",habits:["gym","running","sport"]},
   {id:"social",label:"Social",icon:"🍻",color:"#F2667A",habits:["quedada","familia","pareja"]},
-  {id:"salud",label:"Salud",icon:"🥗",color:"#5DC98A",habits:["food","screen_good","no_alcohol","meditation"]},
+  {id:"salud",label:"Salud",icon:"🥗",color:"#5DC98A",habits:["food","screen_good","no_alcohol","sin_movil","vitamina_d","meditation"]},
   {id:"cultura",label:"Cultura",icon:"📚",color:"#5B8DEF",habits:["book","course","podcast"]},
 ];
 const REACTION_EMOJIS = ["🐐","💪","💀","🏳️‍🌈","💅"];
@@ -1327,6 +1329,9 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   const [habitCounts,setHabitCounts]=useState<Record<string,number>>({});
   const [last7Logs,setLast7Logs]=useState<{date:string;pts:number}[]>([]);
   const [profileLogsAll,setProfileLogsAll]=useState<{date:string;pts:number}[]>([]);
+  const [rankView,setRankView]=useState<"semana"|"historico"|"hof">("semana");
+  const [weeklyHistory,setWeeklyHistory]=useState<Record<string,Record<string,number>>>({});
+  const [weeklyLoaded,setWeeklyLoaded]=useState(false);
   const [showGroupSwitcher,setShowGroupSwitcher]=useState(false);
   const [showGroupConfig,setShowGroupConfig]=useState(false);
   const [configHabits,setConfigHabits]=useState<string[]>(groupInit.active_habits||QUESTIONS.map(q=>q.id));
@@ -1579,6 +1584,24 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     QUESTIONS.forEach(q=>{if((data as any)[q.id])d[q.id]=true;});
     setDone(d);
   }
+  function getWeekMonday(dateStr:string){const d=new Date(dateStr+"T12:00:00");const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);return localDate(d);}
+
+  async function loadWeeklyHistory(){
+    if(weeklyLoaded)return;
+    const start=new Date();start.setDate(start.getDate()-55);
+    const startStr=localDate(start);
+    const{data}=await sb.from("daily_logs").select("user_id,date,total_pts").eq("group_id",group.id).gte("date",startStr);
+    if(!data)return;
+    const byUser:Record<string,Record<string,number>>={};
+    for(const log of data){
+      const w=getWeekMonday(log.date);
+      if(!byUser[log.user_id])byUser[log.user_id]={};
+      byUser[log.user_id][w]=(byUser[log.user_id][w]||0)+(log.total_pts||0);
+    }
+    setWeeklyHistory(byUser);
+    setWeeklyLoaded(true);
+  }
+
   async function loadRanking(){
     setLR(true);
     const{data}=await sb.from("group_ranking").select("*").eq("group_id",group.id).order("total_pts",{ascending:false});
@@ -1753,56 +1776,182 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       {/* RANKING */}
       {tab==="rank"&&(
         <div className="content" key="rank">
-          <div className="rank-hero">
-            <div className="rh-top">
-              <span className="rh-lbl">{group.emoji} {group.name}</span>
-              <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                <button className="disputes-btn" onClick={()=>setShowDisputes(true)}>⚖️ Disputas{disputes.length?` (${disputes.length})`:""}</button>
-                <button className="rh-btn" onClick={loadRanking}>{loadingRank?"...":"↻ actualizar"}</button>
-              </div>
-            </div>
-            {loadingRank&&<div style={{textAlign:"center",padding:20}}><div className="spin" style={{margin:"0 auto"}}/></div>}
-            {!loadingRank&&ranking.length===0&&<div className="empty">Nadie ha registrado actividad todavía.<br/>¡Guarda tu primer día!</div>}
-            {!loadingRank&&top3.length>0&&(
-              <div className="podium-row">
-                {top3[1]&&<div className="pc" onClick={()=>setProfileModal(top3[1].user_id)}>
-                  <div className="pavi p2">{top3[1].avatar||"🐺"}</div>
-                  <div className="pname">{top3[1].name}</div><div className="ppts">{top3[1].total_pts} pts</div>
-                  <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:3,margin:"3px 0"}}>{getAmbitoBadges(top3[1].user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
-                  <div className="pblk p2"><span className="pnum p2">2</span></div>
-                </div>}
-                <div className="pc" onClick={()=>setProfileModal(top3[0].user_id)}>
-                  <div style={{fontSize:11,color:"var(--amber)",textAlign:"center",marginBottom:3}}>👑</div>
-                  <div className="pavi p1">{top3[0].avatar||"🐺"}</div>
-                  <div className="pname">{top3[0].name}</div><div className="ppts">{top3[0].total_pts} pts</div>
-                  <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:3,margin:"3px 0"}}>{getAmbitoBadges(top3[0].user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
-                  <div className="pblk p1"><span className="pnum p1">1</span></div>
+          {/* View selector */}
+          <div style={{display:"flex",gap:6,marginBottom:14}}>
+            {([["semana","🏆","Esta semana"],["historico","📈","Evolución"],["hof","🎖️","Hall of Fame"]] as [string,string,string][]).map(([id,ico,lbl])=>(
+              <button key={id} onClick={()=>{setRankView(id as any);if(id==="historico"||id==="hof")loadWeeklyHistory();}} style={{flex:1,background:rankView===id?"rgba(240,168,50,.12)":"var(--s2)",border:`1px solid ${rankView===id?"var(--amber)":"var(--border)"}`,borderRadius:10,padding:"7px 4px",fontSize:11,fontWeight:700,color:rankView===id?"var(--amber)":"var(--muted)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+                {ico} {lbl}
+              </button>
+            ))}
+          </div>
+
+          {/* ── SEMANA ACTUAL ── */}
+          {rankView==="semana"&&(<>
+            <div className="rank-hero">
+              <div className="rh-top">
+                <span className="rh-lbl">{group.emoji} {group.name}</span>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <button className="disputes-btn" onClick={()=>setShowDisputes(true)}>⚖️ Disputas{disputes.length?` (${disputes.length})`:""}</button>
+                  <button className="rh-btn" onClick={loadRanking}>{loadingRank?"...":"↻"}</button>
                 </div>
-                {top3[2]&&<div className="pc" onClick={()=>setProfileModal(top3[2].user_id)}>
-                  <div className="pavi p3">{top3[2].avatar||"🐺"}</div>
-                  <div className="pname">{top3[2].name}</div><div className="ppts">{top3[2].total_pts} pts</div>
-                  <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:3,margin:"3px 0"}}>{getAmbitoBadges(top3[2].user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
-                  <div className="pblk p3"><span className="pnum p3">3</span></div>
-                </div>}
+              </div>
+              {loadingRank&&<div style={{textAlign:"center",padding:20}}><div className="spin" style={{margin:"0 auto"}}/></div>}
+              {!loadingRank&&ranking.length===0&&<div className="empty">Nadie ha registrado actividad todavía.<br/>¡Guarda tu primer día!</div>}
+              {!loadingRank&&top3.length>0&&(
+                <div className="podium-row">
+                  {top3[1]&&<div className="pc" onClick={()=>setProfileModal(top3[1].user_id)}>
+                    <div className="pavi p2">{top3[1].avatar||"🐺"}</div>
+                    <div className="pname">{top3[1].name}</div><div className="ppts">{top3[1].total_pts} pts</div>
+                    <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:3,margin:"3px 0"}}>{getAmbitoBadges(top3[1].user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
+                    <div className="pblk p2"><span className="pnum p2">2</span></div>
+                  </div>}
+                  <div className="pc" onClick={()=>setProfileModal(top3[0].user_id)}>
+                    <div style={{fontSize:11,color:"var(--amber)",textAlign:"center",marginBottom:3}}>👑</div>
+                    <div className="pavi p1">{top3[0].avatar||"🐺"}</div>
+                    <div className="pname">{top3[0].name}</div><div className="ppts">{top3[0].total_pts} pts</div>
+                    <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:3,margin:"3px 0"}}>{getAmbitoBadges(top3[0].user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
+                    <div className="pblk p1"><span className="pnum p1">1</span></div>
+                  </div>
+                  {top3[2]&&<div className="pc" onClick={()=>setProfileModal(top3[2].user_id)}>
+                    <div className="pavi p3">{top3[2].avatar||"🐺"}</div>
+                    <div className="pname">{top3[2].name}</div><div className="ppts">{top3[2].total_pts} pts</div>
+                    <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:3,margin:"3px 0"}}>{getAmbitoBadges(top3[2].user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
+                    <div className="pblk p3"><span className="pnum p3">3</span></div>
+                  </div>}
+                </div>
+              )}
+            </div>
+            {rest.length>0&&(
+              <div className="rank-list">
+                {rest.map((p:any,i:number)=>(
+                  <div key={p.user_id} className={`rrow${p.user_id===user.id?" me":""}`} onClick={()=>setProfileModal(p.user_id)}>
+                    <div className="rn">{i+4}</div>
+                    <div className="ravi">{p.avatar||"🐺"}</div>
+                    <div className="rinfo">
+                      <div className="rname">{p.name}{p.user_id===user.id?" · Tú":""}</div>
+                      <div className="rdetail">{p.days_logged} días{p.penalty?<span className="rr-penalty">−{p.penalty}pts disputa</span>:null}</div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:3}}>{getAmbitoBadges(p.user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
+                    </div>
+                    <div className="rright"><div className="rpts">{p.total_pts}</div></div>
+                  </div>
+                ))}
               </div>
             )}
-          </div>
-          {rest.length>0&&(
-            <div className="rank-list">
-              {rest.map((p:any,i:number)=>(
-                <div key={p.user_id} className={`rrow${p.user_id===user.id?" me":""}`} onClick={()=>setProfileModal(p.user_id)}>
-                  <div className="rn">{i+4}</div>
-                  <div className="ravi">{p.avatar||"🐺"}</div>
-                  <div className="rinfo">
-                    <div className="rname">{p.name}{p.user_id===user.id?" · Tú":""}</div>
-                    <div className="rdetail">{p.days_logged} días{p.penalty?<span className="rr-penalty">−{p.penalty}pts disputa</span>:null}</div>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:3}}>{getAmbitoBadges(p.user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
-                  </div>
-                  <div className="rright"><div className="rpts">{p.total_pts}</div></div>
+          </>)}
+
+          {/* ── EVOLUCIÓN HISTÓRICA ── */}
+          {rankView==="historico"&&(()=>{
+            if(!weeklyLoaded)return<div style={{textAlign:"center",padding:30}}><div className="spin" style={{margin:"0 auto 12px"}}/><div style={{fontSize:12,color:"var(--muted)"}}>Cargando histórico…</div></div>;
+            const CHART_COLORS=["#F0A832","#5DC98A","#6EB5FF","#E87B9E","#A78BFA","#F97316","#34D399","#FB7185"];
+            // Build last 8 mondays
+            const mondays:string[]=[];
+            for(let w=7;w>=0;w--){const d=new Date();const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow-w*7);mondays.push(localDate(d));}
+            const userIds=Object.keys(weeklyHistory);
+            if(!userIds.length)return<div className="empty">Sin datos históricos aún.<br/>Empieza a apuntar días para ver la evolución.</div>;
+            const allPts=mondays.flatMap(m=>userIds.map(uid=>weeklyHistory[uid]?.[m]||0));
+            const maxPts=Math.max(...allPts,10);
+            const W=370,H=180,PL=10,PR=10,PT=10,PB=28;
+            const xStep=(W-PL-PR)/(mondays.length-1);
+            const yScale=(v:number)=>PT+((H-PT-PB)*(1-v/maxPts));
+            const shortMon=(s:string)=>{const d=new Date(s+"T12:00:00");return`${d.getDate()}/${d.getMonth()+1}`;};
+            return(
+              <div>
+                <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>Puntos por semana — últimas 8 semanas</div>
+                <div style={{background:"var(--s1)",border:"1px solid var(--border)",borderRadius:16,padding:"14px 8px 10px",overflowX:"auto"}}>
+                  <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",maxWidth:W,display:"block"}}>
+                    {/* Grid lines */}
+                    {[0,.25,.5,.75,1].map(f=>{
+                      const y=PT+(H-PT-PB)*f;
+                      return<line key={f} x1={PL} y1={y} x2={W-PR} y2={y} stroke="rgba(255,255,255,.04)" strokeWidth={1}/>;
+                    })}
+                    {/* X labels */}
+                    {mondays.map((m,i)=>(
+                      <text key={m} x={PL+i*xStep} y={H-6} textAnchor="middle" fontSize={8} fill="rgba(122,106,74,.8)">{shortMon(m)}</text>
+                    ))}
+                    {/* Lines per user */}
+                    {userIds.map((uid,ui)=>{
+                      const color=CHART_COLORS[ui%CHART_COLORS.length];
+                      const pts=mondays.map(m=>weeklyHistory[uid]?.[m]||0);
+                      const points=pts.map((v,i)=>`${PL+i*xStep},${yScale(v)}`).join(" ");
+                      const name=members[uid]?.name||"?";
+                      const avatar=members[uid]?.avatar||"👤";
+                      const lastX=PL+(mondays.length-1)*xStep;
+                      const lastY=yScale(pts[pts.length-1]);
+                      return(
+                        <g key={uid}>
+                          <polyline points={points} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" opacity={.9}/>
+                          {pts.map((v,i)=>(
+                            <circle key={i} cx={PL+i*xStep} cy={yScale(v)} r={v>0?3.5:2} fill={v>0?color:"var(--s3)"} stroke={v>0?color:"var(--border)"} strokeWidth={1}/>
+                          ))}
+                          <text x={lastX+6} y={lastY+4} fontSize={9} fill={color} fontWeight={700}>{avatar}</text>
+                        </g>
+                      );
+                    })}
+                  </svg>
                 </div>
-              ))}
-            </div>
-          )}
+                {/* Legend */}
+                <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:12}}>
+                  {userIds.map((uid,ui)=>{
+                    const color=CHART_COLORS[ui%CHART_COLORS.length];
+                    const name=members[uid]?.name||"?";
+                    const avatar=members[uid]?.avatar||"👤";
+                    const best=Math.max(...mondays.map(m=>weeklyHistory[uid]?.[m]||0));
+                    return(
+                      <div key={uid} style={{display:"flex",alignItems:"center",gap:6,background:"var(--s2)",border:`1px solid ${color}44`,borderRadius:8,padding:"5px 10px"}}>
+                        <div style={{width:8,height:8,borderRadius:2,background:color,flexShrink:0}}/>
+                        <span style={{fontSize:12,color:"var(--text)",fontWeight:600}}>{avatar} {name}</span>
+                        <span style={{fontSize:10,color:"var(--muted)"}}>máx {best}pts</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ── HALL OF FAME ── */}
+          {rankView==="hof"&&(()=>{
+            if(!weeklyLoaded&&Object.keys(weeklyHistory).length===0)return<div style={{textAlign:"center",padding:30}}><div className="spin" style={{margin:"0 auto 12px"}}/><div style={{fontSize:12,color:"var(--muted)"}}>Cargando…</div></div>;
+            // Compute records from adjRanking + weeklyHistory
+            const sortedPts=[...adjRanking].sort((a:any,b:any)=>(b.total_pts||0)-(a.total_pts||0));
+            const sortedDays=[...adjRanking].sort((a:any,b:any)=>(b.days_logged||0)-(a.days_logged||0));
+            const sortedStreak=[...adjRanking].sort((a:any,b:any)=>(b.streak||0)-(a.streak||0));
+            // Best week ever from weeklyHistory
+            let bestWeekPts=0,bestWeekUser="";
+            for(const [uid,weeks] of Object.entries(weeklyHistory)){
+              for(const pts of Object.values(weeks)){
+                if(pts>bestWeekPts){bestWeekPts=pts;bestWeekUser=uid;}
+              }
+            }
+            const records=[
+              {icon:"👑",title:"Rey de la liga",sub:"Más puntos esta temporada",holder:sortedPts[0],val:`${sortedPts[0]?.total_pts||0} pts`},
+              {icon:"📅",title:"El más constante",sub:"Más días apuntados",holder:sortedDays[0],val:`${sortedDays[0]?.days_logged||0} días`},
+              {icon:"🔥",title:"En llamas",sub:"Racha activa más larga",holder:sortedStreak[0],val:`${sortedStreak[0]?.streak||0} días`},
+              {icon:"⚡",title:"Semana perfecta",sub:"Mejor semana de la historia",holder:bestWeekUser?{user_id:bestWeekUser,...(members[bestWeekUser]||{name:"?",avatar:"👤"})}:null,val:`${bestWeekPts} pts`},
+            ];
+            return(
+              <div>
+                <div style={{fontSize:11,color:"var(--amber)",letterSpacing:2,textTransform:"uppercase",marginBottom:14,fontWeight:700,textAlign:"center"}}>🏛️ Hall of Fame</div>
+                {records.map((r,i)=>(
+                  <div key={i} style={{background:i===0?"linear-gradient(135deg,#1E1608,#2A1C08)":"var(--s1)",border:`1px solid ${i===0?"rgba(240,168,50,.3)":"var(--border)"}`,borderRadius:16,padding:"14px 16px",marginBottom:10,display:"flex",alignItems:"center",gap:14}}>
+                    <div style={{fontSize:28,flexShrink:0}}>{r.icon}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:800,color:"var(--text)"}}>{r.title}</div>
+                      <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>{r.sub}</div>
+                      {r.holder&&<div style={{display:"flex",alignItems:"center",gap:6,marginTop:8}}>
+                        <span style={{fontSize:18}}>{(r.holder as any).avatar||"👤"}</span>
+                        <span style={{fontSize:12,fontWeight:700,color:"var(--text)"}}>{(r.holder as any).name||"?"}</span>
+                      </div>}
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:900,color:i===0?"var(--amber)":"var(--text)",lineHeight:1}}>{r.val}</div>
+                    </div>
+                  </div>
+                ))}
+                <div style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginTop:8,fontStyle:"italic"}}>Récords calculados con los datos actuales de la liga</div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
