@@ -367,23 +367,16 @@ const AVATARS = [
   "🚀","🛸","🌙","☀️","⭐","🌈","🎪","🎨","🎸","🎺","🥊","🏹",
 ];
 const ALL_REACTION_EMOJIS = [
-  // Clásicos de grupo
-  "🐐","💪","💀","👑","🔥","⚡","🏆","🎯","💅","🤡",
-  // Faces
-  "😂","🤣","😭","🥵","🤯","🫡","🥹","😤","🫠","🤌",
-  "😈","🤓","🥴","😮","🫣","🤩","😎","🥶","😴","🤧",
-  // Gestos
-  "👏","🙌","🫶","✌️","🤙","🦾","🖕","👎","🫵","🫂",
-  // Deporte
-  "🏃","🏋️","🚴","🤸","🏊","⚽","🏀","🎾","🥇","🎽",
-  // Otros
-  "💯","🚀","🌙","💩","🫀","🧠","👀","💔","❤️","🍻",
+  // Básicos pedidos
+  "🔥","⚡","🏆","🎯","🤡","💩","🚀","👀",
+  // Muerte / peligro
+  "💀","☠️","🔫","💣","🪦","🗡️","⚔️","🔪",
   // LGBT / Pride
   "🏳️‍🌈","🏳️‍⚧️","🌈","❤️‍🔥","🩷","🩵","💜",
   // Femenino / spa
-  "🧖‍♀️","💆‍♀️","🩰","👯‍♀️","💃","🛁","🫧","💄","👠","🎀",
+  "💅","🧖‍♀️","💆‍♀️","🩰","👯‍♀️","💃","🛁","🫧","💄","👠","🎀",
   // Masculino / profesiones
-  "👨‍🚒","🪖","💂","🧑‍✈️","⚓","🦺","🪃",
+  "👨‍🚒","🪖","💂","🧑‍✈️","⚓","🦺",
   // Animales fuertes / grandes
   "🦁","🐻","🦊","🦅","🐺","🦈","🐗","🦏","🦍","🐅","🦬","🐉","🦂","🦖",
 ];
@@ -909,9 +902,9 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
   async function searchGifs(q:string){
     if(!q.trim())return; setGifLoading(true);
     try{
-      const r=await fetch(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=LIVDSRZULELA&client_key=podium_app&limit=18&media_filter=tinygif`);
+      const r=await fetch(`/api/search-gifs?q=${encodeURIComponent(q)}`);
       const d=await r.json();
-      setGifResults((d.results||[]).map((g:any)=>g.media_formats?.tinygif?.url||g.media_formats?.gif?.url||"").filter(Boolean));
+      setGifResults((d.urls||[]));
     }catch{setGifResults([]);}
     finally{setGifLoading(false);}
   }
