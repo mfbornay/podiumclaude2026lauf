@@ -1575,13 +1575,31 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   const [adminSavingLiga,setAdminSavingLiga]=useState(false);
   const [adminSavingNext,setAdminSavingNext]=useState(false);
   const [adminSavingHabitos,setAdminSavingHabitos]=useState(false);
+  const defaultPts=Object.fromEntries(QUESTIONS.map(q=>[q.id,q.pts]));
+  const [adminHabitPts,setAdminHabitPts]=useState<Record<string,number>>(
+    {...defaultPts,...(groupInit.habit_pts||{})}
+  );
+  const HOF_BADGES=[
+    {id:"rey",icon:"👑",label:"Rey de la liga"},
+    {id:"constante",icon:"📅",label:"Más constante"},
+    {id:"racha",icon:"🔥",label:"Racha más larga"},
+    {id:"semana",icon:"⚡",label:"Mejor semana"},
+    {id:"gym",icon:"🏋️",label:"Más gym"},
+  ];
+  const [adminVisibleBadges,setAdminVisibleBadges]=useState<string[]>(
+    groupInit.visible_badges||HOF_BADGES.map(b=>b.id)
+  );
+  const [adminSavingBadges,setAdminSavingBadges]=useState(false);
 
   // Hábitos activos para este grupo (filtrados por configuración del admin)
   const groupHabits=React.useMemo(()=>{
     const ah=group.active_habits;
-    if(!ah||!ah.length)return QUESTIONS;
-    return QUESTIONS.filter(q=>ah.includes(q.id));
-  },[group.active_habits]);
+    const base=(!ah||!ah.length)?QUESTIONS:QUESTIONS.filter(q=>ah.includes(q.id));
+    // Apply custom pts if set
+    if(!group.habit_pts)return base;
+    return base.map(q=>group.habit_pts[q.id]!=null?{...q,pts:group.habit_pts[q.id]}:q);
+  },[group.active_habits,group.habit_pts]);
+  const visibleBadges:string[]=group.visible_badges||["rey","constante","racha","semana","gym"];
 
   const pts=calcPts(done);
   const isAdmin=profile?.role==="admin";
@@ -1762,6 +1780,26 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     setGroupLocal((g:any)=>({...g,next_season_config:cfg}));
   }
 
+  async function adminSaveHabitPts(){
+    setAdminSavingHabitos(true);
+    // Only save pts that differ from defaults
+    const diff:Record<string,number>={};
+    for(const [id,pts] of Object.entries(adminHabitPts)){
+      if(pts!==defaultPts[id])diff[id]=pts;
+    }
+    const{error}=await sb.from("groups").update({habit_pts:Object.keys(diff).length?diff:null}).eq("id",group.id);
+    setAdminSavingHabitos(false);
+    if(error){alert("Error: "+error.message);return;}
+    setGroupLocal((g:any)=>({...g,habit_pts:Object.keys(diff).length?diff:null}));
+  }
+  async function adminSaveBadges(){
+    setAdminSavingBadges(true);
+    const allSelected=adminVisibleBadges.length===HOF_BADGES.length;
+    const{error}=await sb.from("groups").update({visible_badges:allSelected?null:adminVisibleBadges}).eq("id",group.id);
+    setAdminSavingBadges(false);
+    if(error){alert("Error: "+error.message);return;}
+    setGroupLocal((g:any)=>({...g,visible_badges:allSelected?null:adminVisibleBadges}));
+  }
   async function adminSaveHabitos(){
     setAdminSavingHabitos(true);
     const habitsToSave=configHabits.length===QUESTIONS.length?null:configHabits;
@@ -2180,12 +2218,17 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                 if(pts>bestWeekPts){bestWeekPts=pts;bestWeekUser=uid;}
               }
             }
-            const records=[
-              {icon:"👑",title:"Rey de la liga",sub:"Más puntos esta temporada",holder:sortedPts[0],val:`${sortedPts[0]?.total_pts||0} pts`},
-              {icon:"📅",title:"El más constante",sub:"Más días apuntados",holder:sortedDays[0],val:`${sortedDays[0]?.days_logged||0} días`},
-              {icon:"🔥",title:"En llamas",sub:"Racha activa más larga",holder:sortedStreak[0],val:`${sortedStreak[0]?.streak||0} días`},
-              {icon:"⚡",title:"Semana perfecta",sub:"Mejor semana de la historia",holder:bestWeekUser?{user_id:bestWeekUser,...(members[bestWeekUser]||{name:"?",avatar:"👤"})}:null,val:`${bestWeekPts} pts`},
+            const gymKingId=Object.entries(
+              ranking.reduce((acc:Record<string,number>,r:any)=>{acc[r.user_id]=(acc[r.user_id]||0)+(r.gym?1:0);return acc;},{} as Record<string,number>)
+            ).sort((a,b)=>(b[1] as number)-(a[1] as number))[0];
+            const allRecords=[
+              {id:"rey",icon:"👑",title:"Rey de la liga",sub:"Más puntos esta temporada",holder:sortedPts[0],val:`${sortedPts[0]?.total_pts||0} pts`},
+              {id:"constante",icon:"📅",title:"El más constante",sub:"Más días apuntados",holder:sortedDays[0],val:`${sortedDays[0]?.days_logged||0} días`},
+              {id:"racha",icon:"🔥",title:"En llamas",sub:"Racha activa más larga",holder:sortedStreak[0],val:`${sortedStreak[0]?.streak||0} días`},
+              {id:"semana",icon:"⚡",title:"Semana perfecta",sub:"Mejor semana de la historia",holder:bestWeekUser?{user_id:bestWeekUser,...(members[bestWeekUser]||{name:"?",avatar:"👤"})}:null,val:`${bestWeekPts} pts`},
+              {id:"gym",icon:"🏋️",title:"Bestia del gym",sub:"Más días de entreno",holder:gymKingId?{user_id:gymKingId[0],...(members[gymKingId[0]]||{name:"?",avatar:"👤"})}:null,val:gymKingId?`${gymKingId[1]} días`:"—"},
             ];
+            const records=allRecords.filter(r=>visibleBadges.includes(r.id));
             return(
               <div>
                 <div style={{fontSize:11,color:"var(--amber)",letterSpacing:2,textTransform:"uppercase",marginBottom:14,fontWeight:700,textAlign:"center"}}>🏛️ Hall of Fame</div>
@@ -2647,20 +2690,52 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                     {aHabits.map(q=>{
                       const on=configHabits.includes(q.id);
                       return(
-                        <div key={q.id} onClick={()=>setConfigHabits(p=>on?p.filter(id=>id!==q.id):[...p,q.id])} style={{display:"flex",alignItems:"center",gap:10,background:on?"rgba(240,168,50,.06)":"var(--s2)",border:`1px solid ${on?"rgba(240,168,50,.3)":"var(--border)"}`,borderRadius:11,padding:"9px 12px",marginBottom:5,cursor:"pointer",transition:"all .15s"}}>
-                          <span style={{fontSize:18,width:24,textAlign:"center"}}>{q.icon}</span>
-                          <span style={{flex:1,fontSize:13,fontWeight:600,color:"var(--text)"}}>{q.name}</span>
-                          <span style={{fontSize:11,color:"var(--muted)",marginRight:6}}>+{q.pts}pts</span>
-                          <div style={{width:18,height:18,borderRadius:5,border:`1.5px solid ${on?"var(--amber)":"var(--muted2)"}`,background:on?"var(--amber)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#000",flexShrink:0,transition:"all .15s"}}>{on?"✓":""}</div>
+                        <div key={q.id} style={{display:"flex",alignItems:"center",gap:10,background:on?"rgba(240,168,50,.06)":"var(--s2)",border:`1px solid ${on?"rgba(240,168,50,.3)":"var(--border)"}`,borderRadius:11,padding:"9px 12px",marginBottom:5,transition:"all .15s"}}>
+                          <div onClick={()=>setConfigHabits(p=>on?p.filter(id=>id!==q.id):[...p,q.id])} style={{display:"flex",alignItems:"center",gap:10,flex:1,cursor:"pointer"}}>
+                            <span style={{fontSize:18,width:24,textAlign:"center"}}>{q.icon}</span>
+                            <span style={{flex:1,fontSize:13,fontWeight:600,color:"var(--text)"}}>{q.name}</span>
+                          </div>
+                          <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+                            <span style={{fontSize:10,color:"var(--muted)"}}>+</span>
+                            <input type="number" min={0} max={99} value={adminHabitPts[q.id]??q.pts}
+                              onChange={e=>setAdminHabitPts(p=>({...p,[q.id]:Math.max(0,Math.min(99,Number(e.target.value)||0))}))}
+                              onClick={e=>e.stopPropagation()}
+                              style={{width:38,background:"var(--s3,#1a1208)",border:"1px solid var(--border)",borderRadius:7,color:"var(--amber)",fontSize:12,fontWeight:700,textAlign:"center",padding:"3px 4px",fontFamily:"'DM Sans',sans-serif"}}/>
+                            <span style={{fontSize:10,color:"var(--muted)"}}>pts</span>
+                          </div>
+                          <div onClick={()=>setConfigHabits(p=>on?p.filter(id=>id!==q.id):[...p,q.id])} style={{width:18,height:18,borderRadius:5,border:`1.5px solid ${on?"var(--amber)":"var(--muted2)"}`,background:on?"var(--amber)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#000",flexShrink:0,transition:"all .15s",cursor:"pointer"}}>{on?"✓":""}</div>
                         </div>
                       );
                     })}
                   </div>
                 );
               })}
-              <div style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginBottom:10}}>{configHabits.length} de {QUESTIONS.length} hábitos · {configHabits.reduce((s,id)=>{const q=QUESTIONS.find(x=>x.id===id);return s+(q?.pts||0);},0)} pts máx/día</div>
-              <button className="btn" disabled={adminSavingHabitos||configHabits.length===0} onClick={adminSaveHabitos}>
-                {adminSavingHabitos?"Guardando...":"💾 Guardar hábitos"}
+              <div style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginBottom:10}}>{configHabits.length} de {QUESTIONS.length} hábitos · {configHabits.reduce((s,id)=>{const pts=adminHabitPts[id]??QUESTIONS.find(x=>x.id===id)?.pts??0;return s+pts;},0)} pts máx/día</div>
+              <div style={{display:"flex",gap:8,marginBottom:0}}>
+                <button className="btn" style={{flex:1}} disabled={adminSavingHabitos||configHabits.length===0} onClick={adminSaveHabitos}>
+                  {adminSavingHabitos?"...":"💾 Hábitos activos"}
+                </button>
+                <button className="btn" style={{flex:1,background:"var(--s2)",color:"var(--text)",border:"1px solid var(--border)"}} disabled={adminSavingHabitos} onClick={adminSaveHabitPts}>
+                  {adminSavingHabitos?"...":"⚖️ Guardar puntos"}
+                </button>
+              </div>
+              {/* ── BADGES HOF ── */}
+              <div style={{height:1,background:"var(--border)",margin:"20px 0 14px"}}/>
+              <div style={{fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",fontWeight:700,marginBottom:8}}>🎖️ Récords del Hall of Fame</div>
+              <div style={{fontSize:12,color:"var(--muted)",marginBottom:12,lineHeight:1.5}}>Elige qué récords aparecen en la pestaña Ranking → Hall of Fame.</div>
+              {HOF_BADGES.map(b=>{
+                const on=adminVisibleBadges.includes(b.id);
+                return(
+                  <div key={b.id} onClick={()=>setAdminVisibleBadges(p=>on?p.filter(x=>x!==b.id):[...p,b.id])}
+                    style={{display:"flex",alignItems:"center",gap:10,background:on?"rgba(240,168,50,.06)":"var(--s2)",border:`1px solid ${on?"rgba(240,168,50,.3)":"var(--border)"}`,borderRadius:11,padding:"10px 12px",marginBottom:6,cursor:"pointer",transition:"all .15s"}}>
+                    <span style={{fontSize:20}}>{b.icon}</span>
+                    <span style={{flex:1,fontSize:13,fontWeight:600,color:"var(--text)"}}>{b.label}</span>
+                    <div style={{width:18,height:18,borderRadius:5,border:`1.5px solid ${on?"var(--amber)":"var(--muted2)"}`,background:on?"var(--amber)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#000",flexShrink:0}}>{on?"✓":""}</div>
+                  </div>
+                );
+              })}
+              <button className="btn" style={{marginTop:4}} disabled={adminSavingBadges||adminVisibleBadges.length===0} onClick={adminSaveBadges}>
+                {adminSavingBadges?"Guardando...":"💾 Guardar badges"}
               </button>
               <div style={{height:1,background:"var(--border)",margin:"20px 0 14px"}}/>
               <div style={{fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",fontWeight:700,marginBottom:10}}>🔮 Próxima temporada</div>
