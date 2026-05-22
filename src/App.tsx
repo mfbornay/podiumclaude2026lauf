@@ -794,8 +794,8 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"chat_messages",filter:"group_id=eq."+group.id},(p:any)=>addMsg(p.new as ChatMsg))
       .on("postgres_changes",{event:"DELETE",schema:"public",table:"chat_messages",filter:"group_id=eq."+group.id},(p:any)=>{const id=p.old?.id;if(id)setMsgs(prev=>prev.filter(m=>m.id!==id));})
       .subscribe();
-    const poll=setInterval(load,5000);
-    return()=>{cancelled=true;clearInterval(poll);sb.removeChannel(channel);};
+    // Realtime subscription handles live updates — no polling needed
+    return()=>{cancelled=true;sb.removeChannel(channel);};
   },[group?.id]);
   async function send(){
     const t=text.trim();if(!t||sending)return; setSending(true);
@@ -1027,7 +1027,7 @@ function BetFeedCard({item,userId,reactions,onReact,betStakes,onBetStake,onSendT
       <div className="bet-rules-lbl">Elige un lado · máx 10 pts · ganador dobla · perdedor 0</div>
       {selSide&&!myStake?.confirmed&&<>
         <div className="stake-row"><span style={{fontSize:11,color:"var(--muted)",whiteSpace:"nowrap"}}>Apostar:</span><input type="range" className="stake-range" min={1} max={10} value={stakeAmt} onChange={e=>setStakeAmt(+e.target.value)}/><span className="stake-amt">{stakeAmt}pts</span></div>
-        <div className="stake-actions"><button className="stake-confirm" onClick={()=>{onBetStake(b.id,selSide,stakeAmt);setSelSide(null);}}>Apostar por {selSide===1?b.p1Name:b.p2Name}</button><button className="stake-cancel" onClick={()=>setSelSide(null)}>✕</button></div>
+        <div className="stake-actions"><button className="stake-confirm" onClick={()=>{onBetStake(String(b.id),selSide,stakeAmt);setSelSide(null);}}>Apostar por {selSide===1?b.p1Name:b.p2Name}</button><button className="stake-cancel" onClick={()=>setSelSide(null)}>✕</button></div>
       </>}
       {myStake?.confirmed&&<div className="bet-locked"><span>✓ {myStake.amount}pts por <b style={{marginLeft:3}}>{myStake.side===1?b.p1Name:b.p2Name}</b></span><span style={{color:"var(--green)"}}>+{myStake.amount*2} si gana 🏆</span></div>}
       <div className="card-footer"><ReactionsBar feedType="bet_open" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/><button className="chat-link-btn" onClick={()=>onSendToChat(item)}>💬 Chat</button></div>
@@ -1156,8 +1156,8 @@ function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,t
   for(const d of disputes) items.push({type:"dispute",ref:`dispute:${d.id}`,dispute:d,created_at:d.created_at} as FeedDisputeItem);
   // Bets
   for(const b of bets){
-    if(b.status==="open") items.push({type:"bet_open",ref:`bet:${b.id}`,bet:b,created_at:new Date(Date.now()-b.id*3600000).toISOString()} as FeedBetItem);
-    else if(b.status==="won") items.push({type:"bet_won",ref:`betwon:${b.id}`,bet:b,created_at:new Date(Date.now()-b.id*7200000).toISOString()} as FeedBetItem);
+    if(b.status==="open") items.push({type:"bet_open",ref:`bet:${b.id}`,bet:b,created_at:new Date(Date.now()-Number(b.id)*3600000).toISOString()} as FeedBetItem);
+    else if(b.status==="won") items.push({type:"bet_won",ref:`betwon:${b.id}`,bet:b,created_at:new Date(Date.now()-Number(b.id)*7200000).toISOString()} as FeedBetItem);
   }
   items.sort((a,b)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime());
 
@@ -1438,8 +1438,8 @@ function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{use
       .on("postgres_changes",{event:"*",schema:"public",table:"disputes",filter:"group_id=eq."+group.id},()=>loadDisputes())
       .on("postgres_changes",{event:"*",schema:"public",table:"dispute_votes"},()=>loadDisputes())
       .subscribe();
-    const iv=setInterval(loadDisputes,10000);
-    return()=>{sb.removeChannel(ch);clearInterval(iv);};
+    // Realtime subscription handles live updates — no polling needed
+    return()=>{sb.removeChannel(ch);};
   },[group?.id]);
 
   async function castVote(disputeId:number,v:"support"|"reject"){
@@ -1512,7 +1512,7 @@ function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{use
     setSaving(false);
     if(error){alert("Error: "+error.message);return;}
     setSaved(true); setShowApuntar(false);
-    loadRanking(); loadStreak();
+    loadRanking(); loadStreak(); loadWeekDays();
   }
   function toggle(id:string){if(saving)return; setDone(d=>({...d,[id]:!d[id]}));}
 
@@ -1808,12 +1808,12 @@ function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{use
                   <div className="bet-vs-lbl">VS</div>
                   <div className="bet-player"><div className="bet-avi">{b.p2Avi}</div><div className="bet-pname">{b.p2Name}</div><div className="bet-pstat">{b.p2Pts} pts</div></div>
                 </div>
-                {s==="open"&&!b.myPick&&<div className="bet-actions">
-                  <button className="bet-btn" onClick={()=>setBets(bs=>bs.map(x=>x.id===b.id?{...x,myPick:1}:x))}>Por {b.p1Name}</button>
-                  <button className="bet-btn" onClick={()=>setBets(bs=>bs.map(x=>x.id===b.id?{...x,myPick:2}:x))}>Por {b.p2Name}</button>
+                {s==="open"&&!betStakes[b.id]?.confirmed&&<div className="bet-actions">
+                  <button className="bet-btn" onClick={()=>handleBetStake(String(b.id),1,5)}>Por {b.p1Name}</button>
+                  <button className="bet-btn" onClick={()=>handleBetStake(String(b.id),2,5)}>Por {b.p2Name}</button>
                 </div>}
-                {b.myPick&&s==="open"&&<div className="my-pick">✓ Apostaste por <b style={{marginLeft:4}}>{b.myPick===1?b.p1Name:b.p2Name}</b></div>}
-                {s!=="open"&&b.myPick&&<div className="my-pick">Tu apuesta: <b style={{marginLeft:4}}>{b.myPick===1?b.p1Name:b.p2Name}</b></div>}
+                {betStakes[b.id]?.confirmed&&s==="open"&&<div className="my-pick">✓ Apostaste por <b style={{marginLeft:4}}>{betStakes[b.id].side===1?b.p1Name:b.p2Name}</b></div>}
+                {s!=="open"&&betStakes[b.id]?.side&&<div className="my-pick">Tu apuesta: <b style={{marginLeft:4}}>{betStakes[b.id].side===1?b.p1Name:b.p2Name}</b></div>}
                 {s==="open"&&<div className="bet-timer">⏱ {b.ends}</div>}
                 {isAdmin&&s==="open"&&<div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--border)"}}>
                   <div style={{fontSize:10,color:"var(--amber)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>⚙️ Admin</div>
