@@ -1536,6 +1536,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   const [profileModal,setProfileModal]=useState<string|null>(null);
   const [members,setMembers]=useState<Record<string,{name:string;avatar:string}>>({});
   const [weekDays,setWeekDays]=useState<boolean[]>([false,false,false,false,false,false,false]);
+  const [myWeekPts,setMyWeekPts]=useState(0);
   const [betStakes,setBetStakes]=useState<Record<string,BetStake>>({});
   const [sharedEvent,setSharedEvent]=useState<SharedEvent|null>(null);
   const [weekLeaders,setWeekLeaders]=useState<Record<string,string>>({});
@@ -1696,10 +1697,12 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   async function loadWeekDays(){
     try{
       const mon=getMondayStr();
-      const{data}=await sb.from("daily_logs").select("date").eq("user_id",user.id).gte("date",mon);
+      const{data}=await sb.from("daily_logs").select("date,total_pts").eq("user_id",user.id).gte("date",mon);
       const days=[false,false,false,false,false,false,false];
-      (data||[]).forEach((r:any)=>{const d=new Date(r.date+"T12:00:00");const idx=(d.getDay()+6)%7;if(idx>=0&&idx<7)days[idx]=true;});
+      let wpts=0;
+      (data||[]).forEach((r:any)=>{const d=new Date(r.date+"T12:00:00");const idx=(d.getDay()+6)%7;if(idx>=0&&idx<7)days[idx]=true;wpts+=(r.total_pts||0);});
       setWeekDays(days);
+      setMyWeekPts(wpts);
     }catch(_){}
   }
 
@@ -2105,7 +2108,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       {/* HOY */}
       {tab==="hoy"&&(
         <div className="content" key="hoy">
-          <TodayBanner weekPts={(()=>{const d=new Date();const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);const mon=d.toISOString().slice(0,10);return weeklyHistory[user.id]?.[mon]||0;})()} streak={streak} saved={saved} done={done} onApuntar={()=>setShowApuntar(true)} myPos={myPos} weekDays={weekDays}/>
+          <TodayBanner weekPts={myWeekPts} streak={streak} saved={saved} done={done} onApuntar={()=>setShowApuntar(true)} myPos={myPos} weekDays={weekDays}/>
           <Feed user={user} group={group} members={members} disputes={disputes} disputeVotes={disputeVotes} bets={bets} reactions={reactions} onReact={handleReact} totalMembers={totalMembers} betStakes={betStakes} onBetStake={handleBetStake} onSendToChat={handleSendToChat} onVote={castVote} onDispute={(uid)=>{setProfileModal(null);setDisputeModal(uid);}} myPts={myRow?.total_pts||0}/>
         </div>
       )}
