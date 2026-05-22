@@ -6,6 +6,10 @@ const sb = createClient(
 );
 
 export default async function handler(req: any, res: any) {
+  const auth = (req.headers["authorization"] as string) || "";
+  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).send("Unauthorized");
+  }
   const today = new Date().toISOString().slice(0, 10);
 
   // Find groups whose season_end_date has passed

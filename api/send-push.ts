@@ -236,14 +236,17 @@ async function sendWeeklySummary(today: string) {
         `\n\n${winner?.avatar || "👑"} ${winner?.name || "?"} manda esta semana con ${sorted[0][1]} pts.\n` +
         `Semana ${weekNum} arranca HOY. ¿Quién manda?`;
 
-      // Find a bot/system user_id or use the winner's id as sender
-      // We'll use a special null-safe insert — group_id required, user_id optional
-      await sb.from("chat_messages").insert({
-        group_id: group.id,
-        user_id: null, // system message — make sure your RLS allows null or use a bot user
-        text,
-        is_bot: true,
-      });
+      // Send weekly summary as a push notification to all subscribers of this group
+      const { data: groupSubs } = await sb
+        .from("push_subscriptions")
+        .select("endpoint, p256dh, auth")
+        .eq("group_id", group.id);
+      if (groupSubs?.length) {
+        const summaryPayload = JSON.stringify({ title: `🏆 ${group.emoji} Semana ${weekNum-1} — resultados`, body: podium.replace(/\n/g," · "), url:"/" });
+        await Promise.allSettled(groupSubs.map((s: any) =>
+          webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, summaryPayload)
+        ));
+      }
     } catch (e) {
       console.error(`Summary error for group ${group.id}:`, e);
     }

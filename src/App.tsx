@@ -424,7 +424,7 @@ type FeedItem = FeedLogItem|FeedStreakItem|FeedBetItem|FeedDisputeItem;
 function localDate(d=new Date()){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
 function todayStr(){ return localDate(); }
 function yesterdayStr(){ const d=new Date();d.setDate(d.getDate()-1);return localDate(d); }
-function disputePenalty(habitId:string){ const q=QUESTIONS.find(x=>x.id===habitId);return q?q.pts:0; }
+function disputePenalty(habitId:string,habitPtsOverride?:Record<string,number>){ const q=QUESTIONS.find(x=>x.id===habitId);if(!q)return 0;return habitPtsOverride?.[habitId]??q.pts; }
 function calcPts(done:Record<string,boolean>){ return QUESTIONS.reduce((s,q)=>done[q.id]?s+q.pts:s,0); }
 function relTime(iso:string){ const m=Math.floor((Date.now()-new Date(iso).getTime())/60000);if(m<1)return"ahora";if(m<60)return`${m}m`;const h=Math.floor(m/60);if(h<24)return`${h}h`;return`${Math.floor(h/24)}d`; }
 function getWeekNum(d=new Date()){const jan1=new Date(d.getFullYear(),0,1);return Math.ceil(((d.getTime()-jan1.getTime())/86400000+jan1.getDay()+1)/7);}
@@ -765,7 +765,7 @@ function DisputeModal({user,group,disputedUserId,onClose,onCreated,members}:{use
                 <div className="dispute-grid-radio"/>
                 <div className="dispute-grid-icon">{q.icon}</div>
                 <div className="dispute-grid-name">{q.name}</div>
-                <div className="dispute-grid-penalty">si pasa: −{disputePenalty(q.id)}</div>
+                <div className="dispute-grid-penalty">si pasa: −{disputePenalty(q.id,group?.habit_pts||undefined)}</div>
               </div>
             ))}
           </div>
@@ -1515,7 +1515,7 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
 }
 
 /* ══════════════════════════════════════════ MAIN APP */
-function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGroup,onSignOut,onProfileUpdate}:{user:any;profile:any;group:any;allGroups:any[];onSwitchGroup:(g:any)=>void;onSignOut:()=>void;onProfileUpdate?:(p:any)=>void}){
+function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGroup,onSignOut,onProfileUpdate,onJoinNew}:{user:any;profile:any;group:any;allGroups:any[];onSwitchGroup:(g:any)=>void;onSignOut:()=>void;onProfileUpdate?:(p:any)=>void;onJoinNew?:()=>void}){
   const [profile,setLocalProfile]=useState<any>(profileInit);
   const [group,setGroupLocal]=useState<any>(groupInit);
   const [tab,setTab]=useState("hoy");
@@ -1744,7 +1744,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   for(const d of disputes){
     const vs=disputeVotes.filter(v=>v.dispute_id===d.id);
     const st=computeDisputeStatus(d,vs,totalMembers);
-    if(st.status==="failed") penalties[d.disputed_user]=(penalties[d.disputed_user]||0)+disputePenalty(d.habit_id);
+    if(st.status==="failed") penalties[d.disputed_user]=(penalties[d.disputed_user]||0)+disputePenalty(d.habit_id,group.habit_pts||undefined);
   }
   const adjRanking=[...ranking].map((r:any)=>({...r,penalty:penalties[r.user_id]||0,total_pts:Math.max(0,(r.total_pts||0)-(penalties[r.user_id]||0))})).sort((a:any,b:any)=>(b.total_pts||0)-(a.total_pts||0));
   const top3=adjRanking.slice(0,3);
@@ -2934,7 +2934,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
               </div>
             ))}
             <div style={{height:1,background:"var(--border)",margin:"8px 0 12px"}}/>
-            <button className="btn-ghost" onClick={()=>{setShowGroupSwitcher(false);/* go to join */window.location.hash="#join";}}>＋ Unirse a otra liga</button>
+            <button className="btn-ghost" onClick={()=>{setShowGroupSwitcher(false);onJoinNew&&onJoinNew();}}>＋ Unirse a otra liga</button>
           </div>
         </div>
       )}
@@ -3207,6 +3207,7 @@ export default function Root(){
             onSwitchGroup={g=>{localStorage.setItem("lastGroupId",g.id);setGroup(g);}}
             onSignOut={handleSignOut}
             onProfileUpdate={p=>setProfile(p)}
+            onJoinNew={()=>setPhase("join")}
           />
         )}
       </div>
