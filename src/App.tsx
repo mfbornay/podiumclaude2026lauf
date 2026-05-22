@@ -368,7 +368,8 @@ const QUESTIONS = [
   { id:"quedada",icon:"🍻",name:"Quedada amigos",pts:5 },
   { id:"familia",icon:"🏠",name:"Plan familiar",pts:4 },
   { id:"food",icon:"🥗",name:"Comida limpia",pts:4 },
-  { id:"screen_good",icon:"📵",name:"Pantalla <2h",pts:4 },
+  { id:"screen_good",icon:"📵",name:"Redes sociales <2h",pts:4 },
+  { id:"no_alcohol",icon:"🚫",name:"Sin alcohol (finde)",pts:2 },
   { id:"pareja",icon:"❤️",name:"Plan de pareja",pts:3 },
   { id:"book",icon:"📚",name:"Lectura 30min",pts:3 },
   { id:"course",icon:"📖",name:"Estudio/Curso",pts:4 },
@@ -378,7 +379,7 @@ const QUESTIONS = [
 const AMBITOS=[
   {id:"deporte",label:"Deporte",icon:"💪",color:"#F0A832",habits:["gym","running","sport"]},
   {id:"social",label:"Social",icon:"🍻",color:"#F2667A",habits:["quedada","familia","pareja"]},
-  {id:"salud",label:"Salud",icon:"🥗",color:"#5DC98A",habits:["food","screen_good","meditation"]},
+  {id:"salud",label:"Salud",icon:"🥗",color:"#5DC98A",habits:["food","screen_good","no_alcohol","meditation"]},
   {id:"cultura",label:"Cultura",icon:"📚",color:"#5B8DEF",habits:["book","course","podcast"]},
 ];
 const REACTION_EMOJIS = ["🐐","💪","💀","🏳️‍🌈","💅"];
