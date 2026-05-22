@@ -373,11 +373,19 @@ const ALL_REACTION_EMOJIS = [
   "😂","🤣","😭","🥵","🤯","🫡","🥹","😤","🫠","🤌",
   "😈","🤓","🥴","😮","🫣","🤩","😎","🥶","😴","🤧",
   // Gestos
-  "👏","🙌","🫶","✌️","🤙","💪","🦾","🖕","👎","🫵",
+  "👏","🙌","🫶","✌️","🤙","🦾","🖕","👎","🫵","🫂",
   // Deporte
   "🏃","🏋️","🚴","🤸","🏊","⚽","🏀","🎾","🥇","🎽",
   // Otros
   "💯","🚀","🌙","💩","🫀","🧠","👀","💔","❤️","🍻",
+  // LGBT / Pride
+  "🏳️‍🌈","🏳️‍⚧️","🌈","❤️‍🔥","🩷","🩵","💜",
+  // Femenino / spa
+  "🧖‍♀️","💆‍♀️","🩰","👯‍♀️","💃","🛁","🫧","💄","👠","🎀",
+  // Masculino / profesiones
+  "👨‍🚒","🪖","💂","🧑‍✈️","⚓","🦺","🪃",
+  // Animales fuertes / grandes
+  "🦁","🐻","🦊","🦅","🐺","🦈","🐗","🦏","🦍","🐅","🦬","🐉","🦂","🦖",
 ];
 const QUESTIONS = [
   { id:"gym",icon:"💪",name:"Gym / Fuerza",pts:10 },
@@ -840,6 +848,10 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
   const [sending,setSending]=useState(false);
   const [uploading,setUploading]=useState(false);
   const [loadErr,setLoadErr]=useState<string|null>(null);
+  const [gifOpen,setGifOpen]=useState(false);
+  const [gifQuery,setGifQuery]=useState("");
+  const [gifResults,setGifResults]=useState<string[]>([]);
+  const [gifLoading,setGifLoading]=useState(false);
   const listRef=useRef<HTMLDivElement>(null);
   const fileRef=useRef<HTMLInputElement>(null);
   const scrollDown=()=>setTimeout(()=>{if(listRef.current)listRef.current.scrollTop=listRef.current.scrollHeight;},50);
@@ -894,6 +906,21 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
       if(ins)addMsg(ins as ChatMsg);
     }finally{setUploading(false);if(fileRef.current)fileRef.current.value="";}
   }
+  async function searchGifs(q:string){
+    if(!q.trim())return; setGifLoading(true);
+    try{
+      const r=await fetch(`https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&q=${encodeURIComponent(q)}&limit=18&rating=pg-13`);
+      const d=await r.json();
+      setGifResults((d.data||[]).map((g:any)=>g.images?.fixed_height?.url||g.images?.downsized?.url||"").filter(Boolean));
+    }catch{setGifResults([]);}
+    finally{setGifLoading(false);}
+  }
+  async function sendGif(url:string){
+    setGifOpen(false);setGifQuery("");setGifResults([]);
+    const{data,error}=await sb.from("chat_messages").insert({group_id:group.id,user_id:user.id,photo_url:url}).select().single();
+    if(error){alert("Error: "+error.message);return;}
+    if(data)addMsg(data as ChatMsg);
+  }
   async function clearChat(){
     if(!window.confirm("¿Vaciar todo el chat?"))return;
     const{error}=await sb.from("chat_messages").delete().eq("group_id",group.id);
@@ -938,9 +965,49 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)sendPhoto(f);}}/>
             <button className="chat-photo-btn" onClick={()=>fileRef.current?.click()} disabled={uploading}>📷</button>
+            <button className="chat-photo-btn" onClick={()=>{setGifOpen(true);setGifResults([]);setGifQuery("");}} style={{fontSize:12,fontWeight:800,letterSpacing:-0.5}}>GIF</button>
             <input className="chat-input" placeholder={sharedEvent?"Comenta…":"Escribe un mensaje…"} value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}} disabled={sending}/>
             <button className="chat-send" onClick={send} disabled={sending||!text.trim()}>➜</button>
           </div>
+          {gifOpen&&(
+            <div className="overlay" style={{zIndex:500,alignItems:"flex-end"}} onClick={()=>setGifOpen(false)}>
+              <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:"70vh",display:"flex",flexDirection:"column"}}>
+                <div className="handle"/>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:10}}>Buscar GIF</div>
+                <div style={{display:"flex",gap:8,marginBottom:12}}>
+                  <input className="chat-input" placeholder="Ej: celebrate, fail, gym…" value={gifQuery}
+                    onChange={e=>setGifQuery(e.target.value)}
+                    onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();searchGifs(gifQuery);}}}
+                    style={{flex:1}}
+                    autoFocus/>
+                  <button className="chat-send" onClick={()=>searchGifs(gifQuery)} disabled={gifLoading}>🔍</button>
+                </div>
+                {gifLoading&&<div style={{textAlign:"center",color:"var(--muted)",padding:20,fontSize:13}}>Buscando…</div>}
+                {!gifLoading&&gifResults.length>0&&(
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,overflowY:"auto",flex:1}}>
+                    {gifResults.map((url,i)=>(
+                      <img key={i} src={url} alt="gif" onClick={()=>sendGif(url)}
+                        style={{width:"100%",aspectRatio:"1",objectFit:"cover",borderRadius:10,cursor:"pointer",border:"2px solid transparent",transition:"border .1s"}}
+                        onMouseEnter={e=>(e.currentTarget.style.border="2px solid var(--amber)")}
+                        onMouseLeave={e=>(e.currentTarget.style.border="2px solid transparent")}/>
+                    ))}
+                  </div>
+                )}
+                {!gifLoading&&gifResults.length===0&&gifQuery&&<div style={{textAlign:"center",color:"var(--muted)",padding:16,fontSize:13}}>Sin resultados. Prueba otra búsqueda.</div>}
+                {!gifLoading&&gifResults.length===0&&!gifQuery&&(
+                  <div style={{display:"flex",flexWrap:"wrap",gap:8,paddingBottom:4}}>
+                    {["celebrar","fail","gym","cansado","fuego","palmas"].map(s=>(
+                      <button key={s} onClick={()=>{setGifQuery(s);searchGifs(s);}}
+                        style={{background:"var(--s2)",border:"1px solid var(--border)",borderRadius:20,padding:"6px 14px",fontSize:12,color:"var(--muted)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div style={{fontSize:10,color:"var(--muted)",textAlign:"center",marginTop:8,opacity:.6}}>Powered by GIPHY</div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
