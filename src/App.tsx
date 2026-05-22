@@ -51,8 +51,8 @@ html,body{background:#0E0A07;height:100%;color:var(--text)}
 .gdot{width:7px;height:7px;border-radius:50%}
 .gname{font-size:11px;font-weight:600;color:var(--text)}
 .avi-btn{width:32px;height:32px;border-radius:9px;border:none;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
-.content{padding:14px 18px 88px;animation:up .22s ease both}
-.content-fab{padding-bottom:138px}
+.content{padding:14px 18px calc(88px + env(safe-area-inset-bottom,0px));animation:up .22s ease both}
+.content-fab{padding-bottom:calc(138px + env(safe-area-inset-bottom,0px))}
 .logros-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:4px}
 .logro-card{border-radius:14px;padding:12px 10px;text-align:center;animation:up .3s ease}
 .logro-weekly{background:rgba(240,168,50,.08);border:1px solid rgba(240,168,50,.4)}
@@ -360,7 +360,25 @@ html,body{background:#0E0A07;height:100%;color:var(--text)}
 
 
 /* ══════════════════════════════════════════ CONSTANTS */
-const AVATARS = ["🐺","🦁","🐻","🦊","🐯","🦅","🐬","🦋","🐉","🦈","🐆","🦉"];
+const AVATARS = [
+  "🐺","🦁","🐻","🦊","🐯","🦅","🐬","🦋","🐉","🦈","🐆","🦉",
+  "🦒","🐘","🦏","🦍","🐊","🦜","🦩","🦚","🐺","🦇","🐝","🦋",
+  "🧠","👾","🤖","👻","🎭","🔥","⚡","🌊","🌪","🎯","💎","🏔",
+  "🚀","🛸","🌙","☀️","⭐","🌈","🎪","🎨","🎸","🎺","🥊","🏹",
+];
+const ALL_REACTION_EMOJIS = [
+  // Clásicos de grupo
+  "🐐","💪","💀","👑","🔥","⚡","🏆","🎯","💅","🤡",
+  // Faces
+  "😂","🤣","😭","🥵","🤯","🫡","🥹","😤","🫠","🤌",
+  "😈","🤓","🥴","😮","🫣","🤩","😎","🥶","😴","🤧",
+  // Gestos
+  "👏","🙌","🫶","✌️","🤙","💪","🦾","🖕","👎","🫵",
+  // Deporte
+  "🏃","🏋️","🚴","🤸","🏊","⚽","🏀","🎾","🥇","🎽",
+  // Otros
+  "💯","🚀","🌙","💩","🫀","🧠","👀","💔","❤️","🍻",
+];
 const QUESTIONS = [
   { id:"gym",icon:"💪",name:"Gym / Fuerza",pts:10 },
   { id:"running",icon:"🏃",name:"Running",pts:8 },
@@ -384,7 +402,7 @@ const AMBITOS=[
   {id:"salud",label:"Salud",icon:"🥗",color:"#5DC98A",habits:["food","screen_good","no_alcohol","sin_movil","vitamina_d","meditation"]},
   {id:"cultura",label:"Cultura",icon:"📚",color:"#5B8DEF",habits:["book","course","podcast"]},
 ];
-const REACTION_EMOJIS = ["🐐","💪","💀","🏳️‍🌈","💅"];
+const REACTION_EMOJIS = ALL_REACTION_EMOJIS.slice(0,5); // primeros 5 como "defaults" para streak cards, etc.
 const STREAK_MILESTONES = [3,7,14,21,30];
 
 type Bet = { id:string|number;label:string;p1Name:string;p1Avi:string;p1Pts:number;p1Id?:string;p2Name:string;p2Avi:string;p2Pts:number;p2Id?:string;pot:number;ends:string;status:"open"|"won"|"lost"|"cancelled";myPick:1|2|null; };
@@ -433,14 +451,16 @@ function Loading({text="Cargando..."}:{text?:string}){
 
 /* ══════════════════════════════════════════ AUTH */
 function AuthScreen({onAuth,bootError,newUser}:{onAuth:(u:any)=>void;bootError?:string;newUser?:any}){
-  const [phase,setPhase]=useState<"login"|"register"|"profile">(newUser?"profile":"login");
+  const [phase,setPhase]=useState<"login"|"register"|"profile"|"reset">(newUser?"profile":"login");
   const [email,setEmail]=useState("");
+  const [loginInput,setLoginInput]=useState(""); // email o @username
   const [password,setPassword]=useState("");
   const [showPw,setShowPw]=useState(false);
   const [profStep,setProfStep]=useState(0);
   const [name,setName]=useState(""); const [uname,setUN]=useState("");
   const [avatar,setAvatar]=useState("🐺");
   const [err,setErr]=useState("");
+  const [ok,setOk]=useState("");
   const [busy,setBusy]=useState(false);
   const [verifiedUser,setVerifiedUser]=useState<any>(newUser||null);
 
@@ -452,11 +472,38 @@ function AuthScreen({onAuth,bootError,newUser}:{onAuth:(u:any)=>void;bootError?:
   );
 
   async function login(){
-    if(!email.trim()||!password)return; setBusy(true);setErr("");
-    const{data,error}=await sb.auth.signInWithPassword({email:email.trim().toLowerCase(),password});
+    const raw=loginInput.trim();
+    if(!raw||!password)return;
+    setBusy(true);setErr("");
+    let resolvedEmail=raw.toLowerCase();
+    // Si no tiene @ es un username — buscar el email
+    if(!raw.includes("@")){
+      const uname=raw.replace("@","").toLowerCase();
+      const{data:found}=await sb.rpc("get_email_by_username",{uname});
+      if(!found){setBusy(false);setErr("No encontramos ese usuario. ¿Tienes cuenta?");return;}
+      resolvedEmail=found;
+    }
+    const{data,error}=await sb.auth.signInWithPassword({email:resolvedEmail,password});
     setBusy(false);
-    if(error){setErr("Email o contraseña incorrectos.");return;}
+    if(error){setErr("Email/usuario o contraseña incorrectos.");return;}
     onAuth(data.user);
+  }
+
+  async function resetPassword(){
+    const raw=loginInput.trim()||email.trim();
+    if(!raw){setErr("Introduce tu email o usuario primero.");return;}
+    setBusy(true);setErr("");
+    let resolvedEmail=raw.toLowerCase();
+    if(!raw.includes("@")){
+      const{data:found}=await sb.rpc("get_email_by_username",{uname:raw.replace("@","").toLowerCase()});
+      if(!found){setBusy(false);setErr("No encontramos ese usuario.");return;}
+      resolvedEmail=found;
+    }
+    const{error}=await sb.auth.resetPasswordForEmail(resolvedEmail,{redirectTo:"https://podiumclaude2026lauf.vercel.app"});
+    setBusy(false);
+    if(error){setErr(error.message);return;}
+    setOk("✅ Te hemos enviado un email con el enlace para cambiar la contraseña.");
+    setPhase("login");
   }
 
   async function register(){
@@ -481,9 +528,10 @@ function AuthScreen({onAuth,bootError,newUser}:{onAuth:(u:any)=>void;bootError?:
       <div className="tagline">Compite con tus amigos. Mejora cada día.</div>
       {bootError&&<div className="err">⚠️ {bootError}</div>}
       {err&&<div className="err">{err}</div>}
-      <label className="lbl">Email</label>
-      <input className="inp" type="email" placeholder="tu@email.com" autoFocus autoComplete="email"
-        value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}/>
+      {ok&&<div className="ok">{ok}</div>}
+      <label className="lbl">Email o @usuario</label>
+      <input className="inp" placeholder="tu@email.com o @tunombre" autoFocus autoComplete="username"
+        value={loginInput} onChange={e=>setLoginInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}/>
       <label className="lbl" style={{marginTop:10}}>Contraseña</label>
       <div style={{position:"relative"}}>
         <input className="inp" type={showPw?"text":"password"} placeholder="Tu contraseña" autoComplete="current-password"
@@ -493,11 +541,31 @@ function AuthScreen({onAuth,bootError,newUser}:{onAuth:(u:any)=>void;bootError?:
           {showPw?"🙈":"👁"}
         </button>
       </div>
-      <button className="btn" disabled={!email.trim()||!password||busy} onClick={login} style={{marginTop:14}}>
+      <button className="btn" disabled={!loginInput.trim()||!password||busy} onClick={login} style={{marginTop:14}}>
         {busy?"Entrando...":"Entrar →"}
       </button>
+      <div style={{textAlign:"center",marginTop:2,marginBottom:8}}>
+        <button onClick={()=>{setPhase("reset");setErr("");setOk("");}} style={{background:"none",border:"none",color:"var(--muted)",fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",textDecoration:"underline"}}>
+          ¿Olvidaste la contraseña?
+        </button>
+      </div>
       <div className="div"><div className="div-line"/><div className="div-txt">¿Primera vez?</div><div className="div-line"/></div>
-      <button className="btn-ghost" onClick={()=>{setPhase("register");setErr("");}}>Crear cuenta →</button>
+      <button className="btn-ghost" onClick={()=>{setPhase("register");setErr("");setOk("");}}>Crear cuenta →</button>
+    </div>
+  );
+
+  if(phase==="reset") return(
+    <div className="page">
+      <Logo/>
+      <div className="tagline" style={{marginBottom:24}}>Recuperar contraseña</div>
+      {err&&<div className="err">{err}</div>}
+      <label className="lbl">Email o @usuario</label>
+      <input className="inp" placeholder="tu@email.com o @tunombre" autoFocus
+        value={loginInput} onChange={e=>setLoginInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&resetPassword()}/>
+      <button className="btn" disabled={!loginInput.trim()||busy} onClick={resetPassword}>
+        {busy?"Enviando...":"Enviar enlace de recuperación →"}
+      </button>
+      <button className="btn-ghost" onClick={()=>{setPhase("login");setErr("");}}>← Volver al login</button>
     </div>
   );
 
@@ -555,7 +623,12 @@ function AuthScreen({onAuth,bootError,newUser}:{onAuth:(u:any)=>void;bootError?:
       </>}
       {profStep===1&&<>
         <label className="lbl">Elige tu avatar</label>
-        <div className="avi-grid">{AVATARS.map(a=><div key={a} className={`avi-opt${avatar===a?" sel":""}`} onClick={()=>setAvatar(a)}>{a}</div>)}</div>
+        <div className="avi-grid" style={{gridTemplateColumns:"repeat(8,1fr)"}}>{AVATARS.map(a=><div key={a} className={`avi-opt${avatar===a?" sel":""}`} onClick={()=>setAvatar(a)}>{a}</div>)}</div>
+        <div style={{marginTop:10}}>
+          <label className="lbl">O escribe cualquier emoji</label>
+          <input className="inp" placeholder="🎃 ✍️ pega aquí" maxLength={4} style={{textAlign:"center",fontSize:28,letterSpacing:6,marginBottom:0}}
+            value={AVATARS.includes(avatar)?"":avatar} onChange={e=>{const v=[...e.target.value.trim()].slice(0,2).join("");if(v)setAvatar(v);}}/>
+        </div>
       </>}
       <button className="btn" disabled={busy||(profStep===0&&(!name.trim()||!uname.trim()))} onClick={async()=>{
         if(!verifiedUser)return;
@@ -1026,23 +1099,36 @@ function ReactionsBar({feedType,feedRef,userId,reactions,onReact}:{feedType:stri
     if(r.user_id===userId)grouped[r.emoji].mine=true;
   }
   const existing=Object.keys(grouped);
-  const unused=REACTION_EMOJIS.filter(e=>!existing.includes(e));
   return(
+    <>
     <div className="reactions">
       {existing.map(emoji=>(
         <button key={emoji} className={"rx-btn"+(grouped[emoji].mine?" mine":"")} onClick={()=>onReact(feedType,feedRef,emoji)}>
           <span>{emoji}</span><span className="rx-count">{grouped[emoji].count}</span>
         </button>
       ))}
-      {picking?(
-        <div className="rx-picker">
-          {unused.map(emoji=><button key={emoji} className="rx-pick-btn" onClick={()=>{onReact(feedType,feedRef,emoji);setPicking(false);}}>{emoji}</button>)}
-          <button className="rx-pick-btn" onClick={()=>setPicking(false)} style={{fontSize:12,color:"var(--muted)"}}>✕</button>
-        </div>
-      ):(
-        unused.length>0&&<div className="rx-add" onClick={()=>setPicking(true)}>＋</div>
-      )}
+      <div className="rx-add" onClick={()=>setPicking(true)}>＋</div>
     </div>
+    {picking&&(
+      <div className="overlay" style={{zIndex:400,alignItems:"flex-end"}} onClick={()=>setPicking(false)}>
+        <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:"55vh"}}>
+          <div className="handle"/>
+          <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:12}}>Reaccionar</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(8,1fr)",gap:6,overflowY:"auto",maxHeight:"38vh"}}>
+            {ALL_REACTION_EMOJIS.map(emoji=>(
+              <button key={emoji} onClick={()=>{onReact(feedType,feedRef,emoji);setPicking(false);}}
+                style={{background:grouped[emoji]?.mine?"rgba(240,168,50,.15)":"var(--s2)",border:`1px solid ${grouped[emoji]?.mine?"var(--amber)":"var(--border)"}`,borderRadius:10,padding:"8px 4px",fontSize:22,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,transition:"transform .1s",position:"relative"}}
+                onMouseEnter={e=>(e.currentTarget.style.transform="scale(1.2)")}
+                onMouseLeave={e=>(e.currentTarget.style.transform="scale(1)")}>
+                {emoji}
+                {grouped[emoji]?.count>0&&<span style={{fontSize:8,color:"var(--muted)",lineHeight:1}}>{grouped[emoji].count}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    )}
+  </>
   );
 }
 
@@ -2186,7 +2272,12 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                 <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:8,fontWeight:700}}>Nombre</div>
                 <input value={editName} onChange={e=>setEditName(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:10,padding:"9px 12px",fontSize:14,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",marginBottom:12,boxSizing:"border-box"}} placeholder="Tu nombre"/>
                 <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:8,fontWeight:700}}>Avatar</div>
-                <div className="avi-grid">{AVATARS.map(a=><div key={a} className={`avi-opt${editAvatar===a?" sel":""}`} onClick={()=>setEditAvatar(a)}>{a}</div>)}</div>
+                <div className="avi-grid" style={{gridTemplateColumns:"repeat(8,1fr)"}}>{AVATARS.map(a=><div key={a} className={`avi-opt${editAvatar===a?" sel":""}`} onClick={()=>setEditAvatar(a)}>{a}</div>)}</div>
+                <div style={{marginTop:8}}>
+                  <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:6,fontWeight:700}}>O cualquier emoji</div>
+                  <input className="inp" placeholder="🎃 ✍️ pega aquí" maxLength={4} style={{textAlign:"center",fontSize:28,letterSpacing:6,marginBottom:0}}
+                    value={AVATARS.includes(editAvatar)?"":editAvatar} onChange={e=>{const v=[...e.target.value.trim()].slice(0,2).join("");if(v)setEditAvatar(v);}}/>
+                </div>
                 <button onClick={saveProfile} style={{width:"100%",background:"var(--amber)",border:"none",borderRadius:12,padding:"11px",fontSize:14,fontWeight:800,color:"#000",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",marginTop:4}}>Guardar cambios</button>
               </div>
             )}
