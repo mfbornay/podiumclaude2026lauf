@@ -916,9 +916,9 @@ function TodayBanner({weekPts,streak,saved,done,onApuntar,myPos,weekDays}:{weekP
 }
 
 /* ══════════════════════════════════════════ APUNTAR MODAL */
-function ApuntarModal({done,saved,saving,onToggle,onSave,onClose}:{done:Record<string,boolean>;saved:boolean;saving:boolean;onToggle:(id:string)=>void;onSave:()=>void;onClose:()=>void}){
-  const pts=calcPts(done);
-  const anyDone=Object.values(done).some(Boolean);
+function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits}:{done:Record<string,boolean>;saved:boolean;saving:boolean;onToggle:(id:string)=>void;onSave:()=>void;onClose:()=>void;groupHabits:typeof QUESTIONS}){
+  const pts=groupHabits.reduce((s,q)=>done[q.id]?s+q.pts:s,0);
+  const anyDone=groupHabits.some(q=>done[q.id]);
   return(
     <div className="overlay" onClick={onClose}>
       <div className="sheet" style={{maxHeight:"80vh"}} onClick={e=>e.stopPropagation()}>
@@ -928,7 +928,8 @@ function ApuntarModal({done,saved,saving,onToggle,onSave,onClose}:{done:Record<s
           {anyDone&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:900,color:"var(--amber)"}}>+{pts} pts</div>}
         </div>
         {AMBITOS.map(a=>{
-          const aHabits=QUESTIONS.filter(q=>a.habits.includes(q.id as any));
+          const aHabits=groupHabits.filter(q=>a.habits.includes(q.id as any));
+          if(!aHabits.length)return null;
           const maxPts=aHabits.reduce((s,q)=>s+q.pts,0);
           const earnedPts=aHabits.reduce((s,q)=>done[q.id]?s+q.pts:s,0);
           return(
@@ -1283,8 +1284,9 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
 }
 
 /* ══════════════════════════════════════════ MAIN APP */
-function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{user:any;profile:any;group:any;onSignOut:()=>void;onProfileUpdate?:(p:any)=>void}){
+function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGroup,onSignOut,onProfileUpdate}:{user:any;profile:any;group:any;allGroups:any[];onSwitchGroup:(g:any)=>void;onSignOut:()=>void;onProfileUpdate?:(p:any)=>void}){
   const [profile,setLocalProfile]=useState<any>(profileInit);
+  const [group,setGroupLocal]=useState<any>(groupInit);
   const [tab,setTab]=useState("hoy");
   const [done,setDone]=useState<Record<string,boolean>>({});
   const [saved,setSaved]=useState(false);
@@ -1324,6 +1326,17 @@ function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{use
   const [habitCounts,setHabitCounts]=useState<Record<string,number>>({});
   const [last7Logs,setLast7Logs]=useState<{date:string;pts:number}[]>([]);
   const [profileLogsAll,setProfileLogsAll]=useState<{date:string;pts:number}[]>([]);
+  const [showGroupSwitcher,setShowGroupSwitcher]=useState(false);
+  const [showGroupConfig,setShowGroupConfig]=useState(false);
+  const [configHabits,setConfigHabits]=useState<string[]>(groupInit.active_habits||QUESTIONS.map(q=>q.id));
+  const [savingConfig,setSavingConfig]=useState(false);
+
+  // Hábitos activos para este grupo (filtrados por configuración del admin)
+  const groupHabits=React.useMemo(()=>{
+    const ah=group.active_habits;
+    if(!ah||!ah.length)return QUESTIONS;
+    return QUESTIONS.filter(q=>ah.includes(q.id));
+  },[group.active_habits]);
 
   const pts=calcPts(done);
   const isAdmin=profile?.role==="admin";
@@ -1474,6 +1487,25 @@ function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{use
     }).filter(Boolean) as {label:string;color:string;icon:string;leader:boolean}[];
   }
 
+  async function saveGroupConfig(){
+    setSavingConfig(true);
+    const habitsToSave=configHabits.length===QUESTIONS.length?null:configHabits;
+    const{error}=await sb.from("groups").update({active_habits:habitsToSave}).eq("id",group.id);
+    setSavingConfig(false);
+    if(error){alert("Error guardando configuración: "+error.message);return;}
+    setGroupLocal(g=>({...g,active_habits:habitsToSave}));
+    setShowGroupConfig(false);
+  }
+
+  function switchGroup(g:any){
+    localStorage.setItem("lastGroupId",g.id);
+    setGroupLocal(g);
+    onSwitchGroup(g);
+    setShowGroupSwitcher(false);
+    // Reset state for new group
+    setDone({});setSaved(false);setRanking([]);setBets([]);setDisputes([]);setDisputeVotes([]);setReactions([]);setBetStakes({});setWeekDays([false,false,false,false,false,false,false]);
+  }
+
   async function loadToday(){
     const{data}=await sb.from("daily_logs").select("*").eq("user_id",user.id).eq("date",todayStr()).maybeSingle();
     if(!data)return; setSaved(true);
@@ -1610,12 +1642,12 @@ function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{use
     setTab("chat");
   }
 
-  useEffect(()=>{loadToday();loadRanking();loadStreak();loadMembers();loadReactions();loadWeekDays();
-    loadWeekLeaders();
-    loadProfileData();
-    loadBets();loadBetStakes();
-    loadRecords();
-    registerPush(user.id,group.id);},[]);
+  useEffect(()=>{
+    loadToday();loadRanking();loadStreak();loadMembers();loadReactions();loadWeekDays();
+    loadWeekLeaders();loadProfileData();loadBets();loadBetStakes();loadRecords();
+    registerPush(user.id,group.id);
+    setConfigHabits(group.active_habits||QUESTIONS.map(q=>q.id));
+  },[group.id]);
 
   async function closeBet(betId:string|number,winner:1|2){
     await sb.from("bets").update({status:"won",winner_side:winner}).eq("id",betId);
@@ -1635,7 +1667,12 @@ function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{use
           <span className="tb-logo-word">Podium</span>
         </div>
         <div className="tb-r">
-          <div className="gchip"><div className="gdot" style={{background:group.color||"var(--amber)"}}/><span className="gname">{group.emoji} {group.name}</span></div>
+          <div className="gchip" style={{cursor:"pointer",userSelect:"none"}} onClick={()=>setShowGroupSwitcher(true)}>
+            <div className="gdot" style={{background:group.color||"var(--amber)"}}/>
+            <span className="gname">{group.emoji} {group.name}</span>
+            {allGroups.length>1&&<span style={{fontSize:9,color:"var(--muted)",marginLeft:1}}>▾</span>}
+          </div>
+          {isAdmin&&<button onClick={()=>{setConfigHabits(group.active_habits||QUESTIONS.map(q=>q.id));setShowGroupConfig(true);}} style={{background:"var(--s2)",border:"1px solid var(--border)",borderRadius:8,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,cursor:"pointer",color:"var(--muted)"}}>⚙️</button>}
           <div className="bets-chip" onClick={()=>setTab("bets")}><span className="bets-chip-ico">⚡</span>{bets.filter(b=>b.status==="open").length>0&&<span className="bets-chip-n">{bets.filter(b=>b.status==="open").length}</span>}</div>
         </div>
       </div>
@@ -2028,7 +2065,75 @@ function MainApp({user,profile:profileInit,group,onSignOut,onProfileUpdate}:{use
       </nav>
 
       {/* APUNTAR MODAL */}
-      {showApuntar&&<ApuntarModal done={done} saved={saved} saving={saving} onToggle={toggle} onSave={saveDay} onClose={()=>setShowApuntar(false)}/>}
+      {showApuntar&&<ApuntarModal done={done} saved={saved} saving={saving} onToggle={toggle} onSave={saveDay} onClose={()=>setShowApuntar(false)} groupHabits={groupHabits}/>}
+
+      {/* GROUP SWITCHER */}
+      {showGroupSwitcher&&(
+        <div className="overlay" onClick={()=>setShowGroupSwitcher(false)}>
+          <div className="sheet" onClick={e=>e.stopPropagation()}>
+            <div className="handle"/>
+            <div style={{fontSize:15,fontWeight:800,marginBottom:14}}>🏆 Tus ligas</div>
+            {allGroups.map(g=>(
+              <div key={g.id} onClick={()=>switchGroup(g)} style={{display:"flex",alignItems:"center",gap:12,background:g.id===group.id?"rgba(240,168,50,.08)":"var(--s2)",border:`1px solid ${g.id===group.id?"rgba(240,168,50,.4)":"var(--border)"}`,borderRadius:14,padding:"12px 14px",marginBottom:8,cursor:"pointer",transition:"all .15s"}}>
+                <div style={{width:36,height:36,background:"var(--s3)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{g.emoji||"🏆"}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,fontSize:14,color:"var(--text)"}}>{g.name}</div>
+                  <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>Código: {g.invite_code}</div>
+                </div>
+                {g.id===group.id&&<span style={{fontSize:11,color:"var(--amber)",fontWeight:700}}>Activa</span>}
+              </div>
+            ))}
+            <div style={{height:1,background:"var(--border)",margin:"8px 0 12px"}}/>
+            <button className="btn-ghost" onClick={()=>{setShowGroupSwitcher(false);/* go to join */window.location.hash="#join";}}>＋ Unirse a otra liga</button>
+          </div>
+        </div>
+      )}
+
+      {/* GROUP CONFIG (admin) */}
+      {showGroupConfig&&isAdmin&&(
+        <div className="overlay" onClick={()=>setShowGroupConfig(false)}>
+          <div className="sheet" onClick={e=>e.stopPropagation()}>
+            <div className="handle"/>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontSize:15,fontWeight:800}}>⚙️ Hábitos de la liga</div>
+              <button onClick={()=>setShowGroupConfig(false)} style={{background:"none",border:"none",color:"var(--muted)",fontSize:18,cursor:"pointer"}}>✕</button>
+            </div>
+            <div style={{fontSize:12,color:"var(--muted)",marginBottom:14,lineHeight:1.5}}>Elige qué hábitos estarán disponibles para apuntar en <b style={{color:"var(--text)"}}>{group.name}</b>. Los apuntes anteriores no se modifican.</div>
+            {AMBITOS.map(a=>{
+              const aHabits=QUESTIONS.filter(q=>a.habits.includes(q.id as any));
+              const allOn=aHabits.every(q=>configHabits.includes(q.id));
+              return(
+                <div key={a.id} style={{marginBottom:14}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                    <span style={{fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:a.color}}>{a.icon} {a.label}</span>
+                    <button onClick={()=>{
+                      if(allOn)setConfigHabits(p=>p.filter(id=>!aHabits.map(q=>q.id).includes(id)));
+                      else setConfigHabits(p=>[...new Set([...p,...aHabits.map(q=>q.id)])]);
+                    }} style={{fontSize:10,background:"none",border:`1px solid ${a.color}55`,borderRadius:8,padding:"2px 8px",color:a.color,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>
+                      {allOn?"Desmarcar todos":"Todos"}
+                    </button>
+                  </div>
+                  {aHabits.map(q=>{
+                    const on=configHabits.includes(q.id);
+                    return(
+                      <div key={q.id} onClick={()=>setConfigHabits(p=>on?p.filter(id=>id!==q.id):[...p,q.id])} style={{display:"flex",alignItems:"center",gap:10,background:on?"rgba(240,168,50,.06)":"var(--s2)",border:`1px solid ${on?"rgba(240,168,50,.3)":"var(--border)"}`,borderRadius:11,padding:"9px 12px",marginBottom:5,cursor:"pointer",transition:"all .15s"}}>
+                        <span style={{fontSize:18,width:24,textAlign:"center"}}>{q.icon}</span>
+                        <span style={{flex:1,fontSize:13,fontWeight:600,color:"var(--text)"}}>{q.name}</span>
+                        <span style={{fontSize:11,color:"var(--muted)",marginRight:6}}>+{q.pts}pts</span>
+                        <div style={{width:18,height:18,borderRadius:5,border:`1.5px solid ${on?"var(--amber)":"var(--muted2)"}`,background:on?"var(--amber)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#000",flexShrink:0,transition:"all .15s"}}>{on?"✓":""}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+            <div style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginBottom:10}}>{configHabits.length} de {QUESTIONS.length} hábitos seleccionados · {configHabits.reduce((s,id)=>{const q=QUESTIONS.find(x=>x.id===id);return s+(q?.pts||0);},0)} pts máx/día</div>
+            <button className="btn" disabled={savingConfig||configHabits.length===0} onClick={saveGroupConfig}>
+              {savingConfig?"Guardando...":"Guardar configuración"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* PROFILE MODAL */}
       {profileModal&&<UserProfileModal
@@ -2130,6 +2235,7 @@ export default function Root(){
   const [authUser,setAuthUser]=useState<any>(null);
   const [profile,setProfile]=useState<any>(null);
   const [group,setGroup]=useState<any>(null);
+  const [allGroups,setAllGroups]=useState<any[]>([]);
   const [bootError,setBootError]=useState("");
   const [newUserAuth,setNewUserAuth]=useState<any>(null);
 
@@ -2139,10 +2245,9 @@ export default function Root(){
         if(session?.user)loadUserData(session.user);else setPhase("auth");
       }
       if(event==="SIGNED_IN"){
-        // handles magic-link redirect and manual OTP verify
         if(session?.user)loadUserData(session.user);
       }
-      if(event==="SIGNED_OUT"){setAuthUser(null);setProfile(null);setGroup(null);setPhase("auth");}
+      if(event==="SIGNED_OUT"){setAuthUser(null);setProfile(null);setGroup(null);setAllGroups([]);setPhase("auth");}
     });
     return()=>subscription.unsubscribe();
   },[]);
@@ -2159,9 +2264,17 @@ export default function Root(){
       setAuthUser(user);
       if(!prof){setNewUserAuth(user);setAuthUser(user);setBootError("");setPhase("auth");return;}
       setProfile(prof);
-      const{data:membership,error:memErr}=await sb.from("group_members").select("group_id, groups(*)").eq("user_id",user.id).limit(1).maybeSingle();
-      if(memErr){setBootError("Error cargando grupo: "+memErr.message);setPhase("join");return;}
-      if(membership?.groups){setGroup(membership.groups);setPhase("app");}else setPhase("join");
+      // Cargar TODAS las ligas del usuario
+      const{data:memberships,error:memErr}=await sb.from("group_members").select("group_id, groups(*)").eq("user_id",user.id);
+      if(memErr){setBootError("Error cargando ligas: "+memErr.message);setPhase("join");return;}
+      const groups=(memberships||[]).map((m:any)=>m.groups).filter(Boolean);
+      setAllGroups(groups);
+      if(!groups.length){setPhase("join");return;}
+      // Usar la última liga visitada si está disponible
+      const lastId=localStorage.getItem("lastGroupId");
+      const activeGroup=groups.find((g:any)=>g.id===lastId)||groups[0];
+      localStorage.setItem("lastGroupId",activeGroup.id);
+      setGroup(activeGroup);setPhase("app");
     }catch(e:any){
       setBootError("Error inesperado: "+(e?.message||String(e)));
       await sb.auth.signOut();setPhase("auth");
@@ -2169,7 +2282,11 @@ export default function Root(){
   }
 
   async function handleAuth(user:any){setBootError("");setNewUserAuth(null);setPhase("loading");await loadUserData(user);}
-  async function handleJoin(g:any){setGroup(g);setPhase("app");}
+  async function handleJoin(g:any){
+    setAllGroups(prev=>{const exists=prev.some(x=>x.id===g.id);return exists?prev:[...prev,g];});
+    localStorage.setItem("lastGroupId",g.id);
+    setGroup(g);setPhase("app");
+  }
   async function handleSignOut(){await sb.auth.signOut();}
 
   return(
@@ -2179,7 +2296,15 @@ export default function Root(){
         {phase==="loading"&&<Loading text="Iniciando Podium…"/>}
         {phase==="auth"&&<AuthScreen onAuth={handleAuth} bootError={bootError} newUser={newUserAuth}/>}
         {phase==="join"&&authUser&&<JoinScreen userId={authUser.id} onJoin={handleJoin}/>}
-        {phase==="app"&&authUser&&profile&&group&&<MainApp user={authUser} profile={profile} group={group} onSignOut={handleSignOut} onProfileUpdate={p=>setProfile(p)}/>}
+        {phase==="app"&&authUser&&profile&&group&&(
+          <MainApp
+            user={authUser} profile={profile} group={group}
+            allGroups={allGroups}
+            onSwitchGroup={g=>{localStorage.setItem("lastGroupId",g.id);setGroup(g);}}
+            onSignOut={handleSignOut}
+            onProfileUpdate={p=>setProfile(p)}
+          />
+        )}
       </div>
     </>
   );
