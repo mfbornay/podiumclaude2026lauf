@@ -909,9 +909,9 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
   async function searchGifs(q:string){
     if(!q.trim())return; setGifLoading(true);
     try{
-      const r=await fetch(`https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&q=${encodeURIComponent(q)}&limit=18&rating=pg-13`);
+      const r=await fetch(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=LIVDSRZULELA&client_key=podium_app&limit=18&media_filter=tinygif`);
       const d=await r.json();
-      setGifResults((d.data||[]).map((g:any)=>g.images?.fixed_height?.url||g.images?.downsized?.url||"").filter(Boolean));
+      setGifResults((d.results||[]).map((g:any)=>g.media_formats?.tinygif?.url||g.media_formats?.gif?.url||"").filter(Boolean));
     }catch{setGifResults([]);}
     finally{setGifLoading(false);}
   }
@@ -1005,7 +1005,7 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
                     ))}
                   </div>
                 )}
-                <div style={{fontSize:10,color:"var(--muted)",textAlign:"center",marginTop:8,opacity:.6}}>Powered by GIPHY</div>
+                <div style={{fontSize:10,color:"var(--muted)",textAlign:"center",marginTop:8,opacity:.6}}>Powered by Tenor</div>
               </div>
             </div>
           )}
