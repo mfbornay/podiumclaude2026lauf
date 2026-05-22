@@ -1554,6 +1554,8 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   const [last7Logs,setLast7Logs]=useState<{date:string;pts:number}[]>([]);
   const [profileLogsAll,setProfileLogsAll]=useState<{date:string;pts:number}[]>([]);
   const [rankView,setRankView]=useState<"semana"|"historico"|"hof">("semana");
+  const [pushEnabled,setPushEnabled]=useState<boolean|null>(null);
+  const [pushLoading,setPushLoading]=useState(false);
   const [weeklyHistory,setWeeklyHistory]=useState<Record<string,Record<string,number>>>({});
   const [weeklyLoaded,setWeeklyLoaded]=useState(false);
   const [showGroupSwitcher,setShowGroupSwitcher]=useState(false);
@@ -1961,7 +1963,37 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     loadWeekLeaders();loadProfileData();loadBets();loadBetStakes();loadRecords();
     registerPush(user.id,group.id);
     setConfigHabits(group.active_habits||QUESTIONS.map(q=>q.id));
+    // Detect current push permission state
+    if("Notification" in window) setPushEnabled(Notification.permission==="granted");
   },[group.id]);
+
+  async function togglePush(){
+    if(!("serviceWorker" in navigator)||!("PushManager" in window)){alert("Tu dispositivo no soporta notificaciones push.");return;}
+    setPushLoading(true);
+    try{
+      if(pushEnabled){
+        // Unsubscribe
+        const reg=await navigator.serviceWorker.getRegistration("/sw.js");
+        const sub=await reg?.pushManager.getSubscription();
+        if(sub){
+          await sb.from("push_subscriptions").delete().eq("endpoint",sub.endpoint);
+          await sub.unsubscribe();
+        }
+        setPushEnabled(false);
+      } else {
+        // Subscribe
+        const reg=await navigator.serviceWorker.register("/sw.js");
+        const perm=await Notification.requestPermission();
+        if(perm!=="granted"){setPushEnabled(false);setPushLoading(false);return;}
+        const VAPID_PUBLIC="BJBul6FJr3LGLS2S5S3_leNky_oOQXgC1LVYBhlhsJx634aM2MaLgYjuij3dT1xqFsmqeVaHsPIp8uiUeRpUT48";
+        const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:VAPID_PUBLIC});
+        const j=sub.toJSON();
+        await sb.from("push_subscriptions").upsert({user_id:user.id,group_id:group.id,endpoint:j.endpoint!,p256dh:(j.keys as any).p256dh,auth:(j.keys as any).auth},{onConflict:"endpoint"});
+        setPushEnabled(true);
+      }
+    }catch(e){console.warn("Push toggle failed:",e);}
+    setPushLoading(false);
+  }
 
   async function closeBet(betId:string|number,winner:1|2){
     await sb.from("bets").update({status:"won",winner_side:winner}).eq("id",betId);
@@ -2484,6 +2516,18 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
             <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Código — {group.name}</div>
             <div className="invite-code">{group.invite_code}</div>
             <div className="invite-sub">Invita a tus amigos</div>
+          </div>
+          <div onClick={pushLoading?undefined:togglePush} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--s2)",border:"1px solid var(--border)",borderRadius:14,padding:"14px 16px",cursor:pushLoading?"default":"pointer",marginBottom:10,opacity:pushLoading?.6:1,transition:"opacity .2s"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:22}}>{pushEnabled?"🔔":"🔕"}</span>
+              <div>
+                <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>Notificaciones</div>
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>{pushEnabled?"Recibes avisos a las 22:00":"Notificaciones desactivadas"}</div>
+              </div>
+            </div>
+            <div style={{width:44,height:26,borderRadius:13,background:pushEnabled?"var(--amber)":"var(--s3,#2a2218)",border:"1px solid var(--border)",position:"relative",transition:"background .2s",flexShrink:0}}>
+              <div style={{position:"absolute",top:3,left:pushEnabled?20:3,width:18,height:18,borderRadius:"50%",background:"white",transition:"left .2s",boxShadow:"0 1px 3px rgba(0,0,0,.3)"}}/>
+            </div>
           </div>
           <button className="btn-danger" onClick={onSignOut}>Cerrar sesión</button>
           {isAdmin&&(
