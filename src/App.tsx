@@ -654,11 +654,10 @@ function JoinScreen({userId,onJoin}:{userId:string;onJoin:(g:any)=>void}){
   const [creating,setC]=useState(false); const [err,setErr]=useState(""); const [busy,setBusy]=useState(false);
   async function join(){
     if(code.length<4)return; setBusy(true);setErr("");
-    const{data:group,error}=await sb.from("groups").select("*").eq("invite_code",code.toUpperCase().trim()).maybeSingle();
-    if(error||!group){setErr("Código no encontrado.");setBusy(false);return;}
-    const{error:mErr}=await sb.from("group_members").insert({group_id:group.id,user_id:userId});
-    if(mErr&&!mErr.message.includes("duplicate")){setErr(mErr.message);setBusy(false);return;}
-    onJoin(group);
+    const{data,error}=await sb.rpc("join_group_by_invite",{invite:code.toUpperCase().trim()});
+    if(error){setErr(error.message);setBusy(false);return;}
+    if(data?.error){setErr(data.error);setBusy(false);return;}
+    onJoin(data);
   }
   async function create(){
     if(!gname.trim())return; setBusy(true);setErr("");
