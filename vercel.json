@@ -1,7 +1,7 @@
 {
   "crons": [
-    { "path": "/api/send-push",      "schedule": "0 20 * * *"  },
-    { "path": "/api/send-push",      "schedule": "0 7 * * 1"   },
+    { "path": "/api/send-push",          "schedule": "0 20 * * *"  },
+    { "path": "/api/send-push?weekly=1", "schedule": "0 7 * * 1"   },
     { "path": "/api/cleanup-proofs", "schedule": "0 3 * * *"   },
     { "path": "/api/resolve-bets",   "schedule": "0 4 * * *"   },
     { "path": "/api/season-rotate",  "schedule": "0 5 * * *"   }

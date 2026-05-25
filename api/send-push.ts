@@ -84,16 +84,16 @@ export default async function handler(req: any, res: any) {
   }
 
   const now = new Date();
-  const isMonday = now.getUTCDay() === 1; // 0=Sun, 1=Mon
   const today = now.toISOString().split("T")[0];
 
-  // ── Monday 9am: send weekly summary to all group chats ─────────────────
-  if (isMonday) {
+  // ── Monday 7am cron (?weekly=1): send weekly summary only ──────────────
+  if (req.query?.weekly === "1") {
     try {
       await sendWeeklySummary(today);
     } catch (e) {
       console.error("Weekly summary error:", e);
     }
+    return res.status(200).send("Weekly summary sent");
   }
 
   // ── Daily 22:00 reminder to users who haven't logged today ─────────────
@@ -113,7 +113,14 @@ export default async function handler(req: any, res: any) {
     .in("user_id", userIds);
 
   const loggedToday = new Set((logs || []).map((l: any) => l.user_id));
-  const pendingSubs = subs.filter((s: any) => !loggedToday.has(s.user_id));
+  // Dedup by user_id: one notification per user (pick first subscription found)
+  const seenUsers = new Set<string>();
+  const pendingSubs = subs.filter((s: any) => {
+    if (loggedToday.has(s.user_id)) return false;
+    if (seenUsers.has(s.user_id)) return false;
+    seenUsers.add(s.user_id);
+    return true;
+  });
 
   if (!pendingSubs.length) return res.status(200).send("All logged today!");
 
@@ -158,7 +165,7 @@ export default async function handler(req: any, res: any) {
         else rival = ranked[pos - 1].name;    // others: rival is person above
       }
       const lider = ranked[0]?.name || "el líder";
-      const msg = pickMsg(nombre.split(" ")[0], rival.split(" ")[0], lider.split(" ")[0]);
+      const msg = pickMsg(nombre, rival, lider);
       return webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         JSON.stringify({ title: msg.title, body: msg.body, url: "/" })
@@ -174,7 +181,7 @@ export default async function handler(req: any, res: any) {
   }
 
   const sent = results.filter((r) => r.status === "fulfilled").length;
-  return res.status(200).json({ sent, total: pendingSubs.length, monday: isMonday });
+  return res.status(200).json({ sent, total: pendingSubs.length });
 }
 
 // ─── Weekly summary → inserta mensaje en chat de cada grupo ───────────────
