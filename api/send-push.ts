@@ -58,10 +58,10 @@ const MSGS = [
 ];
 
 function pickMsg(nombre: string, rival: string, lider: string): { title: string; body: string } {
-  // Seed by day so same message all night, different each day
+  // Deterministic per-user per-day, but jumps non-linearly to avoid pattern perception
   const dayIdx = Math.floor(Date.now() / 86400000);
-  const userHash = nombre.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const idx = (dayIdx + userHash) % MSGS.length;
+  const userHash = nombre.split("").reduce((a, c) => a * 31 + c.charCodeAt(0), 7);
+  const idx = Math.abs((dayIdx * 1013 + userHash * 7) ^ (dayIdx >> 2)) % MSGS.length;
   const m = MSGS[idx];
   return {
     title: m.title
