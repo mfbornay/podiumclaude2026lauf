@@ -1374,18 +1374,19 @@ function DisputeModal({user,group,disputedUserId,onClose,onCreated,members}:{use
   const [daySel,setDaySel]=useState<"hoy"|"ayer">("hoy");
   const [yLog,setYLog]=useState<Record<string,boolean>|null>(null);
   const [yPts,setYPts]=useState(0);
+  const [yProofUrl,setYProofUrl]=useState<string|null>(null);
   const [selHabit,setSelHabit]=useState("");
   const [reason,setReason]=useState("");
   const [showReason,setShowReason]=useState(false);
   const [saving,setSaving]=useState(false);
   const targetDate=daySel==="hoy"?todayStr():yesterdayStr();
   useEffect(()=>{
-    setYLog(null);setYPts(0);setSelHabit("");
+    setYLog(null);setYPts(0);setSelHabit("");setYProofUrl(null);
     (async()=>{
       const{data}=await sb.from("daily_logs").select("*").eq("user_id",disputedUserId).eq("date",targetDate).maybeSingle();
       const log:Record<string,boolean>={};
       let pts=0;
-      if(data){QUESTIONS.forEach(q=>{if((data as any)[q.id]){log[q.id]=true;pts+=q.pts;}});}
+      if(data){QUESTIONS.forEach(q=>{if((data as any)[q.id]){log[q.id]=true;pts+=q.pts;}});setYProofUrl((data as any).proof_photo_url||null);}
       setYLog(log);setYPts(pts);
     })();
   },[disputedUserId,group?.id,daySel]);
@@ -1432,6 +1433,13 @@ function DisputeModal({user,group,disputedUserId,onClose,onCreated,members}:{use
           </div>
         )}
         {yLog&&habitsDone.length>0&&<>
+          {yProofUrl&&(
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:"var(--amber)",fontWeight:700,marginBottom:6}}>📷 Prueba del disputado</div>
+              <img src={yProofUrl} alt="prueba" style={{width:"100%",maxHeight:200,objectFit:"cover",borderRadius:12,border:"1px solid rgba(240,168,50,.3)",cursor:"pointer"}} onClick={()=>window.open(yProofUrl,"_blank")}/>
+            </div>
+          )}
+          {!yProofUrl&&<div style={{fontSize:11,color:"var(--muted)",background:"var(--s2)",borderRadius:8,padding:"7px 10px",marginBottom:10}}>⚠️ Sin foto de prueba adjunta para este día.</div>}
           <div style={{fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginBottom:10,fontWeight:700}}>¿Qué hábito quieres disputar?</div>
           <div className="dispute-grid">
             {habitsDone.map(q=>(
@@ -1471,7 +1479,7 @@ function disputePunishmentLabel(offenseNum:number):string{
   if(offenseNum===2)return"❌ Quitar TODO el día (2ª falta)";
   return"❌ Quitar día + 🔒 bloquear + 🐀 rata (3ª+)";
 }
-function DisputesPanel({user,group,disputes,votes,members,totalMembers,onClose,onVote}:{user:any;group:any;disputes:Dispute[];votes:DisputeVote[];members:Record<string,{name:string;avatar:string}>;totalMembers:number;onClose:()=>void;onVote:(id:number,v:"support"|"reject")=>Promise<void>}){
+function DisputesPanel({user,group,disputes,votes,members,totalMembers,onClose,onVote,proofUrls}:{user:any;group:any;disputes:Dispute[];votes:DisputeVote[];members:Record<string,{name:string;avatar:string}>;totalMembers:number;onClose:()=>void;onVote:(id:number,v:"support"|"reject")=>Promise<void>;proofUrls?:Record<string,string|null>}){
   const sorted=[...disputes].sort((a,b)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime());
   return(
     <div className="overlay" onClick={onClose}>
@@ -1492,6 +1500,8 @@ function DisputesPanel({user,group,disputes,votes,members,totalMembers,onClose,o
           const canVote=d.disputed_user!==user.id&&!st.closed;
           const cls=st.status==="failed"?"failed":st.status==="passed"?"passed":"";
           const offenseNum=getDisputeOffenseNum(d,sorted,vs,totalMembers);
+          const proofKey=`${d.disputed_user}:${d.day}`;
+          const proofUrl=proofUrls?.[proofKey]??null;
           return(
             <div key={d.id} className={"dispute-card "+cls}>
               <div className="dispute-card-head">
@@ -1504,6 +1514,14 @@ function DisputesPanel({user,group,disputes,votes,members,totalMembers,onClose,o
                 </div>
               </div>
               {d.reason&&<div className="dispute-reason-box">"{d.reason}"</div>}
+              {proofUrl?(
+                <div style={{marginBottom:8}}>
+                  <div style={{fontSize:10,color:"var(--amber)",fontWeight:700,marginBottom:4}}>📷 Foto aportada</div>
+                  <img src={proofUrl} alt="prueba" onClick={()=>window.open(proofUrl,"_blank")} style={{width:"100%",maxHeight:160,objectFit:"cover",borderRadius:10,cursor:"pointer",border:"1px solid rgba(240,168,50,.25)"}}/>
+                </div>
+              ):(
+                <div style={{fontSize:11,color:"var(--muted)",marginBottom:6}}>⚠️ Sin foto de prueba para este día.</div>
+              )}
               {st.closed&&st.status==="failed"&&(
                 <div style={{background:"rgba(242,102,122,.1)",border:"1px solid rgba(242,102,122,.3)",borderRadius:8,padding:"8px 10px",marginBottom:8,fontSize:12,color:"#F2667A"}}>
                   💀 <b>{who.name} pillado/a</b> — {offenseNum===1?`−${QUESTIONS.find(q=>q.id===d.habit_id)?.pts||0}pts (hábito)`:offenseNum===2?"−100% del día 😤":"−día completo + hábito bloqueado 24h + badge 🐀"}
@@ -1751,11 +1769,12 @@ function TodayBanner({weekPts,streak,saved,done,onApuntar,myPos,weekDays}:{weekP
 
 /* ══════════════════════════════════════════ APUNTAR MODAL */
 const SPORT_HABIT_IDS=["gym","running","sport"];
-function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits,userId,groupId,blockedHabits}:{done:Record<string,boolean>;saved:boolean;saving:boolean;onToggle:(id:string)=>void;onSave:(proofUrl?:string)=>void;onClose:()=>void;groupHabits:typeof QUESTIONS;userId:string;groupId:string;blockedHabits?:Set<string>}){
+function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits,userId,groupId,blockedHabits,existingProofUrl}:{done:Record<string,boolean>;saved:boolean;saving:boolean;onToggle:(id:string)=>void;onSave:(proofUrl?:string)=>void;onClose:()=>void;groupHabits:typeof QUESTIONS;userId:string;groupId:string;blockedHabits?:Set<string>;existingProofUrl?:string|null}){
   const pts=groupHabits.reduce((s,q)=>done[q.id]?s+q.pts:s,0);
   const anyDone=groupHabits.some(q=>done[q.id]);
   const sportSelected=SPORT_HABIT_IDS.some(id=>done[id]);
-  const photoRequired=sportSelected;
+  const hasExistingPhoto=!!existingProofUrl;
+  const photoRequired=sportSelected&&!hasExistingPhoto;
   const [proofPreview,setProofPreview]=useState<string|null>(null);
   const [proofFile,setProofFile]=useState<File|null>(null);
   const [uploading,setUploading]=useState(false);
@@ -1828,9 +1847,15 @@ function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits,use
         {/* ── PRUEBA FOTOGRÁFICA ── */}
         <div style={{marginTop:4,marginBottom:14}}>
           <div style={{fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:photoRequired&&!proofFile?"#E8623A":"var(--muted)",fontWeight:700,marginBottom:8}}>
-            📷 Prueba {photoRequired?(proofFile?"✅ añadida":"· OBLIGATORIA 🚨"):"(opcional)"}
+            📷 Prueba {hasExistingPhoto?"✅ ya guardada":photoRequired?(proofFile?"✅ añadida":"· OBLIGATORIA 🚨"):"(opcional)"}
           </div>
-          {proofPreview?(
+          {hasExistingPhoto&&!proofFile?(
+            <div style={{position:"relative",marginBottom:8}}>
+              <img src={existingProofUrl!} alt="foto de hoy" style={{width:"100%",maxHeight:180,objectFit:"cover",borderRadius:12,border:"1px solid rgba(93,201,138,.4)"}}/>
+              <div style={{position:"absolute",bottom:8,left:8,background:"rgba(0,0,0,.7)",borderRadius:8,padding:"3px 8px",fontSize:11,color:"#5DC98A",fontWeight:700}}>✅ Foto de hoy guardada</div>
+              <button onClick={()=>fileRef.current?.click()} style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,.6)",border:"none",borderRadius:8,padding:"3px 8px",color:"#ccc",fontSize:11,cursor:"pointer"}}>cambiar</button>
+            </div>
+          ):proofPreview?(
             <div style={{position:"relative",marginBottom:8}}>
               <img src={proofPreview} alt="preview" style={{width:"100%",maxHeight:180,objectFit:"cover",borderRadius:12,border:"1px solid rgba(240,168,50,.3)"}}/>
               <button onClick={()=>{setProofPreview(null);setProofFile(null);}} style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,.6)",border:"none",borderRadius:20,width:26,height:26,color:"#fff",fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
@@ -2251,6 +2276,8 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   const [disputes,setDisputes]=useState<Dispute[]>([]);
   const [disputeVotes,setDisputeVotes]=useState<DisputeVote[]>([]);
   const [disputeDayPts,setDisputeDayPts]=useState<Record<string,number>>({});
+  const [disputeProofUrls,setDisputeProofUrls]=useState<Record<string,string|null>>({});
+  const [todayProofUrl,setTodayProofUrl]=useState<string|null>(null);
   const [disputeModal,setDisputeModal]=useState<string|null>(null);
   const [showDisputes,setShowDisputes]=useState(false);
   const [showApuntar,setShowApuntar]=useState(false);
@@ -2440,12 +2467,17 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       // Fetch day total pts for each disputed day (for tiered penalties)
       const dayKeys=[...new Set(ds.map((d:any)=>`${d.disputed_user}:${d.day}`))];
       const dayPts:Record<string,number>={};
+      const proofUrls:Record<string,string|null>={};
       await Promise.all(dayKeys.map(async key=>{
         const[uid,day]=key.split(":");
-        const{data:log}=await sb.from("daily_logs").select(QUESTIONS.map(q=>q.id).join(",")).eq("user_id",uid).eq("date",day).maybeSingle();
-        if(log) dayPts[key]=QUESTIONS.reduce((s,q)=>((log as any)[q.id]?s+q.pts:s),0);
+        const{data:log}=await sb.from("daily_logs").select(QUESTIONS.map(q=>q.id).join(",")+",proof_photo_url").eq("user_id",uid).eq("date",day).maybeSingle();
+        if(log){
+          dayPts[key]=QUESTIONS.reduce((s,q)=>((log as any)[q.id]?s+q.pts:s),0);
+          proofUrls[key]=(log as any).proof_photo_url||null;
+        }
       }));
       setDisputeDayPts(dayPts);
+      setDisputeProofUrls(proofUrls);
     }else{setDisputeVotes([]);setDisputeDayPts({});}
   }
 
@@ -2659,6 +2691,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const d:Record<string,boolean>={};
     QUESTIONS.forEach(q=>{if((data as any)[q.id])d[q.id]=true;});
     setDone(d);
+    setTodayProofUrl((data as any).proof_photo_url||null);
   }
   function getWeekMonday(dateStr:string){const d=new Date(dateStr+"T12:00:00");const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);return localDate(d);}
 
@@ -2710,6 +2743,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const{error}=await sb.from("daily_logs").upsert(payload,{onConflict:"user_id,date"});
     setSaving(false);
     if(error){alert("Error: "+error.message);return;}
+    if(proofUrl)setTodayProofUrl(proofUrl);
     setSaved(true); setShowApuntar(false);
     loadRanking(); loadStreak(); loadWeekDays();
   }
@@ -3694,7 +3728,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       </nav>
 
       {/* APUNTAR MODAL */}
-      {showApuntar&&<ApuntarModal done={done} saved={saved} saving={saving} onToggle={toggle} onSave={saveDay} onClose={()=>setShowApuntar(false)} groupHabits={groupHabits} userId={user.id} groupId={group.id} blockedHabits={myBlockedHabits}/>}
+      {showApuntar&&<ApuntarModal done={done} saved={saved} saving={saving} onToggle={toggle} onSave={saveDay} onClose={()=>setShowApuntar(false)} groupHabits={groupHabits} userId={user.id} groupId={group.id} blockedHabits={myBlockedHabits} existingProofUrl={todayProofUrl}/>}
 
       {/* GROUP SWITCHER */}
       {showGroupSwitcher&&(
@@ -3778,7 +3812,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       {disputeModal&&<DisputeModal user={user} group={group} disputedUserId={disputeModal} members={members} onClose={()=>setDisputeModal(null)} onCreated={(d)=>{setDisputes(prev=>[d,...prev.filter(x=>x.id!==d.id)]);setDisputeModal(null);loadDisputes();}}/>}
 
       {/* DISPUTES PANEL */}
-      {showDisputes&&<DisputesPanel user={user} group={group} disputes={disputes} votes={disputeVotes} members={members} totalMembers={totalMembers} onClose={()=>setShowDisputes(false)} onVote={castVote}/>}
+      {showDisputes&&<DisputesPanel user={user} group={group} disputes={disputes} votes={disputeVotes} members={members} totalMembers={totalMembers} onClose={()=>setShowDisputes(false)} onVote={castVote} proofUrls={disputeProofUrls}/>}
     </div>
   );
 }
