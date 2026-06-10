@@ -513,49 +513,62 @@ html,body{background:#0A0703;height:100%;color:var(--text)}
   color:var(--amber);
 }
 
-/* ─── BET CARDS ─── */
-.bet-card{
+/* ─── SMART BET CARDS ─── */
+.sbc{
   background:var(--s1);border:1px solid var(--border);
-  border-radius:20px;padding:18px;margin-bottom:10px;
+  border-radius:18px;padding:16px;margin-bottom:10px;
   transition:border-color .2s;
 }
-.bet-card:hover{border-color:rgba(240,190,80,.18)}
-.bet-card.won{border-color:rgba(93,201,138,.22);background:linear-gradient(135deg,rgba(93,201,138,.04),transparent)}
-.bet-card.lost{border-color:rgba(232,98,58,.18)}
-.bet-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
-.bet-type-lbl{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600}
-.bet-pot{border-radius:20px;padding:3px 11px;font-size:12px;font-weight:700}
-.bet-pot.open{background:rgba(240,168,50,.12);color:var(--amber)}
-.bet-pot.won{background:rgba(93,201,138,.12);color:var(--green)}
-.bet-pot.lost{background:rgba(232,98,58,.12);color:var(--coral)}
-.bet-vs{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.bet-player{text-align:center;flex:1}
-.bet-avi{font-size:30px;margin-bottom:4px}
-.bet-pname{font-size:13px;font-weight:700}
-.bet-pstat{font-size:11px;color:var(--muted);font-weight:300}
-.bet-vs-lbl{font-family:'Playfair Display',serif;font-size:16px;font-weight:900;color:var(--muted)}
-.bet-actions{display:flex;gap:8px;margin-bottom:8px}
+.sbc.betting{border-color:rgba(240,168,50,.22);background:rgba(240,168,50,.03)}
+.sbc.locked{border-color:rgba(110,181,255,.22);background:rgba(110,181,255,.03)}
+.sbc.won{border-color:rgba(93,201,138,.28);background:rgba(93,201,138,.04)}
+.sbc.cancelled{opacity:.5}
+.sbc-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.sbc-type-badge{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;background:var(--s3);border-radius:6px;padding:2px 7px;color:var(--muted);font-weight:700}
+.sbc-status-bet{font-size:11px;color:var(--amber);font-weight:700}
+.sbc-status-live{font-size:11px;color:#6EB5FF;font-weight:700}
+.sbc-status-won{font-size:11px;color:var(--green);font-weight:700}
+.sbc-label{font-size:14px;font-weight:800;color:var(--text);margin-bottom:4px;line-height:1.3}
+.sbc-metric{font-size:11px;color:var(--muted);margin-bottom:10px;font-weight:300}
+.sbc-blind{background:rgba(240,168,50,.06);border:1px dashed rgba(240,168,50,.2);border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:12px;color:var(--muted);text-align:center}
+.sbc-live-score{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sbc-live-p{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1}
+.sbc-live-avi{font-size:22px}
+.sbc-live-name{font-size:10px;color:var(--muted);font-weight:600;text-align:center}
+.sbc-live-pts{font-size:18px;font-weight:900;font-family:'Playfair Display',serif}
+.sbc-live-bar-wrap{flex:2;height:6px;background:var(--s3);border-radius:3px;overflow:hidden}
+.sbc-live-bar{height:100%;background:var(--amber);border-radius:3px;transition:width .6s ease}
+.sbc-odds-wrap{margin-bottom:8px}
+.sbc-odds-bar-outer{height:8px;background:var(--s3);border-radius:4px;overflow:hidden;margin-bottom:6px;display:flex}
+.sbc-odds-bar-s1{background:var(--amber);border-radius:4px 0 0 4px;transition:width .4s}
+.sbc-odds-bar-s2{background:rgba(110,181,255,.7);border-radius:0 4px 4px 0;flex:1}
+.sbc-odds-row{display:flex;gap:8px;margin-bottom:8px}
+.sbc-odds-item{flex:1;background:var(--s2);border-radius:10px;padding:8px;text-align:center}
+.sbc-odds-avi{font-size:18px;display:block;margin-bottom:2px}
+.sbc-odds-name{font-size:10px;color:var(--muted);display:block}
+.sbc-odds-staked{font-size:10px;color:var(--muted);display:block}
+.sbc-odds-multi{font-size:16px;font-weight:900;color:var(--amber);display:block;font-family:'Playfair Display',serif}
+.bet-type-sel{display:flex;gap:6px;margin-bottom:12px}
+.bet-type-opt{
+  flex:1;padding:9px 4px;border-radius:10px;border:1px solid var(--border);
+  background:var(--s2);color:var(--muted);font-size:11px;font-weight:700;
+  cursor:pointer;text-align:center;transition:all .15s;font-family:'DM Sans',sans-serif;
+}
+.bet-type-opt.sel{border-color:var(--amber);color:var(--amber);background:rgba(240,168,50,.08)}
+.bet-suggest-card{
+  background:var(--s2);border:1px solid rgba(240,168,50,.18);
+  border-radius:14px;padding:12px;margin-bottom:8px;
+  display:flex;align-items:center;gap:10px;cursor:pointer;
+  transition:border-color .15s;
+}
+.bet-suggest-card:hover{border-color:rgba(240,168,50,.4)}
 .bet-btn{
-  flex:1;padding:10px;border-radius:12px;
+  flex:1;padding:8px;border-radius:10px;
   border:1px solid var(--border);background:var(--s2);
   color:var(--text);font-family:'DM Sans',sans-serif;
-  font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;
+  font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;
 }
 .bet-btn:hover{border-color:rgba(240,168,50,.4);color:var(--amber)}
-.bet-timer{font-size:11px;color:var(--muted);text-align:center;font-weight:300}
-.my-pick{
-  background:rgba(240,168,50,.07);border:1px solid rgba(240,168,50,.18);
-  border-radius:10px;padding:8px;font-size:12px;color:var(--amber);
-  text-align:center;margin-top:4px;display:flex;justify-content:center;align-items:center;
-}
-.new-bet-btn{
-  width:100%;background:none;border:1px dashed rgba(240,190,80,.2);
-  border-radius:16px;padding:16px;color:var(--muted);font-size:13px;
-  font-weight:600;cursor:pointer;transition:all .2s;
-  display:flex;align-items:center;justify-content:center;gap:8px;
-  font-family:'DM Sans',sans-serif;
-}
-.new-bet-btn:hover{border-color:var(--amber);color:var(--amber)}
 
 /* ─── CHAT ─── */
 .chat-wrap{display:flex;flex-direction:column;flex:1;overflow:hidden}
@@ -1082,6 +1095,10 @@ const REACTION_EMOJIS = ALL_REACTION_EMOJIS.slice(0,5); // primeros 5 como "defa
 const STREAK_MILESTONES = [3,7,14,21,30];
 
 type Bet = { id:string|number;label:string;p1Name:string;p1Avi:string;p1Pts:number;p1Id?:string;p2Name:string;p2Avi:string;p2Pts:number;p2Id?:string;pot:number;ends:string;status:"open"|"won"|"lost"|"cancelled";myPick:1|2|null; };
+type SmartBetType="duel_ambito"|"duel_habit"|"prop";
+type SmartBetStatus="betting"|"locked"|"won"|"cancelled"|"open";
+type SmartBetStake={id:number;bet_id:number;user_id:string;side:1|2;amount:number;created_at:string};
+type SmartBet={id:number;group_id:string;bet_type:SmartBetType;label:string;metric:string;p1_id:string;p2_id:string;target_user_id?:string;target_value?:number;condition?:"gte"|"lte"|"top_n";betting_closes_at:string;ends_at:string;status:SmartBetStatus;winner_side?:1|2;created_at:string;p1Name:string;p1Avi:string;p2Name:string;p2Avi:string;targetName?:string;targetAvi?:string;stakes:SmartBetStake[];stakesVisible:boolean};
 
 
 /* ══════════════════════════════════════════ TYPES */
@@ -1928,54 +1945,184 @@ function ReactionsBar({feedType,feedRef,userId,reactions,onReact}:{feedType:stri
   );
 }
 
+/* ══════════════════════════════════════════ SMART BET HELPERS */
+const AMBITO_METRICS=[
+  {id:"deporte",label:"💪 Deporte"},{id:"social",label:"🍻 Social"},
+  {id:"salud",label:"🥗 Salud"},{id:"cultura",label:"📚 Cultura"},{id:"total",label:"⚡ Total"},
+];
+function betMetricLabel(metric:string){
+  const a=AMBITO_METRICS.find(x=>x.id===metric);if(a)return a.label;
+  const q=QUESTIONS.find(x=>x.id===metric);if(q)return`${q.icon} ${q.name}`;
+  return metric;
+}
+function smartBetIsActive(b:SmartBet){return b.status==="betting"||b.status==="locked"||b.status==="open";}
+function smartBetAutoLabel(b:SmartBet,p1Name:string,p2Name:string,targetName?:string){
+  if(b.bet_type==="prop"){
+    if(b.condition==="top_n")return`🎯 ¿Acabará ${targetName} en el top ${b.target_value}?`;
+    return`🎯 ¿${targetName} — ${betMetricLabel(b.metric)} ≥ ${b.target_value} esta semana?`;
+  }
+  const mlbl=betMetricLabel(b.metric);
+  if(b.bet_type==="duel_habit")return`⚔️ Quién hace más ${mlbl}: ${p1Name} vs ${p2Name}`;
+  return`⚔️ Duelo ${mlbl}: ${p1Name} vs ${p2Name}`;
+}
+
+/* ══════════════════════════════════════════ SMART BET CARD */
+function SmartBetCard({bet,userId,myPts,weekAmbitoPts,weekHabitCounts,adjRanking,onStake,onAdminResolve,isAdmin}:{bet:SmartBet;userId:string;myPts:number;weekAmbitoPts:Record<string,Record<string,number>>;weekHabitCounts:Record<string,Record<string,number>>;adjRanking:any[];onStake:(id:number,side:1|2,amt:number)=>void;onAdminResolve?:(id:number,side:1|2)=>void;isAdmin:boolean}){
+  const[selSide,setSelSide]=React.useState<1|2|null>(null);
+  const[stakeAmt,setStakeAmt]=React.useState(Math.min(5,Math.max(1,myPts)));
+  const myStake=bet.stakes.find(s=>s.user_id===userId);
+  const isBetting=bet.status==="betting"&&!bet.stakesVisible;
+  const isLocked=(bet.status==="locked")||((bet.status==="betting")&&bet.stakesVisible);
+  const isWon=bet.status==="won";
+  const isCancelled=bet.status==="cancelled";
+  const s1stakes=bet.stakes.filter(s=>s.side===1);
+  const s2stakes=bet.stakes.filter(s=>s.side===2);
+  const s1total=s1stakes.reduce((a,x)=>a+x.amount,0);
+  const s2total=s2stakes.reduce((a,x)=>a+x.amount,0);
+  const total=s1total+s2total;
+  const s1pct=total>0?Math.round(s1total/total*100):50;
+  const odds1=s2total>0?(total/s1total).toFixed(1):"—";
+  const odds2=s1total>0?(total/s2total).toFixed(1):"—";
+  const hoursLeft=bet.betting_closes_at?Math.max(0,(new Date(bet.betting_closes_at).getTime()-Date.now())/3600000):0;
+  const endsDate=bet.ends_at?new Date(bet.ends_at).toLocaleDateString("es-ES",{day:"numeric",month:"short"}):"?";
+  // Live score for duels
+  const getAmbitoPts=(uid:string)=>bet.metric==="total"?Object.values(weekAmbitoPts[uid]||{}).reduce((a,v)=>a+v,0):(weekAmbitoPts[uid]?.[bet.metric]||0);
+  const getHabitCount=(uid:string)=>weekHabitCounts[uid]?.[bet.metric]||0;
+  const p1live=bet.bet_type==="duel_ambito"?getAmbitoPts(bet.p1_id):bet.bet_type==="duel_habit"?getHabitCount(bet.p1_id):0;
+  const p2live=bet.bet_type==="duel_ambito"?getAmbitoPts(bet.p2_id):bet.bet_type==="duel_habit"?getHabitCount(bet.p2_id):0;
+  const propCount=bet.bet_type==="prop"&&bet.target_user_id?(bet.metric==="total"?(adjRanking.find(r=>r.user_id===bet.target_user_id)?.total_pts||0):(weekHabitCounts[bet.target_user_id]?.[bet.metric]||0)):0;
+  const propAchieved=bet.bet_type==="prop"&&(bet.condition==="top_n"?(adjRanking.findIndex(r=>r.user_id===bet.target_user_id)+1)<=(bet.target_value||3):propCount>=(bet.target_value||0));
+  const label=bet.label||smartBetAutoLabel(bet,bet.p1Name,bet.p2Name,bet.targetName);
+  const typeBadge=bet.bet_type==="prop"?"🎯 PROP":bet.bet_type==="duel_habit"?"⚔️ HÁBITO":"⚔️ ÁMBITO";
+  const s1label=bet.bet_type==="prop"?"✅ Sí":bet.p1Name;
+  const s2label=bet.bet_type==="prop"?"❌ No":bet.p2Name;
+  const s1avi=bet.bet_type==="prop"?(bet.targetAvi||"🎯"):bet.p1Avi;
+  const s2avi=bet.bet_type==="prop"?"❌":bet.p2Avi;
+  const winner=bet.winner_side===1?{name:s1label,avi:s1avi}:{name:s2label,avi:s2avi};
+  const myPayout=myStake&&isWon&&bet.winner_side===myStake.side&&total>0?Math.round(myStake.amount*(total/(myStake.side===1?s1total:s2total))):0;
+  return(
+    <div className={`sbc${isBetting?" betting":isLocked?" locked":isWon?" won":isCancelled?" cancelled":""}`}>
+      <div className="sbc-header">
+        <span className="sbc-type-badge">{typeBadge}</span>
+        <span>
+          {isBetting&&<span className="sbc-status-bet">🔒 {Math.round(hoursLeft)}h para apostar</span>}
+          {isLocked&&<span className="sbc-status-live">📊 En juego · {endsDate}</span>}
+          {isWon&&<span className="sbc-status-won">🏆 {winner.avi} {winner.name}</span>}
+          {isCancelled&&<span style={{fontSize:11,color:"var(--muted)"}}>✗ Anulada</span>}
+        </span>
+      </div>
+      <div className="sbc-label">{label}</div>
+      <div className="sbc-metric">{betMetricLabel(bet.metric)} · Termina {endsDate}</div>
+      {/* Live score — duels */}
+      {(isLocked||isWon)&&(bet.bet_type==="duel_ambito"||bet.bet_type==="duel_habit")&&(
+        <div className="sbc-live-score">
+          <div className="sbc-live-p">
+            <span className="sbc-live-avi">{bet.p1Avi}</span>
+            <span className="sbc-live-name">{bet.p1Name}</span>
+            <span className="sbc-live-pts" style={{color:p1live>=p2live?"var(--amber)":"var(--muted)"}}>{p1live}{bet.bet_type==="duel_habit"?"×":"pts"}</span>
+          </div>
+          <div className="sbc-live-bar-wrap">
+            <div className="sbc-live-bar" style={{width:`${p1live+p2live>0?Math.round(p1live/(p1live+p2live)*100):50}%`}}/>
+          </div>
+          <div className="sbc-live-p">
+            <span className="sbc-live-avi">{bet.p2Avi}</span>
+            <span className="sbc-live-name">{bet.p2Name}</span>
+            <span className="sbc-live-pts" style={{color:p2live>p1live?"var(--amber)":"var(--muted)"}}>{p2live}{bet.bet_type==="duel_habit"?"×":"pts"}</span>
+          </div>
+        </div>
+      )}
+      {/* Live progress — prop */}
+      {(isLocked||isWon)&&bet.bet_type==="prop"&&(
+        <div style={{background:"var(--s2)",borderRadius:10,padding:"10px 12px",marginBottom:8}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+            <span style={{fontSize:12}}>{bet.targetAvi} {bet.targetName}</span>
+            <span style={{fontSize:14,fontWeight:900,color:propAchieved?"var(--green)":"var(--amber)",fontFamily:"'Playfair Display',serif"}}>
+              {bet.condition==="top_n"?`#${adjRanking.findIndex(r=>r.user_id===bet.target_user_id)+1}`:`${propCount}/${bet.target_value}`}
+            </span>
+          </div>
+          <div style={{height:5,background:"var(--s3)",borderRadius:3,overflow:"hidden"}}>
+            <div style={{height:"100%",background:propAchieved?"var(--green)":"var(--amber)",borderRadius:3,width:`${Math.min(100,bet.condition==="top_n"?100:Math.round(propCount/(bet.target_value||1)*100))}%`,transition:"width .4s"}}/>
+          </div>
+          {propAchieved&&<div style={{fontSize:10,color:"var(--green)",marginTop:4,fontWeight:700}}>✅ Objetivo conseguido</div>}
+        </div>
+      )}
+      {/* Blind phase */}
+      {isBetting&&<div className="sbc-blind">🔒 Apuesta ciega — {bet.stakes.length} persona{bet.stakes.length!==1?"s":""} ha apostado ya</div>}
+      {/* Place bet (blind phase, not staked yet) */}
+      {isBetting&&!myStake&&(
+        <div>
+          <div className="bet-sides">
+            <div className={`bet-side${selSide===1?" sel":""}`} onClick={()=>setSelSide(s=>s===1?null:1)}><div className="bet-side-avi">{s1avi}</div><div className="bet-side-name">{s1label}</div></div>
+            <div style={{display:"flex",alignItems:"center",fontSize:11,fontWeight:700,color:"var(--muted)",padding:"0 4px"}}>VS</div>
+            <div className={`bet-side${selSide===2?" sel":""}`} onClick={()=>setSelSide(s=>s===2?null:2)}><div className="bet-side-avi">{s2avi}</div><div className="bet-side-name">{s2label}</div></div>
+          </div>
+          {selSide&&(myPts<1?<div style={{fontSize:12,color:"var(--red)",textAlign:"center",padding:"6px 0"}}>⚠️ Sin puntos para apostar</div>:<>
+            <div className="stake-row"><span style={{fontSize:11,color:"var(--muted)",whiteSpace:"nowrap"}}>Apostar:</span><input type="range" className="stake-range" min={1} max={Math.min(5,myPts)} value={Math.min(stakeAmt,Math.min(5,myPts))} onChange={e=>setStakeAmt(+e.target.value)}/><span className="stake-amt">{Math.min(stakeAmt,Math.min(5,myPts))}pts</span></div>
+            <div style={{fontSize:10,color:"var(--muted)",textAlign:"right",marginBottom:4}}>Tienes {myPts} pts · máx 5pts · 🔒 nadie verá tu voto</div>
+            <div className="stake-actions">
+              <button className="stake-confirm" onClick={()=>{onStake(bet.id,selSide,Math.min(stakeAmt,Math.min(5,myPts)));setSelSide(null);}}>Apostar por {selSide===1?s1label:s2label}</button>
+              <button className="stake-cancel" onClick={()=>setSelSide(null)}>✕</button>
+            </div>
+          </>)}
+        </div>
+      )}
+      {isBetting&&myStake&&<div className="bet-locked"><span>✓ Apostaste {myStake.amount}pts · 🔒 ciega</span></div>}
+      {/* Revealed odds */}
+      {(isLocked||isWon)&&bet.stakesVisible&&total>0&&(
+        <div className="sbc-odds-wrap">
+          <div className="sbc-odds-bar-outer">
+            <div className="sbc-odds-bar-s1" style={{width:s1pct+"%"}}/>
+            <div className="sbc-odds-bar-s2"/>
+          </div>
+          <div className="sbc-odds-row">
+            <div className="sbc-odds-item">
+              <span className="sbc-odds-avi">{s1avi}</span>
+              <span className="sbc-odds-name">{s1label}</span>
+              <span className="sbc-odds-staked">{s1total}pts apostados</span>
+              <span className="sbc-odds-multi">×{odds1}</span>
+            </div>
+            <div className="sbc-odds-item">
+              <span className="sbc-odds-avi">{s2avi}</span>
+              <span className="sbc-odds-name">{s2label}</span>
+              <span className="sbc-odds-staked">{s2total}pts apostados</span>
+              <span className="sbc-odds-multi">×{odds2}</span>
+            </div>
+          </div>
+          {myStake&&<div className="bet-locked">
+            {isWon?(myPayout>0?<span style={{color:"var(--green)"}}>🏆 Ganaste +{myPayout}pts</span>:<span style={{color:"var(--red)"}}>💸 Perdiste {myStake.amount}pts</span>):<span>✓ {myStake.amount}pts por {myStake.side===1?s1label:s2label} · cuota ×{myStake.side===1?odds1:odds2}</span>}
+          </div>}
+        </div>
+      )}
+      {(isLocked||isWon)&&total===0&&<div style={{fontSize:11,color:"var(--muted)",textAlign:"center",padding:"4px 0"}}>Nadie apostó puntos en esta apuesta.</div>}
+      {/* Admin controls */}
+      {isAdmin&&(isLocked||isBetting)&&onAdminResolve&&(
+        <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--border)"}}>
+          <div style={{fontSize:9,color:"var(--amber)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>⚙️ Admin — resolver</div>
+          <div style={{display:"flex",gap:6}}>
+            <button className="bet-btn" style={{borderColor:"rgba(93,201,138,.3)",color:"var(--green)"}} onClick={()=>onAdminResolve(bet.id,1)}>✓ Gana {s1label}</button>
+            <button className="bet-btn" style={{borderColor:"rgba(93,201,138,.3)",color:"var(--green)"}} onClick={()=>onAdminResolve(bet.id,2)}>✓ Gana {s2label}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════ FEED CARD */
 type BetStake={side:1|2;amount:number;confirmed:boolean};
-function BetFeedCard({item,userId,reactions,onReact,betStakes,onBetStake,onSendToChat,myPts}:{item:FeedBetItem;userId:string;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;betStakes:Record<string,BetStake>;onBetStake:(id:string,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote?:(id:number,v:"support"|"reject")=>Promise<void>;myPts:number}){
+function BetFeedCard({item,userId,reactions,onReact,onSendToChat}:{item:FeedBetItem;userId:string;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;onSendToChat:(item:FeedItem)=>void;myPts:number}){
   const b=item.bet;
-  const myStake=betStakes[b.id];
-  const [selSide,setSelSide]=React.useState<1|2|null>(null);
-  const maxStake=Math.min(10,myPts);
-  const [stakeAmt,setStakeAmt]=React.useState(Math.min(5,Math.max(1,myPts)));
-  const total=b.p1Pts+b.p2Pts;
-  const p1Pct=total>0?Math.round(b.p1Pts/total*100):50;
-  const isBetWon=item.type==="bet_won";
   const winnerName=b.myPick===1?b.p1Name:b.p2Name;
   const winnerAvi=b.myPick===1?b.p1Avi:b.p2Avi;
-  if(isBetWon) return(
+  return(
     <div className="feed-card type-bet" style={{borderColor:"rgba(93,201,138,.25)"}}>
       <div className="feed-head"><div className="feed-avi">{winnerAvi}</div><div style={{flex:1,minWidth:0}}><div className="feed-name">{winnerName} <span style={{fontWeight:400,color:"var(--green)"}}>ganó la apuesta 🏆</span></div><div className="feed-when">{b.label}</div></div><div style={{background:"rgba(93,201,138,.12)",color:"var(--green)",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:700,flexShrink:0}}>+{b.pot} pts</div></div>
       <div className="card-footer"><ReactionsBar feedType="bet_won" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/><button className="chat-link-btn" onClick={()=>onSendToChat(item)}>💬 Chat</button></div>
     </div>
   );
-  return(
-    <div className="feed-card type-bet">
-      <div className="feed-head">
-        <div className="feed-avi" style={{background:"rgba(240,168,50,.1)",fontSize:16}}>⚔️</div>
-        <div style={{flex:1,minWidth:0}}><div className="feed-name" style={{fontSize:12}}>{b.label}</div><div className="feed-when">apuesta abierta · termina en {b.ends}</div></div>
-        <div style={{background:"rgba(240,168,50,.12)",color:"var(--amber)",borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,flexShrink:0}}>⚡{b.p1Pts+b.p2Pts} PTS</div>
-      </div>
-      {!myStake?.confirmed&&<div className="bet-sides">
-        <div className={"bet-side"+(selSide===1?" sel":"")} onClick={()=>setSelSide(s=>s===1?null:1)}><div className="bet-side-avi">{b.p1Avi}</div><div className="bet-side-name">{b.p1Name}</div><div className="bet-side-pts">{b.p1Pts} pts</div></div>
-        <div style={{display:"flex",alignItems:"center",fontSize:11,fontWeight:700,color:"var(--muted)",padding:"0 2px"}}>VS</div>
-        <div className={"bet-side"+(selSide===2?" sel":"")} onClick={()=>setSelSide(s=>s===2?null:2)}><div className="bet-side-avi">{b.p2Avi}</div><div className="bet-side-name">{b.p2Name}</div><div className="bet-side-pts">{b.p2Pts} pts</div></div>
-      </div>}
-      <div className="bet-pot-bar"><div className="bet-pot-fill" style={{width:p1Pct+"%"}}/></div>
-      <div className="bet-pot-labels"><span>{b.p1Name}: {b.p1Pts}pts</span><span>{b.p2Name}: {b.p2Pts}pts</span></div>
-      <div className="bet-rules-lbl">Elige un lado · máx 10 pts · ganador dobla · perdedor 0</div>
-      {selSide&&!myStake?.confirmed&&<>
-        {maxStake<1?(<div style={{fontSize:12,color:"var(--red)",textAlign:"center",padding:"8px 0"}}>⚠️ No tienes puntos disponibles para apostar.</div>):(<>
-          <div className="stake-row"><span style={{fontSize:11,color:"var(--muted)",whiteSpace:"nowrap"}}>Apostar:</span><input type="range" className="stake-range" min={1} max={maxStake} value={Math.min(stakeAmt,maxStake)} onChange={e=>setStakeAmt(+e.target.value)}/><span className="stake-amt">{Math.min(stakeAmt,maxStake)}pts</span></div>
-          <div style={{fontSize:10,color:"var(--muted)",textAlign:"right",marginBottom:4}}>Tienes {myPts} pts · máx 10</div>
-          <div className="stake-actions"><button className="stake-confirm" onClick={()=>{onBetStake(String(b.id),selSide,Math.min(stakeAmt,maxStake));setSelSide(null);}}>Apostar por {selSide===1?b.p1Name:b.p2Name}</button><button className="stake-cancel" onClick={()=>setSelSide(null)}>✕</button></div>
-        </>)}
-      </>}
-      {myStake?.confirmed&&<div className="bet-locked"><span>✓ {myStake.amount}pts por <b style={{marginLeft:3}}>{myStake.side===1?b.p1Name:b.p2Name}</b></span><span style={{color:"var(--green)"}}>+{myStake.amount*2} si gana 🏆</span></div>}
-      <div className="card-footer"><ReactionsBar feedType="bet_open" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/><button className="chat-link-btn" onClick={()=>onSendToChat(item)}>💬 Chat</button></div>
-    </div>
-  );
 }
 
-function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembers,betStakes,onBetStake,onSendToChat,onVote,onDispute,myPts}:{item:FeedItem;userId:string;members:Record<string,{name:string;avatar:string}>;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;disputeVotes:DisputeVote[];totalMembers:number;betStakes:Record<string,BetStake>;onBetStake:(id:string,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote?:(id:number,v:"support"|"reject")=>Promise<void>;onDispute?:(uid:string)=>void;myPts:number}){
+function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembers,onSendToChat,onVote,onDispute,myPts}:{item:FeedItem;userId:string;members:Record<string,{name:string;avatar:string}>;reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;disputeVotes:DisputeVote[];totalMembers:number;onSendToChat:(item:FeedItem)=>void;onVote?:(id:number,v:"support"|"reject")=>Promise<void>;onDispute?:(uid:string)=>void;myPts:number}){
   if(item.type==="log"){
     const who=members[item.user_id]||{name:"?",avatar:"👤"};
     const isMe=item.user_id===userId;
@@ -2040,8 +2187,8 @@ function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembe
       </div>
     );
   }
-  if(item.type==="bet_open"||item.type==="bet_won"){
-    return <BetFeedCard item={item as FeedBetItem} userId={userId} reactions={reactions} onReact={onReact} betStakes={betStakes} onBetStake={onBetStake} onSendToChat={onSendToChat} myPts={myPts}/>;
+  if(item.type==="bet_won"){
+    return <BetFeedCard item={item as FeedBetItem} userId={userId} reactions={reactions} onReact={onReact} onSendToChat={onSendToChat} myPts={myPts}/>;
   }
   if(item.type==="dispute"){
     const d=item.dispute;
@@ -2089,7 +2236,7 @@ function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembe
 }
 
 /* ══════════════════════════════════════════ FEED */
-function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,totalMembers,betStakes,onBetStake,onSendToChat,onVote,onDispute,myPts}:{user:any;group:any;members:Record<string,{name:string;avatar:string}>;disputes:Dispute[];disputeVotes:DisputeVote[];bets:Bet[];reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;totalMembers:number;betStakes:Record<string,BetStake>;onBetStake:(id:string,side:1|2,amt:number)=>void;onSendToChat:(item:FeedItem)=>void;onVote:(id:number,v:"support"|"reject")=>Promise<void>;onDispute?:(uid:string)=>void;myPts:number}){
+function Feed({user,group,members,disputes,disputeVotes,smartBets,reactions,onReact,totalMembers,onSendToChat,onVote,onDispute,myPts}:{user:any;group:any;members:Record<string,{name:string;avatar:string}>;disputes:Dispute[];disputeVotes:DisputeVote[];smartBets:SmartBet[];reactions:FeedReaction[];onReact:(ft:string,fr:string,e:string)=>void;totalMembers:number;onSendToChat:(item:FeedItem)=>void;onVote:(id:number,v:"support"|"reject")=>Promise<void>;onDispute?:(uid:string)=>void;myPts:number}){
   const [logs,setLogs]=useState<any[]>([]);
   const [loading,setLoading]=useState(true);
   useEffect(()=>{
@@ -2131,10 +2278,12 @@ function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,t
   }
   // Disputes
   for(const d of disputes) items.push({type:"dispute",ref:`dispute:${d.id}`,dispute:d,created_at:d.created_at} as FeedDisputeItem);
-  // Bets
-  for(const b of bets){
-    if(b.status==="open") items.push({type:"bet_open",ref:`bet:${b.id}`,bet:b,created_at:new Date(Date.now()-Number(b.id)*3600000).toISOString()} as FeedBetItem);
-    else if(b.status==="won") items.push({type:"bet_won",ref:`betwon:${b.id}`,bet:b,created_at:new Date(Date.now()-Number(b.id)*7200000).toISOString()} as FeedBetItem);
+  // Smart bets: only show won bets in feed
+  for(const b of smartBets){
+    if(b.status==="won"){
+      const fakeBet:Bet={id:String(b.id),label:b.label,p1Name:b.p1Name,p1Avi:b.p1Avi,p1Pts:0,p1Id:b.p1_id,p2Name:b.p2Name,p2Avi:b.p2Avi,p2Pts:0,p2Id:b.p2_id,pot:b.stakes.reduce((s,x)=>s+x.amount,0),ends:"",status:"won",myPick:b.winner_side||null};
+      items.push({type:"bet_won",ref:`betwon:${b.id}`,bet:fakeBet,created_at:b.created_at} as FeedBetItem);
+    }
   }
   items.sort((a,b)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime());
 
@@ -2144,7 +2293,7 @@ function Feed({user,group,members,disputes,disputeVotes,bets,reactions,onReact,t
     <div className="feed">
       <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",fontWeight:500,marginBottom:2}}>Actividad reciente</div>
       {items.map(item=>(
-        <FeedCard key={item.ref} item={item} userId={user.id} members={members} reactions={reactions} onReact={onReact} disputeVotes={disputeVotes} totalMembers={totalMembers} betStakes={betStakes} onBetStake={onBetStake} onSendToChat={onSendToChat} onVote={onVote} onDispute={onDispute} myPts={myPts}/>
+        <FeedCard key={item.ref} item={item} userId={user.id} members={members} reactions={reactions} onReact={onReact} disputeVotes={disputeVotes} totalMembers={totalMembers} onSendToChat={onSendToChat} onVote={onVote} onDispute={onDispute} myPts={myPts}/>
       ))}
     </div>
   );
@@ -2271,8 +2420,14 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   const [ranking,setRanking]=useState<any[]>([]);
   const [streak,setStreak]=useState(0);
   const [loadingRank,setLR]=useState(false);
-  const [bets,setBets]=useState<Bet[]>([]);
+  const [smartBets,setSmartBets]=useState<SmartBet[]>([]);
   const [betsTab,setBT]=useState<"activas"|"historial">("activas");
+  const [createBetOpen,setCreateBetOpen]=useState(false);
+  const [newBetType,setNewBetType]=useState<SmartBetType>("duel_ambito");
+  const [newBetMetric,setNewBetMetric]=useState("deporte");
+  const [newBetTargetUser,setNewBetTargetUser]=useState("");
+  const [newBetTargetValue,setNewBetTargetValue]=useState(4);
+  const [newBetCondition,setNewBetCondition]=useState<"gte"|"top_n">("gte");
   const [disputes,setDisputes]=useState<Dispute[]>([]);
   const [disputeVotes,setDisputeVotes]=useState<DisputeVote[]>([]);
   const [disputeDayPts,setDisputeDayPts]=useState<Record<string,number>>({});
@@ -2286,23 +2441,20 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   const [members,setMembers]=useState<Record<string,{name:string;avatar:string}>>({});
   const [weekDays,setWeekDays]=useState<boolean[]>([false,false,false,false,false,false,false]);
   const [myWeekPts,setMyWeekPts]=useState(0);
-  const [betStakes,setBetStakes]=useState<Record<string,BetStake>>({});
   const [sharedEvent,setSharedEvent]=useState<SharedEvent|null>(null);
   const [weekLeaders,setWeekLeaders]=useState<Record<string,string>>({});
   const [weekAmbitoPts,setWeekAmbitoPts]=useState<Record<string,Record<string,number>>>({});
+  const [weekHabitCounts,setWeekHabitCounts]=useState<Record<string,Record<string,number>>>({});
   const [userRecords,setUserRecords]=useState<Record<string,string>>({});
   const [editingRecords,setEditingRecords]=useState(false);
-  const [showCreateBet,setShowCreateBet]=useState(false);
-  const [newBetLabel,setNewBetLabel]=useState("");
   const [newBetP1,setNewBetP1]=useState("");
   const [newBetP2,setNewBetP2]=useState("");
-  const [newBetPot,setNewBetPot]=useState(5);
   const [newBetEnds,setNewBetEnds]=useState(()=>{const d=new Date();d.setDate(d.getDate()+7);return d.toISOString().slice(0,10);});
-  const [tabStakeState,setTabStakeState]=useState<Record<string,{selSide?:1|2;amt:number}>>({});
   const [adminSeasonDuration,setAdminSeasonDuration]=useState<number>((groupInit as any).season_duration_days||56);
   const [adminSeasonEndDate,setAdminSeasonEndDate]=useState<string>((groupInit as any).season_end_date||"");
   const [adminSavingSeasonDates,setAdminSavingSeasonDates]=useState(false);
   const [savingBet,setSavingBet]=useState(false);
+  const [stakingSmart,setStakingSmart]=useState(false);
   const [editingProfile,setEditingProfile]=useState(false);
   const [editAvatar,setEditAvatar]=useState("");
   const [editName,setEditName]=useState("");
@@ -2429,6 +2581,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       if(bestUid&&best>0)leaders[q.id]=bestUid;
     }
     setWeekLeaders(leaders);
+    setWeekHabitCounts(counts);
     // pts por ámbito por usuario esta semana
     const ap:Record<string,Record<string,number>>={};
     for(const row of data){
@@ -2682,7 +2835,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     onSwitchGroup(g);
     setShowGroupSwitcher(false);
     // Reset state for new group
-    setDone({});setSaved(false);setRanking([]);setBets([]);setDisputes([]);setDisputeVotes([]);setReactions([]);setBetStakes({});setWeekDays([false,false,false,false,false,false,false]);
+    setDone({});setSaved(false);setRanking([]);setSmartBets([]);setDisputes([]);setDisputeVotes([]);setReactions([]);setWeekDays([false,false,false,false,false,false,false]);
   }
 
   async function loadToday(){
@@ -2769,44 +2922,79 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     }
   }
 
-  async function loadBets(){
-    const{data}=await sb.from("bets").select("*").eq("group_id",group.id).order("created_at",{ascending:false});
-    if(!data?.length){setBets([]);return;}
-    const ids=[...new Set(data.flatMap((b:any)=>[b.p1_id,b.p2_id]))];
-    const{data:us}=await sb.from("users").select("id,name,avatar").in("id",ids as string[]);
+  async function loadSmartBets(){
+    const{data}=await sb.from("bets").select("*,bet_stakes(*)").eq("group_id",group.id).order("created_at",{ascending:false});
+    if(!data?.length){setSmartBets([]);return;}
+    const uids=[...new Set(data.flatMap((b:any)=>[b.p1_id,b.p2_id,b.target_user_id].filter(Boolean)))];
+    const{data:us}=await sb.from("users").select("id,name,avatar").in("id",uids as string[]);
     const um:Record<string,any>={};(us||[]).forEach((u:any)=>{um[u.id]=u;});
-    setBets(data.map((b:any)=>({
-      id:b.id,label:b.label,
-      p1Name:um[b.p1_id]?.name||"?",p1Avi:um[b.p1_id]?.avatar||"👤",p1Pts:0,p1Id:b.p1_id,
-      p2Name:um[b.p2_id]?.name||"?",p2Avi:um[b.p2_id]?.avatar||"👤",p2Pts:0,p2Id:b.p2_id,
-      pot:b.pot,ends:b.ends_at?new Date(b.ends_at).toLocaleDateString("es-ES",{day:"numeric",month:"short"}):(b.ends_label||"?"),
-      status:b.status as "open"|"won"|"lost"|"cancelled",myPick:null
-    })));
+    const now=new Date();
+    setSmartBets(data.map((b:any)=>{
+      const closedAt=b.betting_closes_at?new Date(b.betting_closes_at):null;
+      const stakesVisible=!closedAt||now>closedAt;
+      const stakes=(b.bet_stakes||[]).map((s:any)=>({id:s.id,bet_id:s.bet_id,user_id:s.user_id,side:s.side as 1|2,amount:s.amount,created_at:s.created_at}));
+      return{
+        id:b.id,group_id:b.group_id,bet_type:(b.bet_type||"duel_ambito") as SmartBetType,
+        label:b.label,metric:b.metric||"total",
+        p1_id:b.p1_id,p2_id:b.p2_id,
+        target_user_id:b.target_user_id,target_value:b.target_value,condition:b.condition||"gte",
+        betting_closes_at:b.betting_closes_at,ends_at:b.ends_at,
+        status:(b.status||"betting") as SmartBetStatus,winner_side:b.winner_side,
+        created_at:b.created_at,
+        p1Name:um[b.p1_id]?.name||"?",p1Avi:um[b.p1_id]?.avatar||"👤",
+        p2Name:um[b.p2_id]?.name||"?",p2Avi:um[b.p2_id]?.avatar||"👤",
+        targetName:b.target_user_id?(um[b.target_user_id]?.name||"?"):undefined,
+        targetAvi:b.target_user_id?(um[b.target_user_id]?.avatar||"👤"):undefined,
+        stakes,stakesVisible
+      } as SmartBet;
+    }));
   }
-  async function loadBetStakes(){
-    const{data}=await sb.from("bet_stakes").select("*").eq("user_id",user.id);
-    const map:Record<string,BetStake>={};
-    (data||[]).forEach((s:any)=>{map[s.bet_id]={side:s.side,amount:s.amount,confirmed:true};});
-    setBetStakes(map);
-  }
-  async function handleBetStake(betId:string,side:1|2,amount:number){
+  async function placeSmartStake(betId:number,side:1|2,amount:number){
     const myPts=myRow?.total_pts||0;
-    const cappedAmt=Math.min(Math.max(1,amount),10);
-    if(cappedAmt>myPts){alert(`No tienes suficientes puntos. Tienes ${myPts} pts disponibles.`);return;}
-    if(myPts<1){alert("Necesitas al menos 1 punto para apostar.");return;}
-    await sb.from("bet_stakes").upsert({bet_id:betId,user_id:user.id,side,amount:cappedAmt},{onConflict:"bet_id,user_id"});
-    setBetStakes(prev=>({...prev,[betId]:{side,amount:cappedAmt,confirmed:true}}));
+    const capped=Math.min(Math.max(1,amount),10);
+    if(capped>myPts){alert(`No tienes suficientes puntos. Tienes ${myPts} pts.`);return;}
+    setStakingSmart(true);
+    await sb.from("bet_stakes").insert({bet_id:betId,user_id:user.id,side,amount:capped});
+    await loadSmartBets();
+    setStakingSmart(false);
   }
-  async function createBet(){
-    if(!newBetLabel.trim()||!newBetP1||!newBetP2||newBetP1===newBetP2)return;
-    const cappedPot=Math.min(Math.max(1,newBetPot),10);
+  async function createSmartBet(){
+    if(!newBetP1||!newBetP2||newBetP1===newBetP2)return;
+    const activeBets=smartBets.filter(b=>b.status==="betting"||b.status==="locked");
+    if(activeBets.length>=4){alert("Máximo 4 apuestas activas por grupo.");return;}
     setSavingBet(true);
-    const endsLabel=newBetEnds?new Date(newBetEnds).toLocaleDateString("es-ES",{day:"numeric",month:"short"}):newBetEnds;
-    await sb.from("bets").insert({group_id:group.id,label:newBetLabel.trim(),p1_id:newBetP1,p2_id:newBetP2,pot:cappedPot,ends_at:newBetEnds||null,ends_label:endsLabel});
-    await loadBets();
-    const d=new Date();d.setDate(d.getDate()+7);
-    setNewBetLabel("");setNewBetP1("");setNewBetP2("");setNewBetPot(5);setNewBetEnds(d.toISOString().slice(0,10));
-    setShowCreateBet(false);setSavingBet(false);
+    const closesAt=new Date();closesAt.setHours(closesAt.getHours()+24);
+    const label=smartBetAutoLabel({p1_id:newBetP1,p2_id:newBetP2,bet_type:newBetType,metric:newBetMetric,target_user_id:newBetTargetUser,target_value:newBetTargetValue,condition:newBetCondition} as any,
+      (Object.values(members).find((_,i)=>Object.keys(members)[i]===newBetP1) as any)?.name||"?",
+      (Object.values(members).find((_,i)=>Object.keys(members)[i]===newBetP2) as any)?.name||"?",
+      newBetTargetUser?(members[newBetTargetUser]?.name||"?"):undefined
+    );
+    await sb.from("bets").insert({
+      group_id:group.id,label,bet_type:newBetType,metric:newBetMetric,
+      p1_id:newBetP1,p2_id:newBetP2,
+      target_user_id:newBetTargetUser||null,target_value:newBetTargetValue,condition:newBetCondition,
+      betting_closes_at:closesAt.toISOString(),ends_at:newBetEnds||null,
+      status:"betting"
+    });
+    await loadSmartBets();
+    setNewBetP1("");setNewBetP2("");setNewBetTargetUser("");setNewBetTargetValue(4);
+    const d=new Date();d.setDate(d.getDate()+7);setNewBetEnds(d.toISOString().slice(0,10));
+    setCreateBetOpen(false);setSavingBet(false);
+  }
+  async function adminResolveSmartBet(betId:number,winnerSide:1|2){
+    const bet=smartBets.find(b=>b.id===betId);if(!bet)return;
+    await sb.from("bets").update({status:"won",winner_side:winnerSide}).eq("id",betId);
+    const winners=bet.stakes.filter(s=>s.side===winnerSide);
+    const losers=bet.stakes.filter(s=>s.side!==winnerSide);
+    const loserPool=losers.reduce((s,x)=>s+x.amount,0);
+    const winnerPool=winners.reduce((s,x)=>s+x.amount,0);
+    if(winners.length&&loserPool>0){
+      for(const w of winners){
+        const share=winnerPool>0?Math.round((w.amount/winnerPool)*loserPool):0;
+        await sb.from("users").update({total_pts:sb.rpc("increment",{amount:w.amount+share})}).eq("id",w.user_id);
+      }
+    }
+    await loadSmartBets();loadRanking();
   }
   async function saveProfile(){
     if(!editName.trim())return;
@@ -2829,10 +3017,6 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       const who=members[(item as FeedStreakItem).user_id]||{name:"?",avatar:"👤"};
       text=`🔥 ${who.name} lleva ${(item as FeedStreakItem).streak} días seguidos`;
       color="#F0A832";
-    } else if(item.type==="bet_open"){
-      const b=(item as FeedBetItem).bet;
-      text=`⚔️ ${b.label} · ${b.p1Avi} ${b.p1Name} vs ${b.p2Avi} ${b.p2Name} · Bote: ${b.pot} pts`;
-      color="var(--blue)";
     } else if(item.type==="bet_won"){
       const b=(item as FeedBetItem).bet;
       const win=b.myPick===1?`${b.p1Avi} ${b.p1Name}`:`${b.p2Avi} ${b.p2Name}`;
@@ -2852,7 +3036,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
 
   useEffect(()=>{
     loadToday();loadRanking();loadStreak();loadMembers();loadReactions();loadWeekDays();
-    loadWeekLeaders();loadProfileData();loadBets();loadBetStakes();loadRecords();
+    loadWeekLeaders();loadProfileData();loadSmartBets();loadRecords();
     registerPush(user.id,group.id);
     setConfigHabits(group.active_habits||QUESTIONS.map(q=>q.id));
     // Detect current push permission state
@@ -2887,13 +3071,9 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     setPushLoading(false);
   }
 
-  async function closeBet(betId:string|number,winner:1|2){
-    await sb.from("bets").update({status:"won",winner_side:winner}).eq("id",betId);
-    setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"won",myPick:winner}:b));
-  }
-  async function cancelBet(betId:string|number){
+  async function cancelSmartBet(betId:number){
     await sb.from("bets").update({status:"cancelled"}).eq("id",betId);
-    setBets(bs=>bs.map(b=>b.id===betId?{...b,status:"cancelled"}:b));
+    await loadSmartBets();
   }
 
   return(
@@ -2910,7 +3090,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
             <span className="gname">{group.emoji} {group.name}</span>
             {allGroups.length>1&&<span style={{fontSize:9,color:"var(--muted)",marginLeft:1}}>▾</span>}
           </div>
-          <div className="bets-chip" onClick={()=>setTab("bets")}><span className="bets-chip-ico">⚡</span>{bets.filter(b=>b.status==="open").length>0&&<span className="bets-chip-n">{bets.filter(b=>b.status==="open").length}</span>}</div>
+          <div className="bets-chip" onClick={()=>setTab("bets")}><span className="bets-chip-ico">⚡</span>{smartBets.filter(b=>b.status==="betting"||b.status==="locked").length>0&&<span className="bets-chip-n">{smartBets.filter(b=>b.status==="betting"||b.status==="locked").length}</span>}</div>
         </div>
       </div>
 
@@ -2918,7 +3098,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       {tab==="hoy"&&(
         <div className="content" key="hoy">
           <TodayBanner weekPts={myWeekPts} streak={streak} saved={saved} done={done} onApuntar={()=>setShowApuntar(true)} myPos={myPos} weekDays={weekDays}/>
-          <Feed user={user} group={group} members={members} disputes={disputes} disputeVotes={disputeVotes} bets={bets} reactions={reactions} onReact={handleReact} totalMembers={totalMembers} betStakes={betStakes} onBetStake={handleBetStake} onSendToChat={handleSendToChat} onVote={castVote} onDispute={(uid)=>{setProfileModal(null);setDisputeModal(uid);}} myPts={myRow?.total_pts||0}/>
+          <Feed user={user} group={group} members={members} disputes={disputes} disputeVotes={disputeVotes} smartBets={smartBets} reactions={reactions} onReact={handleReact} totalMembers={totalMembers} onSendToChat={handleSendToChat} onVote={castVote} onDispute={(uid)=>{setProfileModal(null);setDisputeModal(uid);}} myPts={myRow?.total_pts||0}/>
         </div>
       )}
 
@@ -3118,18 +3298,20 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       {tab==="bets"&&(
         <div className="content content-fab" key="bets">
           {(()=>{
-            const asPlayer=bets.filter(b=>b.status!=="open"&&(b.p1Id===user.id||b.p2Id===user.id));
-            const asStaker=bets.filter(b=>betStakes[b.id]?.confirmed);
-            const allResolved=[...new Map([...asPlayer,...asStaker].map(b=>[b.id,b])).values()];
-            const ptsWon=allResolved.filter(b=>b.status==="won").reduce((s,b)=>{
-              if(betStakes[b.id]?.confirmed)return s+(betStakes[b.id].amount||0)*2;
-              if(b.p1Id===user.id&&b.myPick===1)return s+(b.pot||0);
-              if(b.p2Id===user.id&&b.myPick===2)return s+(b.pot||0);
+            const myStakes=smartBets.flatMap(b=>b.stakes.filter(s=>s.user_id===user.id));
+            const ptsWon=smartBets.filter(b=>b.status==="won").reduce((s,b)=>{
+              const st=b.stakes.find(x=>x.user_id===user.id);
+              if(!st)return s;
+              if(st.side===b.winner_side){
+                const loserPool=b.stakes.filter(x=>x.side!==b.winner_side).reduce((a,x)=>a+x.amount,0);
+                const winnerPool=b.stakes.filter(x=>x.side===b.winner_side).reduce((a,x)=>a+x.amount,0);
+                return s+st.amount+(winnerPool>0?Math.round((st.amount/winnerPool)*loserPool):0);
+              }
               return s;
             },0);
-            const ptsLost=allResolved.filter(b=>b.status==="lost").reduce((s,b)=>{
-              if(betStakes[b.id]?.confirmed)return s+(betStakes[b.id].amount||0);
-              return s+5;
+            const ptsLost=smartBets.filter(b=>b.status==="won").reduce((s,b)=>{
+              const st=b.stakes.find(x=>x.user_id===user.id);
+              return st&&st.side!==b.winner_side?s+st.amount:s;
             },0);
             const balance=ptsWon-ptsLost;
             const balColor=balance>0?"var(--green)":balance<0?"var(--red)":"var(--muted)";
@@ -3151,53 +3333,64 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
               </div>
             </div>);
           })()}
-          <div style={{background:"rgba(240,168,50,.07)",border:"1px solid rgba(240,168,50,.25)",borderRadius:14,padding:"12px 14px",marginBottom:14}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-              <span style={{fontSize:18}}>⚡</span>
-              <span style={{fontWeight:800,fontSize:14,color:"var(--text)"}}>Cómo funciona</span>
-            </div>
-            <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.5}}>
-              Apuesta <b style={{color:"var(--text)"}}>1–10 pts</b> por un lado · el ganador <b style={{color:"var(--amber)"}}>dobla</b> · el perdedor se queda a <b style={{color:"var(--text)"}}>0</b>. No acumulan del día.
-            </div>
-          </div>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-            <span className="section-lbl" style={{margin:0}}>Apuestas activas</span>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+            <span className="section-lbl" style={{margin:0}}>⚔️ Apuestas</span>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontSize:11,color:"var(--muted)"}}>{bets.filter(b=>b.status==="open").length} abiertas</span>
-              {isAdmin&&<button onClick={()=>setShowCreateBet(v=>!v)} style={{background:"var(--amber)",border:"none",borderRadius:8,padding:"5px 11px",fontSize:12,fontWeight:800,color:"#000",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>{showCreateBet?"✕":"+ Duelo"}</button>}
+              <span style={{fontSize:11,color:"var(--muted)"}}>{smartBets.filter(b=>b.status==="betting"||b.status==="locked").length}/4 activas</span>
+              {isAdmin&&<button onClick={()=>setCreateBetOpen(v=>!v)} style={{background:"var(--amber)",border:"none",borderRadius:8,padding:"5px 11px",fontSize:12,fontWeight:800,color:"#000",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>{createBetOpen?"✕":"+ Nueva"}</button>}
             </div>
           </div>
-          {isAdmin&&showCreateBet&&(
+          {isAdmin&&createBetOpen&&(
             <div style={{background:"var(--s2)",border:"1px solid var(--border)",borderRadius:14,padding:"14px",marginBottom:14}}>
-              <div style={{fontSize:12,fontWeight:800,color:"var(--text)",marginBottom:10}}>⚔️ Nueva apuesta</div>
-              <input value={newBetLabel} onChange={e=>setNewBetLabel(e.target.value)} placeholder="Nombre (ej: Duelo semanal · Gym)" style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px 11px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",marginBottom:8,boxSizing:"border-box"}}/>
+              <div style={{fontSize:12,fontWeight:800,color:"var(--amber)",marginBottom:10,letterSpacing:.5}}>⚔️ Crear apuesta</div>
+              <div style={{marginBottom:8}}>
+                <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Tipo</div>
+                <div style={{display:"flex",gap:6}}>
+                  {([["duel_ambito","🏆 Ámbito"],["duel_habit","💪 Hábito"],["prop","🎯 Prop"]] as [SmartBetType,string][]).map(([t,l])=>(
+                    <button key={t} onClick={()=>setNewBetType(t)} style={{flex:1,padding:"7px 4px",fontSize:11,fontWeight:700,borderRadius:9,border:`1px solid ${newBetType===t?"var(--amber)":"var(--border)"}`,background:newBetType===t?"rgba(240,168,50,.15)":"var(--s3)",color:newBetType===t?"var(--amber)":"var(--muted)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>{l}</button>
+                  ))}
+                </div>
+              </div>
+              <div style={{marginBottom:8}}>
+                <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>{newBetType==="duel_habit"?"Hábito":"Ámbito"}</div>
+                <select value={newBetMetric} onChange={e=>setNewBetMetric(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif"}}>
+                  {newBetType==="duel_habit"
+                    ?QUESTIONS.map(q=><option key={q.id} value={q.id}>{q.icon} {q.name}</option>)
+                    :[{id:"total",label:"Total (todos los ámbitos)"},...AMBITO_METRICS].map(a=><option key={a.id} value={a.id}>{a.label||a.id}</option>)
+                  }
+                </select>
+              </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
                 <div>
-                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Jugador 1</div>
+                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>{newBetType==="prop"?"Sobre quién":"Jugador 1"}</div>
                   <select value={newBetP1} onChange={e=>setNewBetP1(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif"}}>
                     <option value="">Elegir…</option>
                     {Object.entries(members).map(([id,m])=><option key={id} value={id}>{m.avatar} {m.name}</option>)}
                   </select>
                 </div>
-                <div>
+                {newBetType!=="prop"&&<div>
                   <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Jugador 2</div>
                   <select value={newBetP2} onChange={e=>setNewBetP2(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif"}}>
                     <option value="">Elegir…</option>
-                    {Object.entries(members).map(([id,m])=><option key={id} value={id}>{m.avatar} {m.name}</option>)}
+                    {Object.entries(members).filter(([id])=>id!==newBetP1).map(([id,m])=><option key={id} value={id}>{m.avatar} {m.name}</option>)}
                   </select>
-                </div>
+                </div>}
+                {newBetType==="prop"&&<div>
+                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Objetivo</div>
+                  <input type="number" min={1} value={newBetTargetValue} onChange={e=>setNewBetTargetValue(+e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box"}}/>
+                </div>}
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
                 <div>
-                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Bote (pts)</div>
-                  <input type="number" min={1} max={10} value={newBetPot} onChange={e=>setNewBetPot(Math.min(10,Math.max(1,Number(e.target.value))))} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box"}}/>
+                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Fecha cierre apostadores</div>
+                  <div style={{fontSize:11,color:"var(--amber)",padding:"8px",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9}}>⏱ 24h automático</div>
                 </div>
                 <div>
                   <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Termina</div>
                   <input type="date" value={newBetEnds} onChange={e=>setNewBetEnds(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box",colorScheme:"dark"}}/>
                 </div>
               </div>
-              <button onClick={createBet} disabled={savingBet||!newBetLabel.trim()||!newBetP1||!newBetP2||newBetP1===newBetP2} style={{width:"100%",background:"var(--amber)",border:"none",borderRadius:10,padding:"11px",fontSize:14,fontWeight:800,color:"#000",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",opacity:(!newBetLabel.trim()||!newBetP1||!newBetP2||newBetP1===newBetP2)?.5:1}}>{savingBet?"Creando…":"⚔️ Crear apuesta"}</button>
+              <button onClick={createSmartBet} disabled={savingBet||!newBetP1||(newBetType!=="prop"&&!newBetP2)} style={{width:"100%",background:"var(--amber)",border:"none",borderRadius:10,padding:"11px",fontSize:14,fontWeight:800,color:"#000",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",opacity:(!newBetP1||(newBetType!=="prop"&&!newBetP2))?.5:1}}>{savingBet?"Creando…":"⚔️ Crear apuesta"}</button>
             </div>
           )}
           <div className="bets-tabs">
@@ -3205,57 +3398,21 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
               <div key={v} className={`btab${betsTab===v?" on":""}`} onClick={()=>setBT(v)}>{l}</div>
             ))}
           </div>
-          {(betsTab==="activas"?bets.filter(b=>b.status==="open"):bets.filter(b=>b.status!=="open")).map(b=>{
-            const s=b.status;
-            return(
-              <div key={b.id} className={`bet-card ${s!=="open"?s:""}`}>
-                <div className="bet-header">
-                  <span className="bet-type-lbl">{b.label}</span>
-                  <span className={`bet-pot ${s==="open"?"open":s}`}>{s==="won"?"✓ Ganaste ":s==="lost"?"✗ Perdiste ":s==="cancelled"?"✗ Anulada ":""}⚡{b.pot} pts</span>
-                </div>
-                <div className="bet-vs">
-                  <div className="bet-player"><div className="bet-avi">{b.p1Avi}</div><div className="bet-pname">{b.p1Name}</div><div className="bet-pstat">{b.p1Pts} pts</div></div>
-                  <div className="bet-vs-lbl">VS</div>
-                  <div className="bet-player"><div className="bet-avi">{b.p2Avi}</div><div className="bet-pname">{b.p2Name}</div><div className="bet-pstat">{b.p2Pts} pts</div></div>
-                </div>
-                {s==="open"&&!betStakes[b.id]?.confirmed&&(()=>{
-                  const ts=tabStakeState[String(b.id)]||{amt:Math.min(5,Math.max(1,myRow?.total_pts||0))};
-                  const maxStk=Math.min(10,myRow?.total_pts||0);
-                  return(<>
-                    <div className="bet-sides">
-                      <div className={`bet-side${ts.selSide===1?" sel":""}`} onClick={()=>setTabStakeState(p=>({...p,[String(b.id)]:{...ts,selSide:ts.selSide===1?undefined:1}}))}>
-                        <div className="bet-side-avi">{b.p1Avi}</div><div className="bet-side-name">{b.p1Name}</div>
-                      </div>
-                      <div style={{display:"flex",alignItems:"center",fontSize:11,fontWeight:700,color:"var(--muted)",padding:"0 4px"}}>VS</div>
-                      <div className={`bet-side${ts.selSide===2?" sel":""}`} onClick={()=>setTabStakeState(p=>({...p,[String(b.id)]:{...ts,selSide:ts.selSide===2?undefined:2}}))}>
-                        <div className="bet-side-avi">{b.p2Avi}</div><div className="bet-side-name">{b.p2Name}</div>
-                      </div>
-                    </div>
-                    {ts.selSide&&(maxStk<1?(<div style={{fontSize:12,color:"var(--red)",textAlign:"center",padding:"6px 0"}}>⚠️ Sin puntos para apostar</div>):(<>
-                      <div className="stake-row"><span style={{fontSize:11,color:"var(--muted)",whiteSpace:"nowrap"}}>Apostar:</span><input type="range" className="stake-range" min={1} max={maxStk} value={Math.min(ts.amt,maxStk)} onChange={e=>setTabStakeState(p=>({...p,[String(b.id)]:{...ts,amt:+e.target.value}}))}/><span className="stake-amt">{Math.min(ts.amt,maxStk)}pts</span></div>
-                      <div style={{fontSize:10,color:"var(--muted)",textAlign:"right",marginBottom:4}}>Tienes {myRow?.total_pts||0} pts · máx 10</div>
-                      <div className="stake-actions">
-                        <button className="stake-confirm" onClick={()=>{handleBetStake(String(b.id),ts.selSide!,Math.min(ts.amt,maxStk));setTabStakeState(p=>{const n={...p};delete n[String(b.id)];return n;});}}>Apostar por {ts.selSide===1?b.p1Name:b.p2Name}</button>
-                        <button className="stake-cancel" onClick={()=>setTabStakeState(p=>{const n={...p};delete n[String(b.id)];return n;})}>✕</button>
-                      </div>
-                    </>))}
-                  </>);
-                })()}
-                {betStakes[b.id]?.confirmed&&s==="open"&&<div className="my-pick">✓ Apostaste por <b style={{marginLeft:4}}>{betStakes[b.id].side===1?b.p1Name:b.p2Name}</b></div>}
-                {s!=="open"&&betStakes[b.id]?.side&&<div className="my-pick">Tu apuesta: <b style={{marginLeft:4}}>{betStakes[b.id].side===1?b.p1Name:b.p2Name}</b></div>}
-                {s==="open"&&<div className="bet-timer">⏱ {b.ends}</div>}
-                {isAdmin&&s==="open"&&<div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--border)"}}>
-                  <div style={{fontSize:10,color:"var(--amber)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>⚙️ Admin</div>
-                  <div style={{display:"flex",gap:6}}>
-                    <button className="bet-btn" style={{fontSize:11,borderColor:"rgba(93,201,138,.3)",color:"var(--green)"}} onClick={()=>closeBet(b.id,1)}>✓ Gana {b.p1Name}</button>
-                    <button className="bet-btn" style={{fontSize:11,borderColor:"rgba(93,201,138,.3)",color:"var(--green)"}} onClick={()=>closeBet(b.id,2)}>✓ Gana {b.p2Name}</button>
-                    <button className="bet-btn" style={{fontSize:11,borderColor:"rgba(255,68,68,.3)",color:"var(--red)"}} onClick={()=>cancelBet(b.id)}>✗ Anular</button>
-                  </div>
-                </div>}
-              </div>
-            );
-          })}
-          {(betsTab==="activas"?bets.filter(b=>b.status==="open"):bets.filter(b=>b.status!=="open")).length===0&&<div className="empty">{betsTab==="activas"?"No hay apuestas activas.":"No hay historial todavía."}</div>}
+          {(betsTab==="activas"
+            ?smartBets.filter(b=>b.status==="betting"||b.status==="locked")
+            :smartBets.filter(b=>b.status==="won"||b.status==="cancelled")
+          ).map(b=>(
+            <SmartBetCard key={b.id} bet={b} userId={user.id} myPts={myRow?.total_pts||0}
+              weekAmbitoPts={weekAmbitoPts} weekHabitCounts={weekHabitCounts} adjRanking={adjRanking}
+              onStake={placeSmartStake}
+              onAdminResolve={isAdmin?(id,side)=>adminResolveSmartBet(id,side):undefined}
+              isAdmin={isAdmin}
+            />
+          ))}
+          {(betsTab==="activas"
+            ?smartBets.filter(b=>b.status==="betting"||b.status==="locked")
+            :smartBets.filter(b=>b.status==="won"||b.status==="cancelled")
+          ).length===0&&<div className="empty">{betsTab==="activas"?"No hay apuestas activas.":"No hay historial todavía."}</div>}
         </div>
       )}
 
@@ -3349,14 +3506,15 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
               {icon:"📅",title:"Mes de hierro",desc:"30 días registrados",done:(myRow?.days_logged||0)>=30},
               {icon:"🔥",title:"Llama viva",desc:"Racha de 7 días",done:streak>=7},
               {icon:"🔱",title:"Imparable",desc:"Racha de 14 días",done:streak>=14},
-              {icon:"⚡",title:"Apostador nato",desc:"1 apuesta realizada",done:Object.keys(betStakes).length>0},
+              {icon:"⚡",title:"Apostador nato",desc:"1 apuesta realizada",done:smartBets.some(b=>b.stakes.some(s=>s.user_id===user.id))},
               {icon:"🦢",title:"Golden Swan",desc:"Mayor saldo positivo en apuestas",done:(()=>{
-                const allRes=bets.filter(b=>b.status!=="open");
-                const myBal=allRes.reduce((s,b)=>{
-                  if(betStakes[b.id]?.confirmed){return b.status==="won"?s+(betStakes[b.id].amount||0)*2:s-(betStakes[b.id].amount||0);}
-                  return s;
+                const bal=smartBets.filter(b=>b.status==="won").reduce((s,b)=>{
+                  const st=b.stakes.find(x=>x.user_id===user.id);
+                  if(!st)return s;
+                  if(st.side===b.winner_side){const lp=b.stakes.filter(x=>x.side!==b.winner_side).reduce((a,x)=>a+x.amount,0);const wp=b.stakes.filter(x=>x.side===b.winner_side).reduce((a,x)=>a+x.amount,0);return s+st.amount+(wp>0?Math.round((st.amount/wp)*lp):0);}
+                  return s-st.amount;
                 },0);
-                return myBal>0;
+                return bal>0;
               })()},
               {icon:"🏅",title:"Al podio",desc:"Top 3 esta semana",done:myPosAdj>0&&myPosAdj<=3},
             ].filter(m=>m.done);
