@@ -1097,8 +1097,8 @@ const STREAK_MILESTONES = [3,7,14,21,30];
 type Bet = { id:string|number;label:string;p1Name:string;p1Avi:string;p1Pts:number;p1Id?:string;p2Name:string;p2Avi:string;p2Pts:number;p2Id?:string;pot:number;ends:string;status:"open"|"won"|"lost"|"cancelled";myPick:1|2|null; };
 type SmartBetType="duel_ambito"|"duel_habit"|"prop";
 type SmartBetStatus="betting"|"locked"|"won"|"cancelled"|"open";
-type SmartBetStake={id:number;bet_id:number;user_id:string;side:1|2;amount:number;created_at:string};
-type SmartBet={id:number;group_id:string;bet_type:SmartBetType;label:string;metric:string;p1_id:string;p2_id:string;target_user_id?:string;target_value?:number;condition?:"gte"|"lte"|"top_n";betting_closes_at:string;ends_at:string;status:SmartBetStatus;winner_side?:1|2;created_at:string;p1Name:string;p1Avi:string;p2Name:string;p2Avi:string;targetName?:string;targetAvi?:string;stakes:SmartBetStake[];stakesVisible:boolean};
+type SmartBetStake={id:string;bet_id:string;user_id:string;side:1|2;amount:number;created_at:string};
+type SmartBet={id:string;group_id:string;bet_type:SmartBetType;label:string;metric:string;p1_id:string;p2_id:string;target_user_id?:string;target_value?:number;condition?:"gte"|"lte"|"top_n";betting_closes_at:string;ends_at:string;status:SmartBetStatus;winner_side?:1|2;created_at:string;p1Name:string;p1Avi:string;p2Name:string;p2Avi:string;targetName?:string;targetAvi?:string;stakes:SmartBetStake[];stakesVisible:boolean};
 
 
 /* ══════════════════════════════════════════ TYPES */
@@ -1967,7 +1967,7 @@ function smartBetAutoLabel(b:SmartBet,p1Name:string,p2Name:string,targetName?:st
 }
 
 /* ══════════════════════════════════════════ SMART BET CARD */
-function SmartBetCard({bet,userId,myPts,weekAmbitoPts,weekHabitCounts,adjRanking,onStake,onAdminResolve,isAdmin}:{bet:SmartBet;userId:string;myPts:number;weekAmbitoPts:Record<string,Record<string,number>>;weekHabitCounts:Record<string,Record<string,number>>;adjRanking:any[];onStake:(id:number,side:1|2,amt:number)=>void;onAdminResolve?:(id:number,side:1|2)=>void;isAdmin:boolean}){
+function SmartBetCard({bet,userId,myPts,weekAmbitoPts,weekHabitCounts,adjRanking,onStake,onAdminResolve,isAdmin}:{bet:SmartBet;userId:string;myPts:number;weekAmbitoPts:Record<string,Record<string,number>>;weekHabitCounts:Record<string,Record<string,number>>;adjRanking:any[];onStake:(id:string,side:1|2,amt:number)=>void;onAdminResolve?:(id:string,side:1|2)=>void;isAdmin:boolean}){
   const[selSide,setSelSide]=React.useState<1|2|null>(null);
   const[stakeAmt,setStakeAmt]=React.useState(Math.min(5,Math.max(1,myPts)));
   const myStake=bet.stakes.find(s=>s.user_id===userId);
@@ -2979,7 +2979,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       } as SmartBet;
     }));
   }
-  async function placeSmartStake(betId:number,side:1|2,amount:number){
+  async function placeSmartStake(betId:string,side:1|2,amount:number){
     const myPts=myRow?.total_pts||0;
     const capped=Math.min(Math.max(1,amount),10);
     if(capped>myPts){alert(`No tienes suficientes puntos. Tienes ${myPts} pts.`);return;}
@@ -3019,7 +3019,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const d=new Date();d.setDate(d.getDate()+7);setNewBetEnds(d.toISOString().slice(0,10));
     setCreateBetOpen(false);setSavingBet(false);
   }
-  async function adminResolveSmartBet(betId:number,winnerSide:1|2){
+  async function adminResolveSmartBet(betId:string,winnerSide:1|2){
     const bet=smartBets.find(b=>b.id===betId);if(!bet)return;
     await sb.from("bets").update({status:"won",winner_side:winnerSide}).eq("id",betId);
     const winners=bet.stakes.filter(s=>s.side===winnerSide);
@@ -3110,7 +3110,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     setPushLoading(false);
   }
 
-  async function cancelSmartBet(betId:number){
+  async function cancelSmartBet(betId:string){
     await sb.from("bets").update({status:"cancelled"}).eq("id",betId);
     await loadSmartBets();
   }
