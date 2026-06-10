@@ -1460,6 +1460,17 @@ function DisputeModal({user,group,disputedUserId,onClose,onCreated,members}:{use
 }
 
 /* ══════════════════════════════════════════ DISPUTES PANEL */
+function getDisputeOffenseNum(d:Dispute,allDisputes:Dispute[],allVotes:DisputeVote[],totalMembers:number):number{
+  const userFailedBefore=allDisputes
+    .filter(x=>x.disputed_user===d.disputed_user&&x.id!==d.id&&new Date(x.created_at)<new Date(d.created_at))
+    .filter(x=>{const vs=allVotes.filter(v=>v.dispute_id===x.id);const st=computeDisputeStatus(x,vs,totalMembers);return st.status==="failed";});
+  return userFailedBefore.length+1;
+}
+function disputePunishmentLabel(offenseNum:number):string{
+  if(offenseNum===1)return"❌ Quitar hábito (1ª falta)";
+  if(offenseNum===2)return"❌ Quitar TODO el día (2ª falta)";
+  return"❌ Quitar día + 🔒 bloquear + 🐀 rata (3ª+)";
+}
 function DisputesPanel({user,group,disputes,votes,members,totalMembers,onClose,onVote}:{user:any;group:any;disputes:Dispute[];votes:DisputeVote[];members:Record<string,{name:string;avatar:string}>;totalMembers:number;onClose:()=>void;onVote:(id:number,v:"support"|"reject")=>Promise<void>}){
   const sorted=[...disputes].sort((a,b)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime());
   return(
@@ -1480,6 +1491,7 @@ function DisputesPanel({user,group,disputes,votes,members,totalMembers,onClose,o
           const myVote=vs.find(v=>v.voter_id===user.id);
           const canVote=d.disputed_user!==user.id&&!st.closed;
           const cls=st.status==="failed"?"failed":st.status==="passed"?"passed":"";
+          const offenseNum=getDisputeOffenseNum(d,sorted,vs,totalMembers);
           return(
             <div key={d.id} className={"dispute-card "+cls}>
               <div className="dispute-card-head">
@@ -1488,13 +1500,24 @@ function DisputesPanel({user,group,disputes,votes,members,totalMembers,onClose,o
                   <div className="dispute-card-sub">Por {challenger.avatar} {challenger.name} · {d.day}</div>
                 </div>
                 <div className={"dispute-card-status "+(st.status==="failed"?"dcs-failed":st.status==="passed"?"dcs-passed":"dcs-active")}>
-                  {st.status==="active"?`${Math.round(st.hoursLeft)}h`:st.status==="failed"?"reducido":"mantenido"}
+                  {st.status==="active"?`${Math.round(st.hoursLeft)}h`:st.status==="failed"?`falta #${offenseNum} 🚨`:"inocente ✅"}
                 </div>
               </div>
               {d.reason&&<div className="dispute-reason-box">"{d.reason}"</div>}
+              {st.closed&&st.status==="failed"&&(
+                <div style={{background:"rgba(242,102,122,.1)",border:"1px solid rgba(242,102,122,.3)",borderRadius:8,padding:"8px 10px",marginBottom:8,fontSize:12,color:"#F2667A"}}>
+                  💀 <b>{who.name} pillado/a</b> — {offenseNum===1?`−${QUESTIONS.find(q=>q.id===d.habit_id)?.pts||0}pts (hábito)`:offenseNum===2?"−100% del día 😤":"−día completo + hábito bloqueado 24h + badge 🐀"}
+                  {offenseNum>=3&&<span style={{fontWeight:800}}> RATA detectada</span>}
+                </div>
+              )}
+              {st.closed&&st.status==="passed"&&(
+                <div style={{background:"rgba(93,201,138,.08)",border:"1px solid rgba(93,201,138,.25)",borderRadius:8,padding:"8px 10px",marginBottom:8,fontSize:12,color:"var(--green)"}}>
+                  ✅ Disputa rechazada — {who.name} es inocente. {challenger.name} pierde 2pts.
+                </div>
+              )}
               {canVote&&<div className="dispute-votes">
-                <button className={"dispute-vote-btn support"+(myVote?.vote==="support"?" mine":"")} onClick={()=>onVote(d.id,"support")}>✅ Mantener</button>
-                <button className={"dispute-vote-btn reject"+(myVote?.vote==="reject"?" mine":"")} onClick={()=>onVote(d.id,"reject")}>❌ Reducir 50%</button>
+                <button className={"dispute-vote-btn support"+(myVote?.vote==="support"?" mine":"")} onClick={()=>onVote(d.id,"support")}>✅ Inocente · mantener</button>
+                <button className={"dispute-vote-btn reject"+(myVote?.vote==="reject"?" mine":"")} onClick={()=>onVote(d.id,"reject")}>{disputePunishmentLabel(offenseNum)}</button>
               </div>}
               <div className="dispute-tally"><span>✅ <b>{st.supports}</b></span><span>❌ <b>{st.rejects}</b></span><span>{vs.length}/{Math.max(0,totalMembers-1)} votos</span></div>
             </div>
@@ -1727,9 +1750,12 @@ function TodayBanner({weekPts,streak,saved,done,onApuntar,myPos,weekDays}:{weekP
 }
 
 /* ══════════════════════════════════════════ APUNTAR MODAL */
-function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits,userId,groupId}:{done:Record<string,boolean>;saved:boolean;saving:boolean;onToggle:(id:string)=>void;onSave:(proofUrl?:string)=>void;onClose:()=>void;groupHabits:typeof QUESTIONS;userId:string;groupId:string}){
+const SPORT_HABIT_IDS=["gym","running","sport"];
+function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits,userId,groupId,blockedHabits}:{done:Record<string,boolean>;saved:boolean;saving:boolean;onToggle:(id:string)=>void;onSave:(proofUrl?:string)=>void;onClose:()=>void;groupHabits:typeof QUESTIONS;userId:string;groupId:string;blockedHabits?:Set<string>}){
   const pts=groupHabits.reduce((s,q)=>done[q.id]?s+q.pts:s,0);
   const anyDone=groupHabits.some(q=>done[q.id]);
+  const sportSelected=SPORT_HABIT_IDS.some(id=>done[id]);
+  const photoRequired=sportSelected;
   const [proofPreview,setProofPreview]=useState<string|null>(null);
   const [proofFile,setProofFile]=useState<File|null>(null);
   const [uploading,setUploading]=useState(false);
@@ -1783,14 +1809,17 @@ function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits,use
                 <span style={{fontSize:11,color:"var(--muted)"}}>{earnedPts} / {maxPts} pts</span>
               </div>
               <div className="q-grid">
-                {aHabits.map(q=>(
-                  <div key={q.id} className={`qi${done[q.id]?" on":""}`} onClick={()=>onToggle(q.id)}>
+                {aHabits.map(q=>{
+                  const isBlocked=blockedHabits?.has(q.id);
+                  return(
+                  <div key={q.id} className={`qi${done[q.id]?" on":""}${isBlocked?" blocked":""}`} onClick={()=>!isBlocked&&onToggle(q.id)} style={isBlocked?{opacity:.4,cursor:"not-allowed",filter:"grayscale(1)"}:{}}>
                     <div className="qi-icon">{q.icon}</div>
-                    <div className="qi-name">{q.name}</div>
-                    <div className="qi-pts">+{q.pts} pts</div>
+                    <div className="qi-name">{q.name}{isBlocked?" 🔒":""}</div>
+                    <div className="qi-pts">{isBlocked?"bloq. 24h":`+${q.pts} pts`}</div>
                     <div className="qi-chk">{done[q.id]?"✓":""}</div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );
@@ -1798,25 +1827,32 @@ function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits,use
 
         {/* ── PRUEBA FOTOGRÁFICA ── */}
         <div style={{marginTop:4,marginBottom:14}}>
-          <div style={{fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",fontWeight:700,marginBottom:8}}>📷 Prueba (opcional)</div>
+          <div style={{fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:photoRequired&&!proofFile?"#E8623A":"var(--muted)",fontWeight:700,marginBottom:8}}>
+            📷 Prueba {photoRequired?(proofFile?"✅ añadida":"· OBLIGATORIA 🚨"):"(opcional)"}
+          </div>
           {proofPreview?(
             <div style={{position:"relative",marginBottom:8}}>
               <img src={proofPreview} alt="preview" style={{width:"100%",maxHeight:180,objectFit:"cover",borderRadius:12,border:"1px solid rgba(240,168,50,.3)"}}/>
               <button onClick={()=>{setProofPreview(null);setProofFile(null);}} style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,.6)",border:"none",borderRadius:20,width:26,height:26,color:"#fff",fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
             </div>
           ):(
-            <button onClick={()=>fileRef.current?.click()} style={{width:"100%",background:"var(--s2)",border:"1px dashed rgba(240,168,50,.3)",borderRadius:12,padding:"12px",fontSize:13,color:"var(--muted)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontFamily:"'DM Sans',sans-serif",transition:"all .15s"}}
-              onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.borderColor="var(--amber)";(e.currentTarget as HTMLElement).style.color="var(--amber)"}}
-              onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.borderColor="rgba(240,168,50,.3)";(e.currentTarget as HTMLElement).style.color="var(--muted)"}}>
-              📷 Foto del gym / deporte
+            <button onClick={()=>fileRef.current?.click()} style={{width:"100%",background:photoRequired?"rgba(232,98,58,.07)":"var(--s2)",border:`1px dashed ${photoRequired?"rgba(232,98,58,.6)":"rgba(240,168,50,.3)"}`,borderRadius:12,padding:"14px",fontSize:13,color:photoRequired?"#E8623A":"var(--muted)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontFamily:"'DM Sans',sans-serif",transition:"all .15s",fontWeight:photoRequired?700:400}}
+              onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.borderColor=photoRequired?"rgba(232,98,58,.9)":"var(--amber)";(e.currentTarget as HTMLElement).style.color=photoRequired?"#ff7a5a":"var(--amber)"}}
+              onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.borderColor=photoRequired?"rgba(232,98,58,.6)":"rgba(240,168,50,.3)";(e.currentTarget as HTMLElement).style.color=photoRequired?"#E8623A":"var(--muted)"}}>
+              {photoRequired?"📸 Toca para añadir foto obligatoria":"📷 Foto del gym / deporte"}
             </button>
           )}
           <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={handleFile}/>
           <div style={{fontSize:10,color:"var(--muted)",marginTop:5,textAlign:"center"}}>Cámara o galería · la foto se borra en 24h</div>
         </div>
 
-        <button className="btn" disabled={!anyDone||saving||uploading} onClick={handleSave}>
-          {uploading?"Subiendo foto...":(saving?"Guardando...":`${saved?"Actualizar":"Guardar"} · +${Math.max(0,pts)} pts${proofFile?" 📷":""}`)}
+        {photoRequired&&!proofFile&&(
+          <div style={{background:"rgba(232,98,58,.12)",border:"1px solid rgba(232,98,58,.4)",borderRadius:10,padding:"9px 13px",marginBottom:10,fontSize:12,color:"#E8623A",display:"flex",alignItems:"center",gap:8}}>
+            📷 <span>Foto <b>obligatoria</b> para hábitos de deporte. Adjunta una imagen para continuar.</span>
+          </div>
+        )}
+        <button className="btn" disabled={!anyDone||saving||uploading||(photoRequired&&!proofFile)} onClick={handleSave}>
+          {uploading?"Subiendo foto...":(saving?"Guardando...":(photoRequired&&!proofFile?"📷 Añade foto para guardar":`${saved?"Actualizar":"Guardar"} · +${Math.max(0,pts)} pts${proofFile?" 📷":""}`))}
         </button>
       </div>
     </div>
@@ -2002,14 +2038,24 @@ function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembe
           <div style={{background:"rgba(0,0,0,.2)",border:`1px solid ${stColor}60`,borderRadius:20,padding:"3px 9px",fontSize:10,fontWeight:700,color:stColor,flexShrink:0,whiteSpace:"nowrap"}}>{stLabel}</div>
         </div>
         {d.reason&&<div style={{fontSize:12,color:"var(--muted)",background:"var(--s2)",borderRadius:8,padding:"7px 10px",marginBottom:8,fontStyle:"italic"}}>"{d.reason}"</div>}
+        {st.closed&&st.status==="failed"&&(
+          <div style={{background:"rgba(242,102,122,.1)",border:"1px solid rgba(242,102,122,.3)",borderRadius:8,padding:"8px 10px",marginBottom:8,fontSize:12,color:"#F2667A",fontWeight:600}}>
+            💀 {who.name} pillado/a — puntos eliminados{st.rejects>=3?" · 🐀":""}
+          </div>
+        )}
+        {st.closed&&st.status==="passed"&&(
+          <div style={{background:"rgba(93,201,138,.08)",border:"1px solid rgba(93,201,138,.2)",borderRadius:8,padding:"8px 10px",marginBottom:8,fontSize:12,color:"var(--green)"}}>
+            ✅ Inocente — {who.name} mantiene sus puntos · {challenger.name} −2pts
+          </div>
+        )}
         {!st.closed&&d.disputed_user!==userId&&(()=>{
           const myVote=vs.find(v=>v.voter_id===userId);
           return(<div className="dispute-votes">
-            <button className={"dispute-vote-btn support"+(myVote?.vote==="support"?" mine":"")} onClick={()=>onVote&&onVote(d.id,"support")}>✅ Mantener · {st.supports}</button>
-            <button className={"dispute-vote-btn reject"+(myVote?.vote==="reject"?" mine":"")} onClick={()=>onVote&&onVote(d.id,"reject")}>❌ Reducir · {st.rejects}</button>
+            <button className={"dispute-vote-btn support"+(myVote?.vote==="support"?" mine":"")} onClick={()=>onVote&&onVote(d.id,"support")}>✅ Inocente · {st.supports}</button>
+            <button className={"dispute-vote-btn reject"+(myVote?.vote==="reject"?" mine":"")} onClick={()=>onVote&&onVote(d.id,"reject")}>❌ Culpable · {st.rejects}</button>
           </div>);
         })()}
-        {st.closed&&<div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--muted)",marginBottom:4}}><span>✅ {st.supports} mantener</span><span>❌ {st.rejects} reducir</span><span>{vs.length}/{Math.max(0,totalMembers-1)} votos</span></div>}
+        {st.closed&&<div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--muted)",marginBottom:4}}><span>✅ {st.supports} inocente</span><span>❌ {st.rejects} culpable</span><span>{vs.length}/{Math.max(0,totalMembers-1)} votos</span></div>}
         <div className="card-footer"><ReactionsBar feedType="dispute" feedRef={item.ref} userId={userId} reactions={reactions} onReact={onReact}/><button className="chat-link-btn" onClick={()=>onSendToChat(item)}>💬 Chat</button></div>
       </div>
     );
@@ -2133,7 +2179,8 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
         <div className="pm-head">
           <div className="pm-avi">{who.avatar}</div>
           <div style={{flex:1}}>
-            <div className="pm-name">{who.name}{isMe?" · Tú":""}</div>
+            <div className="pm-name">{who.name}{isMe?" · Tú":""}{rankRow?.isRata&&<span style={{marginLeft:6,fontSize:18}}>🐀</span>}</div>
+            {rankRow?.isRata&&<div style={{fontSize:11,color:"#F2667A",fontWeight:600,marginBottom:2}}>Badge: Rata 🐀 · 3+ disputas perdidas</div>}
             {profile?.username&&<div className="pm-sub">@{profile.username}</div>}
             {isMe&&profile?.role==="admin"&&<div className="admin-badge" style={{marginTop:4}}>⚙️ Admin</div>}
             {pos>0&&<div style={{fontSize:12,color:"var(--amber)",fontWeight:600,marginTop:4}}>#{pos} en el ranking</div>}
@@ -2203,6 +2250,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   const [betsTab,setBT]=useState<"activas"|"historial">("activas");
   const [disputes,setDisputes]=useState<Dispute[]>([]);
   const [disputeVotes,setDisputeVotes]=useState<DisputeVote[]>([]);
+  const [disputeDayPts,setDisputeDayPts]=useState<Record<string,number>>({});
   const [disputeModal,setDisputeModal]=useState<string|null>(null);
   const [showDisputes,setShowDisputes]=useState(false);
   const [showApuntar,setShowApuntar]=useState(false);
@@ -2389,7 +2437,16 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       const ids=ds.map((d:any)=>d.id);
       const{data:vs}=await sb.from("dispute_votes").select("*").in("dispute_id",ids);
       setDisputeVotes((vs||[]) as DisputeVote[]);
-    }else setDisputeVotes([]);
+      // Fetch day total pts for each disputed day (for tiered penalties)
+      const dayKeys=[...new Set(ds.map((d:any)=>`${d.disputed_user}:${d.day}`))];
+      const dayPts:Record<string,number>={};
+      await Promise.all(dayKeys.map(async key=>{
+        const[uid,day]=key.split(":");
+        const{data:log}=await sb.from("daily_logs").select(QUESTIONS.map(q=>q.id).join(",")).eq("user_id",uid).eq("date",day).maybeSingle();
+        if(log) dayPts[key]=QUESTIONS.reduce((s,q)=>((log as any)[q.id]?s+q.pts:s),0);
+      }));
+      setDisputeDayPts(dayPts);
+    }else{setDisputeVotes([]);setDisputeDayPts({});}
   }
 
   useEffect(()=>{
@@ -2414,13 +2471,56 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   }
 
   const totalMembers=Math.max(ranking.length,1);
+
+  // ─── TIERED DISPUTE PENALTIES ───
   const penalties:Record<string,number>={};
+  const challengerDeltas:Record<string,number>={};
+  const rataUsers=new Set<string>();
+  const myBlockedHabits=new Set<string>();
+  // Group failed disputes by disputed user (sorted by creation time = offense order)
+  const failedByUser:Record<string,Dispute[]>={};
   for(const d of disputes){
     const vs=disputeVotes.filter(v=>v.dispute_id===d.id);
     const st=computeDisputeStatus(d,vs,totalMembers);
-    if(st.status==="failed") penalties[d.disputed_user]=(penalties[d.disputed_user]||0)+disputePenalty(d.habit_id,group.habit_pts||undefined);
+    if(!st.closed)continue;
+    if(st.status==="failed"){
+      // Disputed user loses — challenger gets +3pts detective bonus
+      if(!failedByUser[d.disputed_user])failedByUser[d.disputed_user]=[];
+      failedByUser[d.disputed_user].push(d);
+      challengerDeltas[d.challenger]=(challengerDeltas[d.challenger]||0)+3;
+    } else if(st.status==="passed"){
+      // Disputed user wins — challenger loses 2pts (wrong accusation)
+      challengerDeltas[d.challenger]=(challengerDeltas[d.challenger]||0)-2;
+    }
   }
-  const adjRanking=[...ranking].map((r:any)=>({...r,penalty:penalties[r.user_id]||0,total_pts:Math.max(0,(r.total_pts||0)-(penalties[r.user_id]||0))})).sort((a:any,b:any)=>(b.total_pts||0)-(a.total_pts||0));
+  // Apply tiered penalties based on offense count
+  for(const uid of Object.keys(failedByUser)){
+    const list=[...failedByUser[uid]].sort((a,b)=>new Date(a.created_at).getTime()-new Date(b.created_at).getTime());
+    list.forEach((d,idx)=>{
+      const habitPts=disputePenalty(d.habit_id,group.habit_pts||undefined);
+      const dayKey=`${d.disputed_user}:${d.day}`;
+      const dayTotal=disputeDayPts[dayKey]||habitPts*3;
+      const offenseNum=idx+1;
+      if(offenseNum===1){
+        penalties[uid]=(penalties[uid]||0)+habitPts;
+      } else if(offenseNum===2){
+        penalties[uid]=(penalties[uid]||0)+dayTotal;
+      } else {
+        // 3rd+: full day removed + habit blocked + rata badge
+        penalties[uid]=(penalties[uid]||0)+dayTotal;
+        rataUsers.add(uid);
+        if(uid===user.id)myBlockedHabits.add(d.habit_id);
+      }
+    });
+  }
+
+  const adjRanking=[...ranking].map((r:any)=>({
+    ...r,
+    penalty:penalties[r.user_id]||0,
+    challengerDelta:challengerDeltas[r.user_id]||0,
+    isRata:rataUsers.has(r.user_id),
+    total_pts:Math.max(0,(r.total_pts||0)-(penalties[r.user_id]||0)+(challengerDeltas[r.user_id]||0))
+  })).sort((a:any,b:any)=>(b.total_pts||0)-(a.total_pts||0));
   const top3=adjRanking.slice(0,3);
   const rest=adjRanking.slice(3);
   // per-user ámbito badges: líder = #1 en el grupo, second = #2 más cercano al top
@@ -2815,20 +2915,20 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
               {!loadingRank&&top3.length>0&&(
                 <div className="podium-row">
                   {top3[1]&&<div className="pc" onClick={()=>setProfileModal(top3[1].user_id)}>
-                    <div className="pavi p2">{top3[1].avatar||"🐺"}</div>
+                    <div className="pavi p2">{top3[1].avatar||"🐺"}{top3[1].isRata&&<span style={{fontSize:14}}>🐀</span>}</div>
                     <div className="pname">{top3[1].name}</div><div className="ppts">{top3[1].total_pts} pts</div>
                     <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:3,margin:"3px 0"}}>{getAmbitoBadges(top3[1].user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
                     <div className="pblk p2"><span className="pnum p2">2</span></div>
                   </div>}
                   <div className="pc" onClick={()=>setProfileModal(top3[0].user_id)}>
                     <div style={{fontSize:11,color:"var(--amber)",textAlign:"center",marginBottom:3}}>👑</div>
-                    <div className="pavi p1">{top3[0].avatar||"🐺"}</div>
+                    <div className="pavi p1">{top3[0].avatar||"🐺"}{top3[0].isRata&&<span style={{fontSize:14}}>🐀</span>}</div>
                     <div className="pname">{top3[0].name}</div><div className="ppts">{top3[0].total_pts} pts</div>
                     <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:3,margin:"3px 0"}}>{getAmbitoBadges(top3[0].user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
                     <div className="pblk p1"><span className="pnum p1">1</span></div>
                   </div>
                   {top3[2]&&<div className="pc" onClick={()=>setProfileModal(top3[2].user_id)}>
-                    <div className="pavi p3">{top3[2].avatar||"🐺"}</div>
+                    <div className="pavi p3">{top3[2].avatar||"🐺"}{top3[2].isRata&&<span style={{fontSize:14}}>🐀</span>}</div>
                     <div className="pname">{top3[2].name}</div><div className="ppts">{top3[2].total_pts} pts</div>
                     <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:3,margin:"3px 0"}}>{getAmbitoBadges(top3[2].user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
                     <div className="pblk p3"><span className="pnum p3">3</span></div>
@@ -2841,10 +2941,15 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                 {rest.map((p:any,i:number)=>(
                   <div key={p.user_id} className={`rrow${p.user_id===user.id?" me":""}`} onClick={()=>setProfileModal(p.user_id)}>
                     <div className="rn">{i+4}</div>
-                    <div className="ravi">{p.avatar||"🐺"}</div>
+                    <div className="ravi">{p.avatar||"🐺"}{p.isRata&&<span style={{fontSize:12,marginLeft:1}}>🐀</span>}</div>
                     <div className="rinfo">
                       <div className="rname">{p.name}{p.user_id===user.id?" · Tú":""}</div>
-                      <div className="rdetail">{p.days_logged} días{p.penalty?<span className="rr-penalty">−{p.penalty}pts disputa</span>:null}</div>
+                      <div className="rdetail">
+                        {p.days_logged} días
+                        {p.penalty>0&&<span className="rr-penalty">−{p.penalty}pts disputa</span>}
+                        {p.challengerDelta>0&&<span style={{fontSize:10,color:"var(--green)",marginLeft:6}}>+{p.challengerDelta}pts detective</span>}
+                        {p.challengerDelta<0&&<span style={{fontSize:10,color:"#F2667A",marginLeft:6}}>{p.challengerDelta}pts disputa fallida</span>}
+                      </div>
                       <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:3}}>{getAmbitoBadges(p.user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
                     </div>
                     <div className="rright"><div className="rpts">{p.total_pts}</div></div>
@@ -3589,7 +3694,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       </nav>
 
       {/* APUNTAR MODAL */}
-      {showApuntar&&<ApuntarModal done={done} saved={saved} saving={saving} onToggle={toggle} onSave={saveDay} onClose={()=>setShowApuntar(false)} groupHabits={groupHabits} userId={user.id} groupId={group.id}/>}
+      {showApuntar&&<ApuntarModal done={done} saved={saved} saving={saving} onToggle={toggle} onSave={saveDay} onClose={()=>setShowApuntar(false)} groupHabits={groupHabits} userId={user.id} groupId={group.id} blockedHabits={myBlockedHabits}/>}
 
       {/* GROUP SWITCHER */}
       {showGroupSwitcher&&(
