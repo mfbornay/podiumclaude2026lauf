@@ -20,5 +20,11 @@ ALTER TABLE bets ADD CONSTRAINT bets_status_check
 -- Index for faster status queries
 CREATE INDEX IF NOT EXISTS bets_group_status ON bets(group_id, status);
 
--- bet_stakes: ensure user_id column exists (should already, just in case)
+-- bet_stakes: ensure created_at column exists
 ALTER TABLE bet_stakes ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
+-- bet_stakes: allow multiple stakes per user (remove old unique constraint if exists)
+ALTER TABLE bet_stakes DROP CONSTRAINT IF EXISTS bet_stakes_bet_id_user_id_key;
+
+-- seasons: add podium column for legacy badges (top 3 at season end)
+ALTER TABLE seasons ADD COLUMN IF NOT EXISTS podium JSONB DEFAULT '[]'::jsonb;

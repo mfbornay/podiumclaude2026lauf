@@ -2300,7 +2300,7 @@ function Feed({user,group,members,disputes,disputeVotes,smartBets,reactions,onRe
 }
 
 /* ══════════════════════════════════════════ USER PROFILE MODAL */
-function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,weekLeaders,weekAmbitoPts,profile,onClose,onDispute,onSignOut}:{userId:string;currentUserId:string;group:any;members:Record<string,{name:string;avatar:string}>;adjRanking:any[];streak:number;weekLeaders:Record<string,string>;weekAmbitoPts:Record<string,Record<string,number>>;profile:any;onClose:()=>void;onDispute?:()=>void;onSignOut?:()=>void}){
+function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,weekLeaders,weekAmbitoPts,profile,seasons,onClose,onDispute,onSignOut}:{userId:string;currentUserId:string;group:any;members:Record<string,{name:string;avatar:string}>;adjRanking:any[];streak:number;weekLeaders:Record<string,string>;weekAmbitoPts:Record<string,Record<string,number>>;profile:any;seasons:any[];onClose:()=>void;onDispute?:()=>void;onSignOut?:()=>void}){
   const isMe=userId===currentUserId;
   const who=isMe?{name:profile?.name||"?",avatar:profile?.avatar||"👤"}:(members[userId]||{name:"?",avatar:"👤"});
   const rankRow=adjRanking.find(r=>r.user_id===userId);
@@ -2397,6 +2397,30 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
           ))}
         </>}
 
+        {/* Legacy season medals */}
+        {(()=>{
+          const MEDALS=["🥇","🥈","🥉"];
+          const COLORS=["var(--amber)","#b8b8b8","#c8783a"];
+          const myMedals=seasons.flatMap((s:any)=>{
+            const p=(s.podium||[]).find((x:any)=>x.user_id===userId);
+            return p?[{season:s.name,pos:p.pos,pts:p.pts}]:[];
+          });
+          if(!myMedals.length)return null;
+          return(<>
+            <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",margin:"14px 0 8px"}}>🏆 Legado</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:4}}>
+              {myMedals.map((m,i)=>(
+                <div key={i} style={{background:"var(--s2)",border:`1px solid ${m.pos===1?"rgba(240,168,50,.3)":m.pos===2?"rgba(180,180,180,.25)":"rgba(200,120,50,.2)"}`,borderRadius:10,padding:"8px 12px",display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:20}}>{MEDALS[m.pos-1]||"🏅"}</span>
+                  <div>
+                    <div style={{fontSize:11,fontWeight:800,color:COLORS[m.pos-1]||"var(--text)"}}>#{m.pos} {m.season}</div>
+                    <div style={{fontSize:10,color:"var(--muted)"}}>{m.pts} pts</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>);
+        })()}
         {isMe&&<div className="invite" style={{marginTop:16}}>
           <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:4}}>Código — {group.name}</div>
           <div className="invite-code">{group.invite_code}</div>
@@ -2468,6 +2492,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   const [pushLoading,setPushLoading]=useState(false);
   const [weeklyHistory,setWeeklyHistory]=useState<Record<string,Record<string,number>>>({});
   const [weeklyLoaded,setWeeklyLoaded]=useState(false);
+  const [seasons,setSeasons]=useState<any[]>([]);
   const [showGroupSwitcher,setShowGroupSwitcher]=useState(false);
   const [showGroupConfig,setShowGroupConfig]=useState(false);
   const [configHabits,setConfigHabits]=useState<string[]>(groupInit.active_habits||QUESTIONS.map(q=>q.id));
@@ -2764,8 +2789,10 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const newEndDate=new Date();
     newEndDate.setDate(newEndDate.getDate()+(adminSeasonDuration||56));
     const newEndStr=newEndDate.toISOString().slice(0,10);
-    // Archive current season
-    await sb.from("seasons").insert({group_id:group.id,name:(group as any).season_name||"Temporada",ended_at:new Date().toISOString()});
+    // Capture podium for legacy badges
+    const podium=adjRanking.slice(0,3).map((r:any,i:number)=>({user_id:r.user_id,pos:i+1,pts:r.total_pts||0}));
+    // Archive current season with podium
+    await sb.from("seasons").insert({group_id:group.id,name:(group as any).season_name||"Temporada",ended_at:new Date().toISOString(),podium});
     // Apply next config
     await sb.from("groups").update({
       active_habits:cfg?.active_habits||null,
@@ -2862,6 +2889,9 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     }
     setWeeklyHistory(byUser);
     setWeeklyLoaded(true);
+    // Load seasons for legacy badges
+    const{data:seas}=await sb.from("seasons").select("*").eq("group_id",group.id).order("ended_at",{ascending:false}).limit(20);
+    if(seas)setSeasons(seas);
   }
 
   async function loadRanking(){
@@ -3267,7 +3297,19 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
               {id:"semana",icon:"⚡",title:"Semana perfecta",sub:"Mejor semana de la historia",holder:bestWeekUser?{user_id:bestWeekUser,...(members[bestWeekUser]||{name:"?",avatar:"👤"})}:null,val:`${bestWeekPts} pts`},
               {id:"gym",icon:"🏋️",title:"Bestia del gym",sub:"Más días de entreno",holder:gymKingId?{user_id:gymKingId[0],...(members[gymKingId[0]]||{name:"?",avatar:"👤"})}:null,val:gymKingId?`${gymKingId[1]} días`:"—"},
             ];
+            // Rey de Categoría: top per ámbito
+            const ambitoKings=AMBITOS.map(a=>{
+              const sorted=[...Object.entries(weekAmbitoPts)].map(([uid,ap])=>({uid,pts:ap[a.id]||0})).sort((x,y)=>y.pts-x.pts);
+              const king=sorted[0];
+              if(!king||!king.pts)return null;
+              return{id:`ambito_${a.id}`,icon:a.icon,title:`Rey ${a.label}`,sub:`Líder en ${a.label} esta semana`,holder:{user_id:king.uid,...(members[king.uid]||{name:"?",avatar:"👤"})},val:`${king.pts} pts`};
+            }).filter(Boolean) as {id:string;icon:string;title:string;sub:string;holder:any;val:string}[];
             const records=allRecords.filter(r=>visibleBadges.includes(r.id));
+            // Season legacy podium
+            const PODIUM_MEDALS=["🥇","🥈","🥉"];
+            const PODIUM_COLORS=["rgba(240,168,50,.18)","rgba(180,180,180,.14)","rgba(200,120,50,.12)"];
+            const PODIUM_BORDER=["rgba(240,168,50,.4)","rgba(180,180,180,.3)","rgba(200,120,50,.25)"];
+            const PODIUM_TEXT=["var(--amber)","#b8b8b8","#c8783a"];
             return(
               <div>
                 <div style={{fontSize:11,color:"var(--amber)",letterSpacing:2,textTransform:"uppercase",marginBottom:14,fontWeight:700,textAlign:"center"}}>🏛️ Hall of Fame</div>
@@ -3287,6 +3329,55 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                     </div>
                   </div>
                 ))}
+                {/* ── Rey de Categoría ── */}
+                {ambitoKings.length>0&&<>
+                  <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1.5,textTransform:"uppercase",fontWeight:700,marginTop:18,marginBottom:10}}>👑 Reyes de Categoría</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
+                    {ambitoKings.map(r=>(
+                      <div key={r.id} style={{background:"var(--s2)",border:"1px solid var(--border)",borderRadius:14,padding:"12px",display:"flex",flexDirection:"column",gap:6,alignItems:"center",textAlign:"center"}}>
+                        <span style={{fontSize:22}}>{r.icon}</span>
+                        <div style={{fontSize:11,fontWeight:800,color:"var(--text)",lineHeight:1.2}}>{r.title}</div>
+                        <div style={{fontSize:18}}>{r.holder.avatar||"👤"}</div>
+                        <div style={{fontSize:11,fontWeight:700,color:"var(--text)"}}>{r.holder.name||"?"}</div>
+                        <div style={{fontSize:11,color:"var(--amber)",fontWeight:700}}>{r.val}</div>
+                      </div>
+                    ))}
+                  </div>
+                </>}
+                {/* ── Legado de Temporadas ── */}
+                {seasons.length>0&&<>
+                  <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1.5,textTransform:"uppercase",fontWeight:700,marginTop:4,marginBottom:10}}>🏆 Legado de Temporadas</div>
+                  {seasons.map((s:any)=>{
+                    const podium:(typeof s.podium extends any[]?any[]:any[])=s.podium||[];
+                    if(!podium.length)return(
+                      <div key={s.id} style={{background:"var(--s2)",border:"1px solid var(--border)",borderRadius:12,padding:"10px 14px",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <div style={{fontSize:12,fontWeight:700,color:"var(--text)"}}>{s.name}</div>
+                        <div style={{fontSize:11,color:"var(--muted)"}}>{s.ended_at?new Date(s.ended_at).toLocaleDateString("es-ES",{month:"short",year:"numeric"}):""}</div>
+                      </div>
+                    );
+                    return(
+                      <div key={s.id} style={{background:"linear-gradient(135deg,var(--s2),var(--s1))",border:"1px solid rgba(240,168,50,.2)",borderRadius:16,padding:"14px 16px",marginBottom:12}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                          <div style={{fontSize:13,fontWeight:800,color:"var(--amber)"}}>{s.name}</div>
+                          <div style={{fontSize:11,color:"var(--muted)"}}>{s.ended_at?new Date(s.ended_at).toLocaleDateString("es-ES",{month:"short",year:"numeric"}):""}</div>
+                        </div>
+                        <div style={{display:"flex",gap:8}}>
+                          {podium.map((p:any,idx:number)=>{
+                            const who=members[p.user_id]||{name:"?",avatar:"👤"};
+                            return(
+                              <div key={idx} style={{flex:1,background:PODIUM_COLORS[idx],border:`1px solid ${PODIUM_BORDER[idx]}`,borderRadius:12,padding:"10px 6px",textAlign:"center"}}>
+                                <div style={{fontSize:20,marginBottom:2}}>{PODIUM_MEDALS[idx]}</div>
+                                <div style={{fontSize:18}}>{who.avatar}</div>
+                                <div style={{fontSize:10,fontWeight:800,color:PODIUM_TEXT[idx],marginTop:4,lineHeight:1.2}}>{who.name}</div>
+                                <div style={{fontSize:10,color:"var(--muted)",marginTop:2}}>{p.pts} pts</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>}
                 <div style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginTop:8,fontStyle:"italic"}}>Récords calculados con los datos actuales de la liga</div>
               </div>
             );
@@ -3962,7 +4053,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
         group={group} members={members} adjRanking={adjRanking}
         streak={streak} profile={profile}
         onClose={()=>setProfileModal(null)}
-        weekLeaders={weekLeaders} weekAmbitoPts={weekAmbitoPts} onDispute={profileModal!==user.id?()=>setDisputeModal(profileModal):undefined}
+        weekLeaders={weekLeaders} weekAmbitoPts={weekAmbitoPts} seasons={seasons} onDispute={profileModal!==user.id?()=>setDisputeModal(profileModal):undefined}
         onSignOut={profileModal===user.id?onSignOut:undefined}
       />}
 
