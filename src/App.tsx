@@ -2983,26 +2983,34 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const myPts=myRow?.total_pts||0;
     const capped=Math.min(Math.max(1,amount),10);
     if(capped>myPts){alert(`No tienes suficientes puntos. Tienes ${myPts} pts.`);return;}
+    const bet=smartBets.find(b=>b.id===betId);
+    if(bet?.stakes.some(s=>s.user_id===user.id)){alert("Ya has apostado en esta apuesta.");return;}
     setStakingSmart(true);
     await sb.from("bet_stakes").insert({bet_id:betId,user_id:user.id,side,amount:capped});
+    // Deduct staked points immediately
+    const{data:u}=await sb.from("users").select("total_pts").eq("id",user.id).single();
+    await sb.from("users").update({total_pts:Math.max(0,(u?.total_pts||0)-capped)}).eq("id",user.id);
     await loadSmartBets();
+    loadRanking();
     setStakingSmart(false);
   }
   async function createSmartBet(){
-    if(!newBetP1||!newBetP2||newBetP1===newBetP2)return;
+    if(!newBetP1||(newBetType!=="prop"&&(!newBetP2||newBetP1===newBetP2)))return;
     const activeBets=smartBets.filter(b=>b.status==="betting"||b.status==="locked");
     if(activeBets.length>=4){alert("Máximo 4 apuestas activas por grupo.");return;}
     setSavingBet(true);
     const closesAt=new Date();closesAt.setHours(closesAt.getHours()+24);
-    const label=smartBetAutoLabel({p1_id:newBetP1,p2_id:newBetP2,bet_type:newBetType,metric:newBetMetric,target_user_id:newBetTargetUser,target_value:newBetTargetValue,condition:newBetCondition} as any,
-      (Object.values(members).find((_,i)=>Object.keys(members)[i]===newBetP1) as any)?.name||"?",
-      (Object.values(members).find((_,i)=>Object.keys(members)[i]===newBetP2) as any)?.name||"?",
-      newBetTargetUser?(members[newBetTargetUser]?.name||"?"):undefined
+    const p2=newBetType==="prop"?newBetP1:newBetP2;
+    const targetUser=newBetType==="prop"?newBetP1:newBetTargetUser;
+    const label=smartBetAutoLabel({p1_id:newBetP1,p2_id:p2,bet_type:newBetType,metric:newBetMetric,target_user_id:targetUser,target_value:newBetTargetValue,condition:newBetCondition} as any,
+      members[newBetP1]?.name||"?",
+      members[p2]?.name||"?",
+      targetUser?members[targetUser]?.name||"?":undefined
     );
     await sb.from("bets").insert({
       group_id:group.id,label,bet_type:newBetType,metric:newBetMetric,
-      p1_id:newBetP1,p2_id:newBetP2,
-      target_user_id:newBetTargetUser||null,target_value:newBetTargetValue,condition:newBetCondition,
+      p1_id:newBetP1,p2_id:p2,
+      target_user_id:targetUser||null,target_value:newBetTargetValue,condition:newBetCondition,
       betting_closes_at:closesAt.toISOString(),ends_at:newBetEnds||null,
       status:"betting"
     });
@@ -3018,12 +3026,13 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const losers=bet.stakes.filter(s=>s.side!==winnerSide);
     const loserPool=losers.reduce((s,x)=>s+x.amount,0);
     const winnerPool=winners.reduce((s,x)=>s+x.amount,0);
-    if(winners.length&&loserPool>0){
-      for(const w of winners){
-        const share=winnerPool>0?Math.round((w.amount/winnerPool)*loserPool):0;
-        await sb.from("users").update({total_pts:sb.rpc("increment",{amount:w.amount+share})}).eq("id",w.user_id);
-      }
+    // Return stake + proportional share of losing pool to each winner
+    for(const w of winners){
+      const share=winnerPool>0?Math.round((w.amount/winnerPool)*loserPool):0;
+      const{data:u}=await sb.from("users").select("total_pts").eq("id",w.user_id).single();
+      await sb.from("users").update({total_pts:(u?.total_pts||0)+w.amount+share}).eq("id",w.user_id);
     }
+    // Losers already had pts deducted at stake time — nothing to do
     await loadSmartBets();loadRanking();
   }
   async function saveProfile(){
@@ -3137,7 +3146,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
         <div className="content" key="rank">
           {/* View selector */}
           <div style={{display:"flex",gap:6,marginBottom:14}}>
-            {([["semana","🏆","Esta semana"],["historico","📈","Evolución"],["hof","🎖️","Hall of Fame"]] as [string,string,string][]).map(([id,ico,lbl])=>(
+            {([["semana","🏆","Temporada"],["historico","📈","Evolución"],["hof","🎖️","Hall of Fame"]] as [string,string,string][]).map(([id,ico,lbl])=>(
               <button key={id} onClick={()=>{setRankView(id as any);if(id==="historico"||id==="hof")loadWeeklyHistory();}} style={{flex:1,background:rankView===id?"rgba(240,168,50,.12)":"var(--s2)",border:`1px solid ${rankView===id?"var(--amber)":"var(--border)"}`,borderRadius:10,padding:"7px 4px",fontSize:11,fontWeight:700,color:rankView===id?"var(--amber)":"var(--muted)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
                 {ico} {lbl}
               </button>
@@ -3481,7 +3490,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                   <input type="date" value={newBetEnds} onChange={e=>setNewBetEnds(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box",colorScheme:"dark"}}/>
                 </div>
               </div>
-              <button onClick={createSmartBet} disabled={savingBet||!newBetP1||(newBetType!=="prop"&&!newBetP2)} style={{width:"100%",background:"var(--amber)",border:"none",borderRadius:10,padding:"11px",fontSize:14,fontWeight:800,color:"#000",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",opacity:(!newBetP1||(newBetType!=="prop"&&!newBetP2))?.5:1}}>{savingBet?"Creando…":"⚔️ Crear apuesta"}</button>
+              <button onClick={createSmartBet} disabled={savingBet||!newBetP1||(newBetType!=="prop"&&(!newBetP2||newBetP1===newBetP2))} style={{width:"100%",background:"var(--amber)",border:"none",borderRadius:10,padding:"11px",fontSize:14,fontWeight:800,color:"#000",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",opacity:(!newBetP1||(newBetType!=="prop"&&(!newBetP2||newBetP1===newBetP2)))?.5:1}}>{savingBet?"Creando…":"⚔️ Crear apuesta"}</button>
             </div>
           )}
           <div className="bets-tabs">
