@@ -2166,7 +2166,7 @@ function smartBetIsActive(b:SmartBet){return b.status==="betting"||b.status==="l
 function smartBetAutoLabel(b:SmartBet,p1Name:string,p2Name:string,targetName?:string){
   if(b.bet_type==="prop"){
     if(b.condition==="top_n")return`🎯 ¿Acabará ${targetName} en el top ${b.target_value}?`;
-    return`🎯 ¿${targetName} — ${betMetricLabel(b.metric)} ≥ ${b.target_value} esta semana?`;
+    return`🎯 ¿${targetName} — ${betMetricLabel(b.metric)} ≥ ${b.target_value} veces esta semana?`;
   }
   const mlbl=betMetricLabel(b.metric);
   if(b.bet_type==="duel_habit")return`⚔️ Quién hace más ${mlbl}: ${p1Name} vs ${p2Name}`;
@@ -2702,7 +2702,7 @@ function BetResultStories({bets,userId,profile,onClose}:{bets:SmartBet[];userId:
   const detailLines=[
     bet.bet_type==="duel_ambito"?`⚔️ ${bet.p1Name} vs ${bet.p2Name} — ${betMetricLabel(bet.metric)}`
     :bet.bet_type==="duel_habit"?`⚔️ ${bet.p1Name} vs ${bet.p2Name} — Hábito: ${betMetricLabel(bet.metric)}`
-    :`🎯 ${bet.targetName} — ${betMetricLabel(bet.metric)}${bet.target_value?" ≥ "+bet.target_value:""}`,
+    :`🎯 ${bet.targetName} — ${betMetricLabel(bet.metric)}${bet.target_value?" ≥ "+bet.target_value+" veces":""}`,
   ];
   if(myStake&&iWon)detailLines.push(`✅ Ganaste por ${bet.winner_side===1?bet.p1Name:bet.p2Name}`);
   if(myStake&&iLost)detailLines.push(`❌ Perdiste — ganó ${bet.winner_side===1?bet.p1Name:bet.p2Name}`);
@@ -4343,9 +4343,9 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                 </div>
               </div>
               <div style={{marginBottom:8}}>
-                <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>{newBetType==="duel_habit"?"Hábito":"Ámbito"}</div>
+                <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>{newBetType==="duel_habit"||newBetType==="prop"?"Hábito":"Ámbito"}</div>
                 <select value={newBetMetric} onChange={e=>setNewBetMetric(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif"}}>
-                  {newBetType==="duel_habit"
+                  {newBetType==="duel_habit"||newBetType==="prop"
                     ?QUESTIONS.map(q=><option key={q.id} value={q.id}>{q.icon} {q.name}</option>)
                     :[{id:"total",label:"Total (todos los ámbitos)"},...AMBITO_METRICS].map(a=><option key={a.id} value={a.id}>{a.label||a.id}</option>)
                   }
@@ -4367,7 +4367,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                   </select>
                 </div>}
                 {newBetType==="prop"&&<div>
-                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Objetivo</div>
+                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Mín. de veces</div>
                   <input type="number" min={1} value={newBetTargetValue} onChange={e=>setNewBetTargetValue(+e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box"}}/>
                 </div>}
               </div>
@@ -4583,16 +4583,18 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
             );
           })()}
 
-          <div className="powers-card" style={{background:"linear-gradient(135deg,rgba(110,181,255,.08),rgba(110,181,255,.03))",borderColor:"rgba(110,181,255,.3)"}} onClick={openWrapped}>
-            <div style={{display:"flex",alignItems:"center",gap:12}}>
-              <div style={{fontSize:28}}>🎁</div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:14,fontWeight:700,color:"var(--blue)"}}>Mi Wrapped</div>
-                <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>Tu temporada en cifras, estilo historias</div>
+          {(!(group as any).season_end_date||todayStr()>=(group as any).season_end_date)&&(
+            <div className="powers-card" style={{background:"linear-gradient(135deg,rgba(110,181,255,.08),rgba(110,181,255,.03))",borderColor:"rgba(110,181,255,.3)"}} onClick={openWrapped}>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{fontSize:28}}>🎁</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:14,fontWeight:700,color:"var(--blue)"}}>Mi Wrapped</div>
+                  <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>Tu temporada en cifras, estilo historias</div>
+                </div>
+                <div style={{color:"var(--blue)",fontSize:16}}>›</div>
               </div>
-              <div style={{color:"var(--blue)",fontSize:16}}>›</div>
             </div>
-          </div>
+          )}
 
           {isPowerHolder&&(
             <div className="powers-card" onClick={()=>{loadPowerUsage();setPowersOpen(true);}}>
