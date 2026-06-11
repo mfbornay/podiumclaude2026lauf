@@ -3133,7 +3133,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
         const reg=await navigator.serviceWorker.register("/sw.js");
         const perm=await Notification.requestPermission();
         if(perm!=="granted"){setPushEnabled(false);setPushLoading(false);return;}
-        const VAPID_PUBLIC="BJBul6FJr3LGLS2S5S3_leNky_oOQXgC1LVYBhlhsJx634aM2MaLgYjuij3dT1xqFsmqeVaHsPIp8uiUeRpUT48";
+        const VAPID_PUBLIC="BFltxtPTEJFxeq7xbZrVF8s-53Qn8qEhUhIVkiGq783H259TKCs65OgCrpqDHWuVrqVKZoLQxlELkyMqsGpKq4A";
         const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:VAPID_PUBLIC});
         const j=sub.toJSON();
         await sb.from("push_subscriptions").upsert({user_id:user.id,group_id:group.id,endpoint:j.endpoint!,p256dh:(j.keys as any).p256dh,auth:(j.keys as any).auth},{onConflict:"endpoint"});
@@ -4171,7 +4171,7 @@ async function registerPush(userId:string,groupId:string){
     const reg=await navigator.serviceWorker.register("/sw.js");
     const perm=await Notification.requestPermission();
     if(perm!=="granted")return;
-    const VAPID_PUBLIC="BJBul6FJr3LGLS2S5S3_leNky_oOQXgC1LVYBhlhsJx634aM2MaLgYjuij3dT1xqFsmqeVaHsPIp8uiUeRpUT48";
+    const VAPID_PUBLIC="BFltxtPTEJFxeq7xbZrVF8s-53Qn8qEhUhIVkiGq783H259TKCs65OgCrpqDHWuVrqVKZoLQxlELkyMqsGpKq4A";
     const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:VAPID_PUBLIC});
     const j=sub.toJSON();
     await sb.from("push_subscriptions").upsert({
