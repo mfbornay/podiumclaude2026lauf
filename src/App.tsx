@@ -2621,7 +2621,7 @@ function BetResultStories({bets,userId,profile,onClose}:{bets:SmartBet[];userId:
   },[idx]);
 
   const dateStr=new Date(bet.ends_at||bet.created_at).toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).toUpperCase();
-  const bgSrc=iWon?"/bet-ganado.jpg":"/bet-perdido.jpg";
+  const bgSrc=iWon?"/bet-ganado.jpg.jpeg":"/bet-perdido.jpg.jpeg";
 
   return(
     <div className="brs-overlay">
