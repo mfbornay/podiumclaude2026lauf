@@ -2571,6 +2571,30 @@ function BetResultStories({bets,userId,profile,onClose}:{bets:SmartBet[];userId:
   const[progress,setProgress]=useState(0);
   const DURATION=6000;
   const tickRef=useRef<any>(null);
+  // Updated every render so the interval always sees fresh bets/onClose
+  const advanceRef=useRef<(dir:1|-1)=>void>(()=>{});
+  advanceRef.current=(dir:1|-1)=>{
+    setProgress(0);
+    setIdx(i=>{
+      const next=i+dir;
+      if(next>=bets.length){onClose();return i;}
+      if(next<0){return 0;}
+      return next;
+    });
+  };
+
+  useEffect(()=>{
+    setProgress(0);
+    clearInterval(tickRef.current);
+    const start=Date.now();
+    tickRef.current=setInterval(()=>{
+      const elapsed=Date.now()-start;
+      const pct=Math.min(100,(elapsed/DURATION)*100);
+      setProgress(pct);
+      if(pct>=100){clearInterval(tickRef.current);advanceRef.current(1);}
+    },50);
+    return()=>clearInterval(tickRef.current);
+  },[idx]);
 
   const bet=bets[idx];
   if(!bet)return null;
@@ -2597,29 +2621,6 @@ function BetResultStories({bets,userId,profile,onClose}:{bets:SmartBet[];userId:
   if(myStake&&iWon)detailLines.push(`✅ Ganaste por ${bet.winner_side===1?bet.p1Name:bet.p2Name}`);
   if(myStake&&iLost)detailLines.push(`❌ Perdiste — ganó ${bet.winner_side===1?bet.p1Name:bet.p2Name}`);
 
-  const advance=useRef((dir:1|-1)=>{
-    setProgress(0);
-    setIdx(i=>{
-      const next=i+dir;
-      if(next>=bets.length){onClose();return i;}
-      if(next<0){return 0;}
-      return next;
-    });
-  });
-
-  useEffect(()=>{
-    setProgress(0);
-    clearInterval(tickRef.current);
-    const start=Date.now();
-    tickRef.current=setInterval(()=>{
-      const elapsed=Date.now()-start;
-      const pct=Math.min(100,(elapsed/DURATION)*100);
-      setProgress(pct);
-      if(pct>=100){clearInterval(tickRef.current);advance.current(1);}
-    },50);
-    return()=>clearInterval(tickRef.current);
-  },[idx]);
-
   const dateStr=new Date(bet.ends_at||bet.created_at).toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).toUpperCase();
   const bgSrc=iWon?"/bet-ganado.jpg.jpeg":"/bet-perdido.jpg.jpeg";
 
@@ -2639,8 +2640,8 @@ function BetResultStories({bets,userId,profile,onClose}:{bets:SmartBet[];userId:
 
       {/* Tap zones */}
       <div style={{position:"absolute",inset:0,zIndex:5,display:"flex"}}>
-        <div style={{flex:1}} onClick={()=>advance.current(-1)}/>
-        <div style={{flex:2}} onClick={()=>advance.current(1)}/>
+        <div style={{flex:1}} onClick={()=>advanceRef.current(-1)}/>
+        <div style={{flex:2}} onClick={()=>advanceRef.current(1)}/>
       </div>
 
       <div className="brs-card">
@@ -3058,24 +3059,28 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     setPowerUsage(data||[]);
   }
   async function usePowerSilence(targetId:string){
-    await sb.from("users").update({silenced_until:todayStr()}).eq("id",targetId);
+    const{error}=await sb.from("users").update({silenced_until:todayStr()}).eq("id",targetId);
+    if(error){alert("No se pudo silenciar: "+error.message+"\n(Revisa las políticas RLS — ver supabase_premios_poder_migration.sql)");return;}
     await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"silence",target_user_id:targetId});
     await loadPowerUsage();await loadMembers();
   }
   async function usePowerRename(targetId:string,newName:string){
     const endsDate=new Date(todayStr()+"T12:00:00");endsDate.setDate(endsDate.getDate()+6);
     const endsAt=endsDate.toISOString().slice(0,10);
-    await sb.from("users").update({renamed_to:newName,renamed_until:endsAt}).eq("id",targetId);
+    const{error}=await sb.from("users").update({renamed_to:newName,renamed_until:endsAt}).eq("id",targetId);
+    if(error){alert("No se pudo renombrar: "+error.message+"\n(Revisa las políticas RLS — ver supabase_premios_poder_migration.sql)");return;}
     await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"rename",target_user_id:targetId});
     await loadPowerUsage();await loadMembers();
   }
   async function usePowerEmoji(targetId:string,emoji:string){
-    await sb.from("users").update({avatar:emoji}).eq("id",targetId);
+    const{error}=await sb.from("users").update({avatar:emoji}).eq("id",targetId);
+    if(error){alert("No se pudo cambiar el emoji: "+error.message+"\n(Revisa las políticas RLS — ver supabase_premios_poder_migration.sql)");return;}
     await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"emoji",target_user_id:targetId});
     await loadMembers();
   }
   async function usePowerPin(message:string){
-    await sb.from("groups").update({pinned_message:message,pin_used:true}).eq("id",group.id);
+    const{error}=await sb.from("groups").update({pinned_message:message,pin_used:true}).eq("id",group.id);
+    if(error){alert("No se pudo fijar el mensaje: "+error.message);return;}
     await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"pin"});
     setGroupLocal((g:any)=>({...g,pinned_message:message,pin_used:true}));
     await loadPowerUsage();
@@ -3512,7 +3517,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   }
   async function placeSmartStake(betId:string,side:1|2,amount:number){
     const myPts=myRow?.total_pts||0;
-    const capped=Math.min(Math.max(1,amount),10);
+    const capped=Math.min(Math.max(1,amount),5);
     if(capped>myPts){alert(`No tienes suficientes puntos. Tienes ${myPts} pts.`);return;}
     const bet=smartBets.find(b=>b.id===betId);
     if(bet?.stakes.some(s=>s.user_id===user.id)){alert("Ya has apostado en esta apuesta.");return;}
@@ -3552,7 +3557,10 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   }
   async function adminResolveSmartBet(betId:string,winnerSide:1|2){
     const bet=smartBets.find(b=>b.id===betId);if(!bet)return;
-    await sb.from("bets").update({status:"won",winner_side:winnerSide}).eq("id",betId);
+    if(bet.status==="won"||bet.status==="cancelled")return;
+    // Compare-and-set: only transitions if not already resolved — prevents double payout
+    const{data:upd}=await sb.from("bets").update({status:"won",winner_side:winnerSide}).eq("id",betId).neq("status","won").neq("status","cancelled").select("id");
+    if(!upd?.length){await loadSmartBets();return;}
     const winners=bet.stakes.filter(s=>s.side===winnerSide);
     const losers=bet.stakes.filter(s=>s.side!==winnerSide);
     const loserPool=losers.reduce((s,x)=>s+x.amount,0);

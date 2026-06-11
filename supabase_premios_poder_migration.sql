@@ -35,5 +35,19 @@ CREATE POLICY "power_usage_read" ON power_usage
 CREATE POLICY "power_usage_insert" ON power_usage
   FOR INSERT WITH CHECK (auth.uid() = holder_id);
 
+-- IMPORTANTE: el campeón necesita poder actualizar filas de OTROS usuarios
+-- (silenciar, renombrar, cambiar emoji). Si la tabla users tiene RLS con
+-- política "solo tu propia fila", añade esta política adicional:
+DROP POLICY IF EXISTS "power_holder_can_update_members" ON users;
+CREATE POLICY "power_holder_can_update_members" ON users
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM groups g
+      JOIN group_members gm ON gm.group_id = g.id
+      WHERE g.power_holder_id = auth.uid()
+        AND gm.user_id = users.id
+    )
+  );
+
 -- To assign the power holder after a season ends, run:
 -- UPDATE groups SET power_holder_id = '<winner_user_id>' WHERE id = '<group_id>';
