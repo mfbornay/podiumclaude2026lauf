@@ -1137,6 +1137,92 @@ html,body{background:#0A0703;height:100%;color:var(--text)}
   display:flex;align-items:center;justify-content:center;
 }
 
+/* ─── PLAYOFFS BRACKET ─── */
+.po-wrap{
+  background:linear-gradient(160deg,#1a1208,#0f0a04);
+  border:1px solid rgba(240,168,50,.3);border-radius:18px;
+  padding:16px 12px;margin-bottom:16px;
+}
+.po-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:900;color:var(--amber);text-align:center;margin-bottom:2px}
+.po-sub{font-size:10px;color:var(--muted);text-align:center;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px}
+.po-round-lbl{font-size:9px;color:var(--amber);letter-spacing:2px;text-transform:uppercase;font-weight:700;margin:10px 0 6px;text-align:center}
+.po-match{
+  background:var(--s2);border:1px solid var(--border);border-radius:12px;
+  padding:8px 10px;margin-bottom:6px;
+}
+.po-match.live{border-color:rgba(240,168,50,.45);box-shadow:0 0 12px rgba(240,168,50,.08)}
+.po-player{display:flex;align-items:center;gap:8px;padding:4px 0}
+.po-player.winner{color:var(--green)}
+.po-player.loser{opacity:.4}
+.po-seed{font-size:9px;color:var(--muted);width:14px;text-align:center;font-weight:700}
+.po-avi{font-size:18px}
+.po-name{flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.po-pts{font-size:14px;font-weight:900;font-family:'Playfair Display',serif}
+.po-vs-divider{height:1px;background:var(--border);margin:2px 0}
+
+/* ─── CHAMPION OVERLAY (CSS-only victory animation) ─── */
+@keyframes champ-rays-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes champ-pop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.25)}100%{transform:scale(1);opacity:1}}
+@keyframes champ-shine{0%{transform:translateX(-150%) skewX(-20deg)}100%{transform:translateX(250%) skewX(-20deg)}}
+@keyframes champ-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.champ-overlay{
+  position:fixed;inset:0;z-index:400;
+  background:radial-gradient(circle at 50% 38%,#3a2606 0%,#120b02 65%,#000 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow:hidden;font-family:'DM Sans',sans-serif;
+}
+.champ-rays{
+  position:absolute;top:50%;left:50%;width:160vmax;height:160vmax;
+  margin-left:-80vmax;margin-top:-80vmax;
+  background:conic-gradient(from 0deg,
+    rgba(240,168,50,.12) 0deg,transparent 18deg,
+    rgba(240,168,50,.12) 36deg,transparent 54deg,
+    rgba(240,168,50,.12) 72deg,transparent 90deg,
+    rgba(240,168,50,.12) 108deg,transparent 126deg,
+    rgba(240,168,50,.12) 144deg,transparent 162deg,
+    rgba(240,168,50,.12) 180deg,transparent 198deg,
+    rgba(240,168,50,.12) 216deg,transparent 234deg,
+    rgba(240,168,50,.12) 252deg,transparent 270deg,
+    rgba(240,168,50,.12) 288deg,transparent 306deg,
+    rgba(240,168,50,.12) 324deg,transparent 342deg);
+  animation:champ-rays-spin 24s linear infinite;
+}
+.champ-trophy{font-size:110px;animation:champ-pop .7s cubic-bezier(.16,1,.3,1) both,champ-float 3s ease-in-out 1s infinite;position:relative;z-index:2}
+.champ-avi{font-size:54px;margin-top:-6px;position:relative;z-index:2;animation:champ-pop .7s .2s cubic-bezier(.16,1,.3,1) both}
+.champ-name{
+  font-family:'Playfair Display',serif;font-size:38px;font-weight:900;color:#FFE9B8;
+  text-shadow:0 0 40px rgba(240,168,50,.6);position:relative;z-index:2;
+  margin-top:8px;animation:champ-pop .7s .35s cubic-bezier(.16,1,.3,1) both;text-align:center;padding:0 20px;
+}
+.champ-lbl{
+  position:relative;z-index:2;overflow:hidden;
+  background:linear-gradient(135deg,#F0A832,#c77f17);color:#1a1002;
+  font-size:15px;font-weight:900;letter-spacing:4px;text-transform:uppercase;
+  border-radius:12px;padding:10px 28px;margin-top:18px;
+  animation:champ-pop .7s .5s cubic-bezier(.16,1,.3,1) both;
+}
+.champ-lbl::after{
+  content:'';position:absolute;top:0;bottom:0;width:40%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);
+  animation:champ-shine 2.2s 1.2s ease-in-out infinite;
+}
+.champ-sub{font-size:13px;color:rgba(255,233,184,.55);margin-top:16px;position:relative;z-index:2;animation:champ-pop .7s .65s both;text-align:center;padding:0 30px;line-height:1.6}
+
+/* ─── SEASON WRAPPED ─── */
+@keyframes wr-num-pop{0%{transform:scale(.3) translateY(30px);opacity:0}70%{transform:scale(1.12)}100%{transform:scale(1) translateY(0);opacity:1}}
+@keyframes wr-fade-up{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+.wr-card{
+  flex:1;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:40px 28px;text-align:center;
+}
+.wr-kicker{font-size:11px;letter-spacing:3px;text-transform:uppercase;font-weight:700;opacity:.65;animation:wr-fade-up .5s both;position:relative;z-index:2}
+.wr-big{font-family:'Playfair Display',serif;font-size:88px;font-weight:900;line-height:1;margin:14px 0 6px;animation:wr-num-pop .65s .15s cubic-bezier(.16,1,.3,1) both;position:relative;z-index:2}
+.wr-big-emoji{font-size:74px;margin:10px 0 4px;animation:wr-num-pop .65s .15s cubic-bezier(.16,1,.3,1) both;position:relative;z-index:2}
+.wr-desc{font-size:16px;font-weight:600;line-height:1.55;max-width:300px;animation:wr-fade-up .5s .35s both;position:relative;z-index:2}
+.wr-foot{position:absolute;bottom:26px;left:0;right:0;text-align:center;font-size:9px;letter-spacing:2.5px;text-transform:uppercase;opacity:.4;z-index:2}
+.wr-deco{position:absolute;font-size:150px;opacity:.07;pointer-events:none;z-index:1}
+
 /* ─── PREMIOS DE PODER ─── */
 .powers-card{
   background:linear-gradient(135deg,rgba(240,168,50,.08),rgba(240,168,50,.04));
@@ -2724,6 +2810,146 @@ function BetResultStories({bets,userId,profile,onClose}:{bets:SmartBet[];userId:
   );
 }
 
+/* ══════════════════════════════════════════ PLAYOFFS */
+type PlayoffMatch={p1:string;p2:string;seed1:number;seed2:number;winner:string|null};
+type Playoff={active:boolean;round:"qf"|"sf"|"final"|"done";round_starts:string;round_ends:string;matches:{qf:PlayoffMatch[];sf:PlayoffMatch[];final:PlayoffMatch[]};champion?:string};
+
+const PO_ROUND_LABELS:Record<string,string>={qf:"Cuartos de final",sf:"Semifinales",final:"Gran Final",done:"Finalizado"};
+
+function PlayoffBracket({playoff,members,scores}:{playoff:Playoff;members:Record<string,{name:string;avatar:string}>;scores:Record<string,number>}){
+  const rounds:("qf"|"sf"|"final")[]=["qf","sf","final"];
+  const visible=rounds.filter(r=>playoff.matches[r]?.length>0);
+  const daysLeft=Math.max(0,Math.ceil((new Date(playoff.round_ends+"T23:59:59").getTime()-Date.now())/86400000));
+  return(
+    <div className="po-wrap">
+      <div className="po-title">🏆 Playoffs</div>
+      <div className="po-sub">{playoff.round==="done"?"Temporada decidida":`${PO_ROUND_LABELS[playoff.round]} · ${daysLeft} día${daysLeft!==1?"s":""} restante${daysLeft!==1?"s":""}`}</div>
+      {visible.map(r=>(
+        <div key={r}>
+          <div className="po-round-lbl">{PO_ROUND_LABELS[r]}</div>
+          {playoff.matches[r].map((m,i)=>{
+            const isLive=(r as string)===playoff.round;
+            const p1=members[m.p1]||{name:"?",avatar:"👤"};
+            const p2=members[m.p2]||{name:"?",avatar:"👤"};
+            const s1=isLive?(scores[m.p1]||0):0;
+            const s2=isLive?(scores[m.p2]||0):0;
+            return(
+              <div key={i} className={"po-match"+(isLive?" live":"")}>
+                <div className={"po-player"+(m.winner===m.p1?" winner":m.winner?" loser":"")}>
+                  <span className="po-seed">{m.seed1}º</span><span className="po-avi">{p1.avatar}</span>
+                  <span className="po-name">{p1.name}</span>
+                  {m.winner===m.p1&&<span style={{fontSize:12}}>✅</span>}
+                  {isLive&&<span className="po-pts" style={{color:s1>=s2?"var(--amber)":"var(--muted)"}}>{s1}</span>}
+                </div>
+                <div className="po-vs-divider"/>
+                <div className={"po-player"+(m.winner===m.p2?" winner":m.winner?" loser":"")}>
+                  <span className="po-seed">{m.seed2}º</span><span className="po-avi">{p2.avatar}</span>
+                  <span className="po-name">{p2.name}</span>
+                  {m.winner===m.p2&&<span style={{fontSize:12}}>✅</span>}
+                  {isLive&&<span className="po-pts" style={{color:s2>=s1?"var(--amber)":"var(--muted)"}}>{s2}</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+      {playoff.champion&&(
+        <div style={{textAlign:"center",marginTop:12,padding:"12px",background:"rgba(240,168,50,.1)",border:"1px solid rgba(240,168,50,.4)",borderRadius:14}}>
+          <div style={{fontSize:34}}>{members[playoff.champion]?.avatar||"👑"}</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:"var(--amber)"}}>{members[playoff.champion]?.name||"?"}</div>
+          <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",marginTop:2}}>Campeón de la temporada</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════ CHAMPION OVERLAY */
+function ChampionOverlay({champion,members,isMe,onClose}:{champion:string;members:Record<string,{name:string;avatar:string}>;isMe:boolean;onClose:()=>void}){
+  const who=members[champion]||{name:"?",avatar:"👑"};
+  return(
+    <div className="champ-overlay" onClick={onClose}>
+      <div className="champ-rays"/>
+      <div className="champ-trophy">🏆</div>
+      <div className="champ-avi">{who.avatar}</div>
+      <div className="champ-name">{isMe?"¡ERES EL CAMPEÓN!":who.name}</div>
+      <div className="champ-lbl">CAMPEÓN</div>
+      <div className="champ-sub">{isMe?"Has ganado los playoffs. Los Poderes de Campeón ya están disponibles en tu perfil.":`${who.name} ha ganado los playoffs y obtiene los Poderes de Campeón.`}<br/><span style={{fontSize:11,opacity:.6}}>Toca para cerrar</span></div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════ SEASON WRAPPED */
+type WrappedStats={daysLogged:number;totalPts:number;maxStreak:number;favHabit:{icon:string;name:string;count:number}|null;bestWeekPts:number;betsWon:number;betsLost:number;betsNet:number;position:number;totalPlayers:number};
+
+function SeasonWrapped({stats,profile,onClose}:{stats:WrappedStats;profile:any;onClose:()=>void}){
+  const[idx,setIdx]=useState(0);
+  const[progress,setProgress]=useState(0);
+  const DURATION=5000;
+  const tickRef=useRef<any>(null);
+  const advanceRef=useRef<(dir:1|-1)=>void>(()=>{});
+
+  const medal=stats.position===1?"🥇":stats.position===2?"🥈":stats.position===3?"🥉":"🎖️";
+  const cards=[
+    {bg:"linear-gradient(160deg,#1a1208,#0A0703)",color:"#F0A832",kicker:"PODIUM PRESENTA",big:"🏆",isEmoji:true,desc:`Tu temporada, ${profile?.name||"crack"}. Esto es lo que has hecho.`,deco:"⚡"},
+    {bg:"linear-gradient(160deg,#0d1f12,#06120a)",color:"#5DC98A",kicker:"DÍAS APUNTADOS",big:String(stats.daysLogged),isEmoji:false,desc:`${stats.totalPts} puntos en total. ${stats.daysLogged>=40?"Una máquina.":stats.daysLogged>=20?"Constancia sólida.":"La próxima temporada, más."}`,deco:"📅"},
+    {bg:"linear-gradient(160deg,#241108,#120803)",color:"#E8623A",kicker:"TU MEJOR RACHA",big:String(stats.maxStreak),isEmoji:false,desc:`${stats.maxStreak} días seguidos sin fallar. ${stats.maxStreak>=14?"Imparable.":stats.maxStreak>=7?"Semana completa, respeto.":"El año que viene, doble."}`,deco:"🔥"},
+    ...(stats.favHabit?[{bg:"linear-gradient(160deg,#0e1626,#070c16)",color:"#6EB5FF",kicker:"TU HÁBITO ESTRELLA",big:stats.favHabit.icon,isEmoji:true,desc:`${stats.favHabit.name} — ${stats.favHabit.count} veces. Tu religión esta temporada.`,deco:stats.favHabit.icon}]:[]),
+    {bg:"linear-gradient(160deg,#1f0d1a,#10060d)",color:"#E87B9E",kicker:"TU MEJOR SEMANA",big:String(stats.bestWeekPts),isEmoji:false,desc:`puntos en 7 días. ${stats.bestWeekPts>=80?"Modo bestia activado.":"Tu techo aún está lejos."}`,deco:"⚡"},
+    {bg:"linear-gradient(160deg,#161108,#0c0903)",color:"#F0A832",kicker:"EN EL CASINO",big:stats.betsNet>=0?`+${stats.betsNet}`:String(stats.betsNet),isEmoji:false,desc:`${stats.betsWon} apuestas ganadas, ${stats.betsLost} perdidas. ${stats.betsNet>0?"Deberías hacerte tipster.":stats.betsNet<0?"Lo importante es participar.":"Ni ganas ni pierdes. Suizo."}`,deco:"🎰"},
+    {bg:stats.position===1?"radial-gradient(circle at 50% 35%,#3a2606,#120b02)":"linear-gradient(160deg,#1a1208,#0A0703)",color:"#FFE9B8",kicker:"POSICIÓN FINAL",big:medal,isEmoji:true,desc:`#${stats.position} de ${stats.totalPlayers}. ${stats.position===1?"El trono es tuyo. 👑":stats.position<=3?"Al podio. Enhorabuena.":"La próxima temporada se sube."}`,deco:"🏆",final:true},
+  ];
+
+  advanceRef.current=(dir:1|-1)=>{
+    setProgress(0);
+    setIdx(i=>{
+      const next=i+dir;
+      if(next>=cards.length){onClose();return i;}
+      if(next<0)return 0;
+      return next;
+    });
+  };
+
+  useEffect(()=>{
+    setProgress(0);
+    clearInterval(tickRef.current);
+    const start=Date.now();
+    tickRef.current=setInterval(()=>{
+      const pct=Math.min(100,((Date.now()-start)/DURATION)*100);
+      setProgress(pct);
+      if(pct>=100){clearInterval(tickRef.current);advanceRef.current(1);}
+    },50);
+    return()=>clearInterval(tickRef.current);
+  },[idx]);
+
+  const c=cards[idx];
+  if(!c)return null;
+
+  return(
+    <div className="brs-overlay">
+      <div className="brs-progress">
+        {cards.map((_,i)=>(
+          <div key={i} className="brs-prog-bar"><div className="brs-prog-fill" style={{width:i<idx?"100%":i===idx?progress+"%":"0%"}}/></div>
+        ))}
+      </div>
+      <button className="brs-close" onClick={onClose}>✕</button>
+      <div style={{position:"absolute",inset:0,zIndex:5,display:"flex"}}>
+        <div style={{flex:1}} onClick={()=>advanceRef.current(-1)}/>
+        <div style={{flex:2}} onClick={()=>advanceRef.current(1)}/>
+      </div>
+      <div className="wr-card" key={idx} style={{background:c.bg,color:c.color}}>
+        {(c as any).final&&<div className="champ-rays"/>}
+        <div className="wr-deco" style={{top:"8%",left:"-30px",transform:"rotate(-15deg)"}}>{c.deco}</div>
+        <div className="wr-deco" style={{bottom:"12%",right:"-30px",transform:"rotate(15deg)"}}>{c.deco}</div>
+        <div className="wr-kicker">{c.kicker}</div>
+        {c.isEmoji?<div className="wr-big-emoji">{c.big}</div>:<div className="wr-big">{c.big}</div>}
+        <div className="wr-desc" style={{color:"rgba(245,237,216,.85)"}}>{c.desc}</div>
+        <div className="wr-foot" style={{color:c.color}}>PODIUM · TU TEMPORADA</div>
+      </div>
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════ PREMIOS DE PODER MODAL */
 function PowersModal({user,group,members,powerUsage,onSilence,onRename,onEmoji,onPin,onClose}:{
   user:any;group:any;members:Record<string,{name:string;avatar:string}>;
@@ -2998,6 +3224,10 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   const [powerUsage,setPowerUsage]=useState<any[]>([]);
   const [betStories,setBetStories]=useState<SmartBet[]>([]);
   const [betStoriesOpen,setBetStoriesOpen]=useState(false);
+  const [playoffScores,setPlayoffScores]=useState<Record<string,number>>({});
+  const [champOverlay,setChampOverlay]=useState(false);
+  const [wrappedStats,setWrappedStats]=useState<WrappedStats|null>(null);
+  const [startingPlayoffs,setStartingPlayoffs]=useState(false);
 
   const pts=calcPts(done);
   const isAdmin=profile?.role==="admin";
@@ -3084,6 +3314,118 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"pin"});
     setGroupLocal((g:any)=>({...g,pinned_message:message,pin_used:true}));
     await loadPowerUsage();
+  }
+
+  /* ── PLAYOFFS ── */
+  function playoffParticipants(po:Playoff):string[]{
+    return[...new Set(Object.values(po.matches).flat().flatMap(m=>[m.p1,m.p2]))];
+  }
+  async function startPlayoffs(){
+    const sorted=[...adjRanking];
+    if(sorted.length<4){alert("Se necesitan al menos 4 jugadores para los playoffs.");return;}
+    if(!window.confirm("¿Iniciar playoffs con la clasificación actual? Esto fija los cruces."))return;
+    setStartingPlayoffs(true);
+    const n=sorted.length>=8?8:4;
+    const seeds=sorted.slice(0,n).map((r:any)=>r.user_id);
+    const today=todayStr();
+    const ends=new Date(today+"T12:00:00");ends.setDate(ends.getDate()+6);
+    const endsStr=ends.toISOString().slice(0,10);
+    const mk=(a:number,b:number):PlayoffMatch=>({p1:seeds[a],p2:seeds[b],seed1:a+1,seed2:b+1,winner:null});
+    const po:Playoff=n===8
+      ?{active:true,round:"qf",round_starts:today,round_ends:endsStr,matches:{qf:[mk(0,7),mk(3,4),mk(1,6),mk(2,5)],sf:[],final:[]}}
+      :{active:true,round:"sf",round_starts:today,round_ends:endsStr,matches:{qf:[],sf:[mk(0,3),mk(1,2)],final:[]}};
+    const{error}=await sb.from("groups").update({playoff:po}).eq("id",group.id);
+    setStartingPlayoffs(false);
+    if(error){alert("Error: "+error.message+"\n¿Ejecutaste supabase_playoffs_migration.sql?");return;}
+    setGroupLocal((g:any)=>({...g,playoff:po}));
+    loadPlayoffScores(po);
+  }
+  async function loadPlayoffScores(po?:Playoff){
+    const playoff:Playoff|null=po||(group as any).playoff;
+    if(!playoff?.active)return;
+    const ids=playoffParticipants(playoff);
+    const{data}=await sb.from("daily_logs").select("user_id,total_pts").in("user_id",ids).eq("group_id",group.id).gte("date",playoff.round_starts).lte("date",playoff.round_ends);
+    const sc:Record<string,number>={};
+    (data||[]).forEach((l:any)=>{sc[l.user_id]=(sc[l.user_id]||0)+(l.total_pts||0);});
+    setPlayoffScores(sc);
+    // Auto-advance if the round window has closed
+    if(todayStr()>playoff.round_ends)await advancePlayoff(playoff,sc);
+  }
+  async function advancePlayoff(po:Playoff,scores:Record<string,number>){
+    const cur=po.matches[po.round as "qf"|"sf"|"final"];
+    if(!cur?.length||po.round==="done"as any)return;
+    // Tie → higher seed (lower number) advances
+    const decided=cur.map(m=>{
+      const s1=scores[m.p1]||0,s2=scores[m.p2]||0;
+      const winner=s1>s2?m.p1:s2>s1?m.p2:(m.seed1<m.seed2?m.p1:m.p2);
+      return{...m,winner};
+    });
+    const winners=decided.map(m=>({id:m.winner!,seed:m.winner===m.p1?m.seed1:m.seed2}));
+    const today=todayStr();
+    const nextEnds=new Date(today+"T12:00:00");nextEnds.setDate(nextEnds.getDate()+6);
+    const nextEndsStr=nextEnds.toISOString().slice(0,10);
+    let next:Playoff;
+    if(po.round==="final"){
+      const champion=winners[0].id;
+      next={...po,matches:{...po.matches,final:decided},round:"done",active:false,champion};
+      await sb.from("groups").update({playoff:next,power_holder_id:champion}).eq("id",group.id);
+    }else if(po.round==="qf"){
+      const sf:PlayoffMatch[]=[{p1:winners[0].id,p2:winners[1].id,seed1:winners[0].seed,seed2:winners[1].seed,winner:null},{p1:winners[2].id,p2:winners[3].id,seed1:winners[2].seed,seed2:winners[3].seed,winner:null}];
+      next={...po,matches:{...po.matches,qf:decided,sf},round:"sf",round_starts:today,round_ends:nextEndsStr};
+      await sb.from("groups").update({playoff:next}).eq("id",group.id);
+    }else{
+      const final:PlayoffMatch[]=[{p1:winners[0].id,p2:winners[1].id,seed1:winners[0].seed,seed2:winners[1].seed,winner:null}];
+      next={...po,matches:{...po.matches,sf:decided,final},round:"final",round_starts:today,round_ends:nextEndsStr};
+      await sb.from("groups").update({playoff:next}).eq("id",group.id);
+    }
+    setGroupLocal((g:any)=>({...g,playoff:next,...(next.champion?{power_holder_id:next.champion}:{})}));
+    if(next.champion&&!localStorage.getItem(`seen_champ_${group.id}_${next.champion}`))setChampOverlay(true);
+    if(next.round!=="done")loadPlayoffScores(next);
+  }
+
+  /* ── SEASON WRAPPED ── */
+  async function openWrapped(){
+    const durDays=(group as any).season_duration_days||56;
+    const since=new Date();since.setDate(since.getDate()-durDays);
+    const sinceStr=since.toISOString().slice(0,10);
+    const{data:logs}=await sb.from("daily_logs").select("*").eq("user_id",user.id).eq("group_id",group.id).gte("date",sinceStr).order("date",{ascending:true});
+    const rows=logs||[];
+    const totalPts=rows.reduce((s:number,l:any)=>s+(l.total_pts||0),0);
+    // Longest streak
+    let maxStreak=0,cur=0,prev:string|null=null;
+    for(const l of rows){
+      if(prev){
+        const gap=Math.round((new Date(l.date+"T12:00:00").getTime()-new Date(prev+"T12:00:00").getTime())/86400000);
+        cur=gap===1?cur+1:1;
+      }else cur=1;
+      maxStreak=Math.max(maxStreak,cur);prev=l.date;
+    }
+    // Favorite habit
+    const hc:Record<string,number>={};
+    for(const l of rows)for(const q of QUESTIONS)if((l as any)[q.id])hc[q.id]=(hc[q.id]||0)+1;
+    const favId=Object.entries(hc).sort((a,b)=>b[1]-a[1])[0];
+    const favQ=favId?QUESTIONS.find(q=>q.id===favId[0]):null;
+    // Best week (Monday-keyed)
+    const wk:Record<string,number>={};
+    for(const l of rows){
+      const d=new Date(l.date+"T12:00:00");const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);
+      const k=d.toISOString().slice(0,10);wk[k]=(wk[k]||0)+(l.total_pts||0);
+    }
+    const bestWeekPts=Math.max(0,...Object.values(wk));
+    // Bets
+    let betsWon=0,betsLost=0,betsNet=0;
+    for(const b of smartBets){
+      if(b.status!=="won")continue;
+      const st=b.stakes.find(s=>s.user_id===user.id);if(!st)continue;
+      if(st.side===b.winner_side){
+        betsWon++;
+        const wp=b.stakes.filter(x=>x.side===b.winner_side).reduce((a,x)=>a+x.amount,0);
+        const lp=b.stakes.filter(x=>x.side!==b.winner_side).reduce((a,x)=>a+x.amount,0);
+        betsNet+=wp>0?Math.round((st.amount/wp)*lp):0;
+      }else{betsLost++;betsNet-=st.amount;}
+    }
+    const position=adjRanking.findIndex((r:any)=>r.user_id===user.id)+1;
+    setWrappedStats({daysLogged:rows.length,totalPts,maxStreak,favHabit:favQ?{icon:favQ.icon,name:favQ.name,count:favId![1]}:null,bestWeekPts,betsWon,betsLost,betsNet,position:position||adjRanking.length,totalPlayers:adjRanking.length});
   }
 
   async function loadWeekLeaders(){
@@ -3616,6 +3958,13 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     loadToday();loadRanking();loadStreak();loadMembers();loadReactions();loadWeekDays();
     loadWeekLeaders();loadProfileData();loadSmartBets();loadRecords();
     if((groupInit as any).power_holder_id===user.id)loadPowerUsage();
+    loadPlayoffScores();
+    // Champion overlay — show once per champion
+    const po:Playoff|null=(groupInit as any).playoff;
+    if(po?.champion){
+      const k=`seen_champ_${group.id}_${po.champion}`;
+      if(!localStorage.getItem(k))setChampOverlay(true);
+    }
     registerPush(user.id,group.id);
     setConfigHabits(group.active_habits||QUESTIONS.map(q=>q.id));
     // Detect current push permission state
@@ -3695,6 +4044,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
 
           {/* ── SEMANA ACTUAL ── */}
           {rankView==="semana"&&(<>
+            {(group as any).playoff&&<PlayoffBracket playoff={(group as any).playoff} members={members} scores={playoffScores}/>}
             <div className="rank-hero">
               <div className="rh-top">
                 <span className="rh-lbl">{group.emoji} {group.name}</span>
@@ -4233,6 +4583,17 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
             );
           })()}
 
+          <div className="powers-card" style={{background:"linear-gradient(135deg,rgba(110,181,255,.08),rgba(110,181,255,.03))",borderColor:"rgba(110,181,255,.3)"}} onClick={openWrapped}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <div style={{fontSize:28}}>🎁</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:14,fontWeight:700,color:"var(--blue)"}}>Mi Wrapped</div>
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>Tu temporada en cifras, estilo historias</div>
+              </div>
+              <div style={{color:"var(--blue)",fontSize:16}}>›</div>
+            </div>
+          </div>
+
           {isPowerHolder&&(
             <div className="powers-card" onClick={()=>{loadPowerUsage();setPowersOpen(true);}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -4352,6 +4713,19 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                 </div>
                 <button className="btn" disabled={adminSavingSeasonDates} onClick={adminSaveSeasonDates} style={{marginBottom:0}}>
                   {adminSavingSeasonDates?"Guardando...":"💾 Guardar fechas"}
+                </button>
+              </div>
+              <div className="card" style={{marginBottom:10,background:"rgba(240,168,50,.05)",borderColor:"rgba(240,168,50,.3)"}}>
+                <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:6}}>🏆 Playoffs de final de temporada</div>
+                <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.5,marginBottom:10}}>
+                  {(group as any).playoff?.active
+                    ?`En curso: ${PO_ROUND_LABELS[((group as any).playoff as Playoff).round]} hasta el ${((group as any).playoff as Playoff).round_ends}. Cada ronda dura 7 días y se resuelve sola por puntos.`
+                    :(group as any).playoff?.champion
+                    ?`Finalizados. Campeón: ${members[(group as any).playoff.champion]?.name||"?"}. Inicia unos nuevos cuando quieras.`
+                    :"Bracket con la clasificación actual (1º vs 8º, 2º vs 7º…). Cada ronda dura 7 días y los cruces se resuelven solos por puntos. El campeón obtiene los Poderes."}
+                </div>
+                <button disabled={startingPlayoffs||(group as any).playoff?.active} onClick={startPlayoffs} style={{width:"100%",background:(group as any).playoff?.active?"var(--s3)":"rgba(240,168,50,.14)",border:"1px solid rgba(240,168,50,.35)",borderRadius:10,padding:"10px",fontSize:13,fontWeight:700,color:(group as any).playoff?.active?"var(--muted)":"var(--amber)",cursor:(group as any).playoff?.active?"default":"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+                  {(group as any).playoff?.active?"⏳ Playoffs en curso":startingPlayoffs?"Iniciando...":"🏆 Iniciar playoffs"}
                 </button>
               </div>
               <div className="card" style={{marginBottom:10,background:"rgba(232,98,58,.04)",borderColor:"rgba(232,98,58,.25)"}}>
@@ -4637,6 +5011,20 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
           const seen:string[]=JSON.parse(localStorage.getItem(seenKey)||"[]");
           const updated=[...new Set([...seen,...betStories.map(b=>b.id)])];
           localStorage.setItem(seenKey,JSON.stringify(updated));
+        }}
+      />}
+
+      {/* SEASON WRAPPED */}
+      {wrappedStats&&<SeasonWrapped stats={wrappedStats} profile={profile} onClose={()=>setWrappedStats(null)}/>}
+
+      {/* CHAMPION OVERLAY */}
+      {champOverlay&&(group as any).playoff?.champion&&<ChampionOverlay
+        champion={(group as any).playoff.champion}
+        members={members}
+        isMe={(group as any).playoff.champion===user.id}
+        onClose={()=>{
+          localStorage.setItem(`seen_champ_${group.id}_${(group as any).playoff.champion}`,"1");
+          setChampOverlay(false);
         }}
       />}
 
