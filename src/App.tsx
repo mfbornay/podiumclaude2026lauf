@@ -1044,6 +1044,99 @@ html,body{background:#0A0703;height:100%;color:var(--text)}
 .bets-chip-ico{font-size:12px}
 .bets-chip-n{font-size:11px;font-weight:700;color:var(--amber)}
 
+/* ─── BET RESULT STORIES ─── */
+.brs-overlay{
+  position:fixed;inset:0;z-index:300;background:#000;
+  display:flex;flex-direction:column;
+  font-family:'DM Sans',sans-serif;
+}
+.brs-progress{
+  position:absolute;top:0;left:0;right:0;z-index:10;
+  display:flex;gap:4px;padding:10px 12px 0;
+}
+.brs-prog-bar{flex:1;height:2px;background:rgba(255,255,255,.25);border-radius:2px;overflow:hidden}
+.brs-prog-fill{height:100%;background:#fff;transition:width .1s linear}
+@keyframes brs-slide-in{from{transform:translateX(60px);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes brs-slide-out{from{transform:translateX(0);opacity:1}to{transform:translateX(-60px);opacity:0}}
+.brs-card{
+  flex:1;position:relative;overflow:hidden;
+  animation:brs-slide-in .25s cubic-bezier(.16,1,.3,1);
+}
+.brs-bg{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+.brs-bg-fallback{
+  width:100%;height:100%;
+  background:linear-gradient(160deg,#1a1008 0%,#0A0703 100%);
+}
+/* Dark gradient at top and bottom for text readability */
+.brs-card::before{
+  content:'';position:absolute;inset:0;z-index:1;
+  background:linear-gradient(
+    to bottom,
+    rgba(0,0,0,.72) 0%,
+    rgba(0,0,0,.1) 30%,
+    rgba(0,0,0,.0) 55%,
+    rgba(0,0,0,.55) 72%,
+    rgba(0,0,0,.92) 100%
+  );
+  pointer-events:none;
+}
+.brs-top{
+  position:absolute;top:0;left:0;right:0;z-index:2;
+  padding:28px 14px 0;
+  display:flex;align-items:flex-start;gap:10px;
+}
+.brs-logo{font-size:32px;margin-top:2px;flex-shrink:0}
+.brs-top-title{font-size:17px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:.5px;line-height:1.1}
+.brs-top-date{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;letter-spacing:.3px}
+.brs-chips{
+  position:absolute;top:72px;left:14px;z-index:2;
+  display:flex;flex-direction:column;gap:6px;
+}
+.brs-chip-box{
+  background:rgba(0,0,0,.82);border:1px solid rgba(255,255,255,.15);
+  border-radius:8px;padding:5px 10px;
+  display:flex;align-items:center;gap:8px;min-width:110px;
+}
+.brs-chip-ico{font-size:18px;line-height:1}
+.brs-chip-body{}
+.brs-chip-lbl{font-size:8px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1.2px;font-weight:700}
+.brs-chip-val{font-size:18px;font-weight:900;color:#fff;line-height:1.1}
+.brs-status-bar{
+  position:absolute;bottom:138px;left:0;right:0;z-index:2;
+  display:flex;align-items:center;gap:14px;
+  padding:10px 14px;
+}
+.brs-status-won{
+  background:#1a5c1a;border:1px solid rgba(80,200,80,.4);
+  border-radius:10px;padding:6px 14px;display:flex;align-items:center;gap:8px;
+}
+.brs-status-lost{
+  background:#5c1a1a;border:1px solid rgba(200,60,60,.4);
+  border-radius:10px;padding:6px 14px;display:flex;align-items:center;gap:8px;
+}
+.brs-status-ico{font-size:28px}
+.brs-status-lbl{font-size:22px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:1px;font-family:'Playfair Display',serif}
+.brs-subtitle{font-size:14px;color:rgba(255,255,255,.7);font-weight:700;text-transform:uppercase;letter-spacing:.5px;flex:1;text-align:right}
+.brs-bottom{
+  position:absolute;bottom:0;left:0;right:0;z-index:2;
+  background:rgba(0,0,0,.88);border-top:1px solid rgba(255,255,255,.08);
+  padding:10px 14px 14px;
+}
+.brs-bet-label{font-size:13px;font-weight:800;color:#fff;margin-bottom:4px}
+.brs-bet-detail{font-size:11px;color:rgba(255,255,255,.55);line-height:1.5}
+.brs-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.07);
+}
+.brs-footer-tag{font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:1.5px}
+.brs-close{
+  position:absolute;top:28px;right:14px;z-index:20;
+  width:32px;height:32px;border-radius:50%;
+  background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.2);
+  color:#fff;font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+
 /* ─── PREMIOS DE PODER ─── */
 .powers-card{
   background:linear-gradient(135deg,rgba(240,168,50,.08),rgba(240,168,50,.04));
@@ -1995,7 +2088,7 @@ function smartBetAutoLabel(b:SmartBet,p1Name:string,p2Name:string,targetName?:st
 }
 
 /* ══════════════════════════════════════════ SMART BET CARD */
-function SmartBetCard({bet,userId,myPts,weekAmbitoPts,weekHabitCounts,adjRanking,onStake,onAdminResolve,isAdmin}:{bet:SmartBet;userId:string;myPts:number;weekAmbitoPts:Record<string,Record<string,number>>;weekHabitCounts:Record<string,Record<string,number>>;adjRanking:any[];onStake:(id:string,side:1|2,amt:number)=>void;onAdminResolve?:(id:string,side:1|2)=>void;isAdmin:boolean}){
+function SmartBetCard({bet,userId,myPts,weekAmbitoPts,weekHabitCounts,adjRanking,onStake,onAdminResolve,isAdmin,onShowResult}:{bet:SmartBet;userId:string;myPts:number;weekAmbitoPts:Record<string,Record<string,number>>;weekHabitCounts:Record<string,Record<string,number>>;adjRanking:any[];onStake:(id:string,side:1|2,amt:number)=>void;onAdminResolve?:(id:string,side:1|2)=>void;isAdmin:boolean;onShowResult?:(b:SmartBet)=>void}){
   const[selSide,setSelSide]=React.useState<1|2|null>(null);
   const[stakeAmt,setStakeAmt]=React.useState(Math.min(5,Math.max(1,myPts)));
   const myStake=bet.stakes.find(s=>s.user_id===userId);
@@ -2122,6 +2215,14 @@ function SmartBetCard({bet,userId,myPts,weekAmbitoPts,weekHabitCounts,adjRanking
         </div>
       )}
       {(isLocked||isWon)&&total===0&&<div style={{fontSize:11,color:"var(--muted)",textAlign:"center",padding:"4px 0"}}>Nadie apostó puntos en esta apuesta.</div>}
+      {/* Ver resultado card */}
+      {isWon&&onShowResult&&(
+        <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--border)",textAlign:"center"}}>
+          <button onClick={()=>onShowResult(bet)} style={{background:"linear-gradient(135deg,rgba(240,168,50,.15),rgba(240,168,50,.08))",border:"1px solid rgba(240,168,50,.4)",borderRadius:10,padding:"8px 18px",fontSize:12,fontWeight:800,color:"var(--amber)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",letterSpacing:.5}}>
+            🎬 Ver resultado
+          </button>
+        </div>
+      )}
       {/* Admin controls */}
       {isAdmin&&(isLocked||isBetting)&&onAdminResolve&&(
         <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--border)"}}>
@@ -2461,6 +2562,167 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
   );
 }
 
+/* ══════════════════════════════════════════ BET RESULT STORIES */
+const GANADO_SUBS=["CREO QUE DEBERÍA HACERME TIPSTER","LO SABÍA DESDE EL PRINCIPIO","GENIUS. PURE GENIUS.","¿ALGUIEN LO DUDABA?","A COBRAR TODOS","IMPARABLE"];
+const PERDIDO_SUBS=["CASI CASI","SE LA PEGÓ","MALDITOS","PRÓXIMA VEZ SEGURO","LA PRÓXIMA ES MÍA","NO ME LO ESPERABA"];
+
+function BetResultStories({bets,userId,profile,onClose}:{bets:SmartBet[];userId:string;profile:any;onClose:()=>void}){
+  const[idx,setIdx]=useState(0);
+  const[progress,setProgress]=useState(0);
+  const DURATION=6000;
+  const tickRef=useRef<any>(null);
+
+  const bet=bets[idx];
+  if(!bet)return null;
+
+  const myStake=bet.stakes.find(s=>s.user_id===userId);
+  const winnerSide=bet.winner_side??1;
+  const iWon=!!(myStake&&myStake.side===winnerSide);
+  const iLost=!!(myStake&&myStake.side!==winnerSide);
+
+  const winnerPool=bet.stakes.filter(s=>s.side===winnerSide).reduce((s,x)=>s+x.amount,0);
+  const loserPool=bet.stakes.filter(s=>s.side!==winnerSide).reduce((s,x)=>s+x.amount,0);
+  const myPayout=myStake&&iWon&&winnerPool>0?myStake.amount+Math.round((myStake.amount/winnerPool)*loserPool):0;
+  const myCuota=myStake&&myStake.amount>0&&myPayout>0?(myPayout/myStake.amount).toFixed(2):"—";
+  const importe=myStake?.amount??0;
+
+  const subtitlePool=iWon?GANADO_SUBS:PERDIDO_SUBS;
+  const subtitle=subtitlePool[Math.abs(bet.id.charCodeAt(0)-(bet.id.charCodeAt(1)||0))%subtitlePool.length];
+
+  const detailLines=[
+    bet.bet_type==="duel_ambito"?`⚔️ ${bet.p1Name} vs ${bet.p2Name} — ${betMetricLabel(bet.metric)}`
+    :bet.bet_type==="duel_habit"?`⚔️ ${bet.p1Name} vs ${bet.p2Name} — Hábito: ${betMetricLabel(bet.metric)}`
+    :`🎯 ${bet.targetName} — ${betMetricLabel(bet.metric)}${bet.target_value?" ≥ "+bet.target_value:""}`,
+  ];
+  if(myStake&&iWon)detailLines.push(`✅ Ganaste por ${bet.winner_side===1?bet.p1Name:bet.p2Name}`);
+  if(myStake&&iLost)detailLines.push(`❌ Perdiste — ganó ${bet.winner_side===1?bet.p1Name:bet.p2Name}`);
+
+  const advance=useRef((dir:1|-1)=>{
+    setProgress(0);
+    setIdx(i=>{
+      const next=i+dir;
+      if(next>=bets.length){onClose();return i;}
+      if(next<0){return 0;}
+      return next;
+    });
+  });
+
+  useEffect(()=>{
+    setProgress(0);
+    clearInterval(tickRef.current);
+    const start=Date.now();
+    tickRef.current=setInterval(()=>{
+      const elapsed=Date.now()-start;
+      const pct=Math.min(100,(elapsed/DURATION)*100);
+      setProgress(pct);
+      if(pct>=100){clearInterval(tickRef.current);advance.current(1);}
+    },50);
+    return()=>clearInterval(tickRef.current);
+  },[idx]);
+
+  const dateStr=new Date(bet.ends_at||bet.created_at).toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).toUpperCase();
+  const bgSrc=iWon?"/bet-ganado.jpg":"/bet-perdido.jpg";
+
+  return(
+    <div className="brs-overlay">
+      {/* Progress bars */}
+      <div className="brs-progress">
+        {bets.map((_,i)=>(
+          <div key={i} className="brs-prog-bar">
+            <div className="brs-prog-fill" style={{width:i<idx?"100%":i===idx?progress+"%":"0%"}}/>
+          </div>
+        ))}
+      </div>
+
+      {/* Close */}
+      <button className="brs-close" onClick={onClose}>✕</button>
+
+      {/* Tap zones */}
+      <div style={{position:"absolute",inset:0,zIndex:5,display:"flex"}}>
+        <div style={{flex:1}} onClick={()=>advance.current(-1)}/>
+        <div style={{flex:2}} onClick={()=>advance.current(1)}/>
+      </div>
+
+      <div className="brs-card">
+        <img src={bgSrc} alt="" className="brs-bg" onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none";}}/>
+        <div className="brs-bg-fallback" style={{position:"absolute",inset:0,zIndex:-1}}/>
+
+        {/* Top header */}
+        <div className="brs-top">
+          <div className="brs-logo">🏆</div>
+          <div>
+            <div className="brs-top-title">APUESTA DE {(profile?.username||profile?.name||"TÚ").toUpperCase()}</div>
+            <div className="brs-top-date">{dateStr}</div>
+          </div>
+        </div>
+
+        {/* IMPORTE + CUOTA chips */}
+        <div className="brs-chips">
+          {myStake&&<div className="brs-chip-box">
+            <div className="brs-chip-ico">🪙</div>
+            <div className="brs-chip-body">
+              <div className="brs-chip-lbl">IMPORTE</div>
+              <div className="brs-chip-val">{importe} pts</div>
+            </div>
+          </div>}
+          {myStake&&<div className="brs-chip-box">
+            <div className="brs-chip-ico">📈</div>
+            <div className="brs-chip-body">
+              <div className="brs-chip-lbl">CUOTA</div>
+              <div className="brs-chip-val">{myCuota}</div>
+            </div>
+          </div>}
+          {!myStake&&<div className="brs-chip-box">
+            <div className="brs-chip-ico">👀</div>
+            <div className="brs-chip-body">
+              <div className="brs-chip-lbl">RESULTADO</div>
+              <div className="brs-chip-val" style={{fontSize:13}}>{bet.winner_side===1?bet.p1Name:bet.p2Name}</div>
+            </div>
+          </div>}
+        </div>
+
+        {/* Status + subtitle */}
+        <div className="brs-status-bar">
+          {iWon&&(
+            <div className="brs-status-won">
+              <span className="brs-status-ico">🏆</span>
+              <span className="brs-status-lbl" style={{color:"#5DC98A"}}>GANADO</span>
+            </div>
+          )}
+          {iLost&&(
+            <div className="brs-status-lost">
+              <span className="brs-status-ico">💀</span>
+              <span className="brs-status-lbl" style={{color:"#FF6666"}}>PERDIDO</span>
+            </div>
+          )}
+          {!myStake&&(
+            <div style={{background:"rgba(0,0,0,.6)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"6px 14px"}}>
+              <span className="brs-status-lbl" style={{fontSize:14}}>RESUELTA</span>
+            </div>
+          )}
+          <div className="brs-subtitle">{myStake?subtitle:""}</div>
+        </div>
+
+        {/* Bottom details */}
+        <div className="brs-bottom">
+          <div className="brs-bet-label">{bet.label}</div>
+          {detailLines.map((l,i)=><div key={i} className="brs-bet-detail">{l}</div>)}
+          {myStake&&iWon&&myPayout>0&&(
+            <div style={{marginTop:6,fontSize:20,fontWeight:900,color:"#5DC98A",fontFamily:"'Playfair Display',serif"}}>+{myPayout} pts</div>
+          )}
+          {myStake&&iLost&&(
+            <div style={{marginTop:6,fontSize:20,fontWeight:900,color:"#FF6666",fontFamily:"'Playfair Display',serif"}}>−{importe} pts</div>
+          )}
+          <div className="brs-footer">
+            <div className="brs-footer-tag">LO MÁS IMPORTANTE ES GANAR</div>
+            <div className="brs-footer-tag">PODIUMBET.ES 🏆</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════ PREMIOS DE PODER MODAL */
 function PowersModal({user,group,members,powerUsage,onSilence,onRename,onEmoji,onPin,onClose}:{
   user:any;group:any;members:Record<string,{name:string;avatar:string}>;
@@ -2733,6 +2995,8 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
 
   const [powersOpen,setPowersOpen]=useState(false);
   const [powerUsage,setPowerUsage]=useState<any[]>([]);
+  const [betStories,setBetStories]=useState<SmartBet[]>([]);
+  const [betStoriesOpen,setBetStoriesOpen]=useState(false);
 
   const pts=calcPts(done);
   const isAdmin=profile?.role==="admin";
@@ -3220,7 +3484,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const{data:us}=await sb.from("users").select("id,name,avatar").in("id",uids as string[]);
     const um:Record<string,any>={};(us||[]).forEach((u:any)=>{um[u.id]=u;});
     const now=new Date();
-    setSmartBets(data.map((b:any)=>{
+    const mapped=data.map((b:any)=>{
       const closedAt=b.betting_closes_at?new Date(b.betting_closes_at):null;
       const stakesVisible=!closedAt||now>closedAt;
       const stakes=(b.bet_stakes||[]).map((s:any)=>({id:s.id,bet_id:s.bet_id,user_id:s.user_id,side:s.side as 1|2,amount:s.amount,created_at:s.created_at}));
@@ -3238,7 +3502,13 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
         targetAvi:b.target_user_id?(um[b.target_user_id]?.avatar||"👤"):undefined,
         stakes,stakesVisible
       } as SmartBet;
-    }));
+    });
+    setSmartBets(mapped);
+    // Auto-show stories for unseen resolved bets where user has a stake
+    const seenKey=`seen_bet_results_${user.id}`;
+    const seen:string[]=JSON.parse(localStorage.getItem(seenKey)||"[]");
+    const unseen=mapped.filter(b=>b.status==="won"&&b.stakes.some(s=>s.user_id===user.id)&&!seen.includes(b.id));
+    if(unseen.length>0){setBetStories(unseen);setBetStoriesOpen(true);}
   }
   async function placeSmartStake(betId:string,side:1|2,amount:number){
     const myPts=myRow?.total_pts||0;
@@ -3770,6 +4040,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
               onStake={placeSmartStake}
               onAdminResolve={isAdmin?(id,side)=>adminResolveSmartBet(id,side):undefined}
               isAdmin={isAdmin}
+              onShowResult={bet=>{setBetStories([bet]);setBetStoriesOpen(true);}}
             />
           ))}
           {(betsTab==="activas"
@@ -4347,6 +4618,19 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
 
       {/* DISPUTES PANEL */}
       {showDisputes&&<DisputesPanel user={user} group={group} disputes={disputes} votes={disputeVotes} members={members} totalMembers={totalMembers} onClose={()=>setShowDisputes(false)} onVote={castVote} proofUrls={disputeProofUrls}/>}
+
+      {/* BET RESULT STORIES */}
+      {betStoriesOpen&&betStories.length>0&&<BetResultStories
+        bets={betStories} userId={user.id} profile={profile}
+        onClose={()=>{
+          setBetStoriesOpen(false);
+          // Mark as seen
+          const seenKey=`seen_bet_results_${user.id}`;
+          const seen:string[]=JSON.parse(localStorage.getItem(seenKey)||"[]");
+          const updated=[...new Set([...seen,...betStories.map(b=>b.id)])];
+          localStorage.setItem(seenKey,JSON.stringify(updated));
+        }}
+      />}
 
       {/* POWERS MODAL */}
       {powersOpen&&isPowerHolder&&<PowersModal
