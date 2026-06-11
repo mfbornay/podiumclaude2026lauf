@@ -1044,6 +1044,22 @@ html,body{background:#0A0703;height:100%;color:var(--text)}
 .bets-chip-ico{font-size:12px}
 .bets-chip-n{font-size:11px;font-weight:700;color:var(--amber)}
 
+/* ─── PREMIOS DE PODER ─── */
+.powers-card{
+  background:linear-gradient(135deg,rgba(240,168,50,.08),rgba(240,168,50,.04));
+  border:1px solid rgba(240,168,50,.35);border-radius:18px;padding:16px;
+  margin-bottom:14px;cursor:pointer;transition:all .2s;
+}
+.powers-card:hover{border-color:rgba(240,168,50,.6);box-shadow:0 0 18px rgba(240,168,50,.12)}
+.powers-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:flex;flex-direction:column;justify-content:flex-end;backdrop-filter:blur(4px)}
+.powers-modal{background:var(--s1);border-radius:24px 24px 0 0;border-top:1px solid var(--border2);padding:24px 20px 36px;max-height:88vh;overflow-y:auto}
+.power-section{background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px}
+.power-section-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer}
+.power-section-hdr-ico{font-size:22px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(240,168,50,.1);border-radius:10px}
+.power-member-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.power-member-row:last-child{border-bottom:none}
+.power-pin-pinned{background:rgba(240,168,50,.08);border:1px solid rgba(240,168,50,.3);border-radius:12px;padding:10px 14px;margin-bottom:10px;font-size:13px;color:var(--text)}
+
 `;
 
 
@@ -1656,6 +1672,12 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
     <div className="content" key="chat" style={{paddingBottom:0,display:"flex",flexDirection:"column",height:"calc(100vh - 112px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))"}}>
 
       <div className="chat-wrap">
+        {(group as any).pinned_message&&(
+          <div style={{background:"rgba(240,168,50,.08)",border:"1px solid rgba(240,168,50,.25)",borderRadius:12,padding:"8px 12px",marginBottom:8,display:"flex",alignItems:"flex-start",gap:8}}>
+            <span style={{fontSize:14,flexShrink:0}}>📌</span>
+            <span style={{fontSize:12,color:"var(--text)",lineHeight:1.5}}>{(group as any).pinned_message}</span>
+          </div>
+        )}
         {isAdmin&&<div style={{display:"flex",justifyContent:"flex-end",padding:"4px 2px 8px"}}><button onClick={clearChat} style={{background:"transparent",border:"1px solid var(--border)",borderRadius:8,color:"var(--muted)",padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>🧹 Vaciar chat</button></div>}
         <div className="chat-list" ref={listRef}>
           {loadErr&&<div className="chat-empty" style={{color:"#F2667A"}}>Error: {loadErr}</div>}
@@ -2439,6 +2461,172 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
   );
 }
 
+/* ══════════════════════════════════════════ PREMIOS DE PODER MODAL */
+function PowersModal({user,group,members,powerUsage,onSilence,onRename,onEmoji,onPin,onClose}:{
+  user:any;group:any;members:Record<string,{name:string;avatar:string}>;
+  powerUsage:any[];
+  onSilence:(targetId:string)=>Promise<void>;
+  onRename:(targetId:string,newName:string)=>Promise<void>;
+  onEmoji:(targetId:string,emoji:string)=>Promise<void>;
+  onPin:(msg:string)=>Promise<void>;
+  onClose:()=>void;
+}){
+  const [openPower,setOpenPower]=useState<"silence"|"rename"|"emoji"|"pin"|null>(null);
+  const [renameTarget,setRenameTarget]=useState("");
+  const [renameName,setRenameName]=useState("");
+  const [emojiTarget,setEmojiTarget]=useState("");
+  const [emojiVal,setEmojiVal]=useState("");
+  const [pinText,setPinText]=useState((group as any).pinned_message||"");
+  const [loading,setLoading]=useState(false);
+  const today=new Date().toISOString().slice(0,10);
+  const otherMembers=Object.entries(members).filter(([id])=>id!==user.id);
+
+  const silencedToday=powerUsage.filter(p=>p.power==="silence"&&p.used_at?.slice(0,10)===today).map(p=>p.target_user_id);
+  const yesterday=new Date(Date.now()-86400000).toISOString().slice(0,10);
+  const silencedYesterday=powerUsage.filter(p=>p.power==="silence"&&p.used_at?.slice(0,10)===yesterday).map(p=>p.target_user_id);
+  const renameCountFor=(id:string)=>powerUsage.filter(p=>p.power==="rename"&&p.target_user_id===id).length;
+  const pinUsed=(group as any).pin_used===true;
+
+  async function doSilence(id:string){
+    if(silencedYesterday.includes(id)){alert("No puedes silenciar al mismo jugador dos días seguidos.");return;}
+    setLoading(true);await onSilence(id);setLoading(false);
+  }
+  async function doRename(){
+    if(!renameTarget||!renameName.trim())return;
+    setLoading(true);await onRename(renameTarget,renameName.trim());setRenameTarget("");setRenameName("");setLoading(false);
+  }
+  async function doEmoji(){
+    if(!emojiTarget||!emojiVal.trim())return;
+    const e=[...emojiVal.trim()].slice(0,2).join("");
+    if(!e)return;
+    setLoading(true);await onEmoji(emojiTarget,e);setEmojiTarget("");setEmojiVal("");setLoading(false);
+  }
+  async function doPin(){
+    if(!pinText.trim())return;
+    setLoading(true);await onPin(pinText.trim());setLoading(false);
+  }
+
+  const POWERS=[
+    {id:"silence",icon:"🤫",title:"Silenciar",desc:"Su nombre aparece como 'Alguien' en el feed hoy. No el mismo 2 días seguidos."},
+    {id:"rename",icon:"✏️",title:"Renombrar",desc:"Cambia el nombre visible de alguien durante 7 días. Máx 2× por persona."},
+    {id:"emoji",icon:"🎭",title:"Cambiar emoji",desc:"Cambia el emoji de cualquier jugador al que tú quieras. Ilimitado."},
+    {id:"pin",icon:"📌",title:"Pinear mensaje",desc:"Fija un mensaje en el chat. Una sola vez."},
+  ] as const;
+
+  return(
+    <div className="powers-modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="powers-modal">
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+          <div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:900,color:"var(--text)"}}>⚡ Poderes</div>
+            <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>Eres el campeón de esta temporada</div>
+          </div>
+          <button onClick={onClose} style={{background:"var(--s3)",border:"1px solid var(--border)",borderRadius:10,width:32,height:32,fontSize:16,cursor:"pointer",color:"var(--muted)",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+        </div>
+        {POWERS.map(p=>(
+          <div key={p.id} className="power-section">
+            <div className="power-section-hdr" onClick={()=>setOpenPower(prev=>prev===p.id?null:p.id as any)}>
+              <div className="power-section-hdr-ico">{p.icon}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{p.title}</div>
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:2,lineHeight:1.4}}>{p.desc}</div>
+              </div>
+              <div style={{color:"var(--muted)",fontSize:12}}>{openPower===p.id?"▲":"▼"}</div>
+            </div>
+            {openPower===p.id&&(
+              <div style={{borderTop:"1px solid var(--border)",paddingTop:12,marginTop:4}}>
+                {/* SILENCE */}
+                {p.id==="silence"&&(
+                  <div>{otherMembers.map(([id,m])=>{
+                    const isSilencedNow=silencedToday.includes(id);
+                    const blockedTomorrow=silencedYesterday.includes(id)&&!isSilencedNow;
+                    return(
+                      <div key={id} className="power-member-row">
+                        <div style={{fontSize:22}}>{m.avatar}</div>
+                        <div style={{flex:1,fontSize:13,fontWeight:600}}>{m.name}</div>
+                        {isSilencedNow?<span style={{fontSize:11,color:"var(--muted)",background:"var(--s3)",padding:"3px 8px",borderRadius:8}}>Silenciado hoy</span>
+                        :blockedTomorrow?<span style={{fontSize:11,color:"var(--muted)"}}>Espera 1 día</span>
+                        :<button disabled={loading} onClick={()=>doSilence(id)} style={{background:"rgba(240,168,50,.12)",border:"1px solid rgba(240,168,50,.3)",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,color:"var(--amber)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Silenciar</button>}
+                      </div>
+                    );
+                  })}</div>
+                )}
+                {/* RENAME */}
+                {p.id==="rename"&&(
+                  <div>{otherMembers.map(([id,m])=>{
+                    const cnt=renameCountFor(id);
+                    return(
+                      <div key={id} className="power-member-row">
+                        <div style={{fontSize:22}}>{m.avatar}</div>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:13,fontWeight:600}}>{m.name}</div>
+                          <div style={{fontSize:10,color:"var(--muted)"}}>{cnt}/2 usos</div>
+                        </div>
+                        {cnt<2?<button disabled={loading} onClick={()=>{setRenameTarget(id);setRenameName("");}} style={{background:"rgba(240,168,50,.12)",border:"1px solid rgba(240,168,50,.3)",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,color:"var(--amber)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Renombrar</button>
+                        :<span style={{fontSize:11,color:"var(--muted)"}}>Límite</span>}
+                      </div>
+                    );
+                  })}
+                  {renameTarget&&(
+                    <div style={{marginTop:12,background:"var(--s3)",borderRadius:12,padding:12}}>
+                      <div style={{fontSize:11,color:"var(--muted)",marginBottom:6}}>Nuevo nombre para {members[renameTarget]?.name}</div>
+                      <input value={renameName} onChange={e=>setRenameName(e.target.value)} placeholder="Escribe el nombre..." maxLength={20}
+                        style={{width:"100%",background:"var(--s2)",border:"1px solid var(--border)",borderRadius:8,padding:"8px 10px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box",marginBottom:8}}/>
+                      <div style={{display:"flex",gap:8}}>
+                        <button onClick={()=>setRenameTarget("")} style={{flex:1,background:"var(--s2)",border:"1px solid var(--border)",borderRadius:8,padding:"8px",fontSize:12,color:"var(--muted)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Cancelar</button>
+                        <button disabled={!renameName.trim()||loading} onClick={doRename} style={{flex:2,background:"var(--amber)",border:"none",borderRadius:8,padding:"8px",fontSize:12,fontWeight:700,color:"#000",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Aplicar 7 días</button>
+                      </div>
+                    </div>
+                  )}
+                  </div>
+                )}
+                {/* EMOJI */}
+                {p.id==="emoji"&&(
+                  <div>{otherMembers.map(([id,m])=>(
+                    <div key={id} className="power-member-row">
+                      <div style={{fontSize:22}}>{m.avatar}</div>
+                      <div style={{flex:1,fontSize:13,fontWeight:600}}>{m.name}</div>
+                      <button disabled={loading} onClick={()=>{setEmojiTarget(id);setEmojiVal("");}} style={{background:"rgba(240,168,50,.12)",border:"1px solid rgba(240,168,50,.3)",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,color:"var(--amber)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Cambiar</button>
+                    </div>
+                  ))}
+                  {emojiTarget&&(
+                    <div style={{marginTop:12,background:"var(--s3)",borderRadius:12,padding:12}}>
+                      <div style={{fontSize:11,color:"var(--muted)",marginBottom:6}}>Nuevo emoji para {members[emojiTarget]?.name}</div>
+                      <input value={emojiVal} onChange={e=>{const v=[...e.target.value].slice(0,2).join("");setEmojiVal(v||e.target.value);}} placeholder="Pega un emoji..." maxLength={4}
+                        style={{width:"100%",background:"var(--s2)",border:"1px solid var(--border)",borderRadius:8,padding:"8px 10px",fontSize:24,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box",marginBottom:8,textAlign:"center"}}/>
+                      <div style={{display:"flex",gap:8}}>
+                        <button onClick={()=>setEmojiTarget("")} style={{flex:1,background:"var(--s2)",border:"1px solid var(--border)",borderRadius:8,padding:"8px",fontSize:12,color:"var(--muted)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Cancelar</button>
+                        <button disabled={!emojiVal.trim()||loading} onClick={doEmoji} style={{flex:2,background:"var(--amber)",border:"none",borderRadius:8,padding:"8px",fontSize:12,fontWeight:700,color:"#000",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Aplicar</button>
+                      </div>
+                    </div>
+                  )}
+                  </div>
+                )}
+                {/* PIN */}
+                {p.id==="pin"&&(
+                  <div>
+                    {pinUsed&&(group as any).pinned_message&&(
+                      <div className="power-pin-pinned">
+                        <div style={{fontSize:10,color:"var(--amber)",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>📌 Mensaje fijado actual</div>
+                        {(group as any).pinned_message}
+                      </div>
+                    )}
+                    {!pinUsed?<>
+                      <textarea value={pinText} onChange={e=>setPinText(e.target.value)} placeholder="Escribe el mensaje que quedará fijado en el chat..." maxLength={200}
+                        style={{width:"100%",background:"var(--s2)",border:"1px solid var(--border)",borderRadius:10,padding:"10px 12px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",resize:"none",height:80,boxSizing:"border-box",marginBottom:8}}/>
+                      <button disabled={!pinText.trim()||loading} onClick={doPin} style={{width:"100%",background:"var(--amber)",border:"none",borderRadius:10,padding:"10px",fontSize:13,fontWeight:700,color:"#000",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>📌 Fijar mensaje</button>
+                    </>:<div style={{fontSize:12,color:"var(--muted)",textAlign:"center",padding:"8px 0"}}>Ya usaste este poder — un mensaje fijado por temporada.</div>}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════ MAIN APP */
 function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGroup,onSignOut,onProfileUpdate,onJoinNew}:{user:any;profile:any;group:any;allGroups:any[];onSwitchGroup:(g:any)=>void;onSignOut:()=>void;onProfileUpdate?:(p:any)=>void;onJoinNew?:()=>void}){
   const [profile,setLocalProfile]=useState<any>(profileInit);
@@ -2543,8 +2731,12 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   },[group.active_habits,group.habit_pts]);
   const visibleBadges:string[]=group.visible_badges||["rey","constante","racha","semana","gym"];
 
+  const [powersOpen,setPowersOpen]=useState(false);
+  const [powerUsage,setPowerUsage]=useState<any[]>([]);
+
   const pts=calcPts(done);
   const isAdmin=profile?.role==="admin";
+  const isPowerHolder=(group as any).power_holder_id===user.id;
   const myPos=ranking.findIndex(r=>r.user_id===user.id)+1;
   const myRow=ranking.find(r=>r.user_id===user.id);
 
@@ -2552,9 +2744,16 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const{data:gm}=await sb.from("group_members").select("user_id").eq("group_id",group.id);
     const ids=(gm||[]).map((r:any)=>r.user_id);
     if(!ids.length)return;
-    const{data:us}=await sb.from("users").select("id,name,avatar").in("id",ids);
+    const today=todayStr();
+    const{data:us}=await sb.from("users").select("id,name,avatar,silenced_until,renamed_to,renamed_until").in("id",ids);
     const map:Record<string,{name:string;avatar:string}>={};
-    (us||[]).forEach((u:any)=>{map[u.id]={name:u.name||"?",avatar:u.avatar||"👤"};});
+    (us||[]).forEach((u:any)=>{
+      let name=u.name||"?";
+      let avatar=u.avatar||"👤";
+      if(u.silenced_until&&today<=u.silenced_until){name="Alguien";avatar="🤫";}
+      else if(u.renamed_until&&today<=u.renamed_until&&u.renamed_to){name=u.renamed_to;}
+      map[u.id]={name,avatar};
+    });
     setMembers(map);
   }
 
@@ -2589,6 +2788,35 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     for(const k of toDelete) await sb.from("user_records").delete().eq("user_id",user.id).eq("record_key",k);
     setUserRecords(draft);
   }
+
+  async function loadPowerUsage(){
+    const{data}=await sb.from("power_usage").select("*").eq("holder_id",user.id).eq("group_id",group.id);
+    setPowerUsage(data||[]);
+  }
+  async function usePowerSilence(targetId:string){
+    await sb.from("users").update({silenced_until:todayStr()}).eq("id",targetId);
+    await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"silence",target_user_id:targetId});
+    await loadPowerUsage();await loadMembers();
+  }
+  async function usePowerRename(targetId:string,newName:string){
+    const endsDate=new Date(todayStr()+"T12:00:00");endsDate.setDate(endsDate.getDate()+6);
+    const endsAt=endsDate.toISOString().slice(0,10);
+    await sb.from("users").update({renamed_to:newName,renamed_until:endsAt}).eq("id",targetId);
+    await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"rename",target_user_id:targetId});
+    await loadPowerUsage();await loadMembers();
+  }
+  async function usePowerEmoji(targetId:string,emoji:string){
+    await sb.from("users").update({avatar:emoji}).eq("id",targetId);
+    await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"emoji",target_user_id:targetId});
+    await loadMembers();
+  }
+  async function usePowerPin(message:string){
+    await sb.from("groups").update({pinned_message:message,pin_used:true}).eq("id",group.id);
+    await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"pin"});
+    setGroupLocal((g:any)=>({...g,pinned_message:message,pin_used:true}));
+    await loadPowerUsage();
+  }
+
   async function loadWeekLeaders(){
     const mon=getMondayStr();
     const{data:gm}=await sb.from("group_members").select("user_id").eq("group_id",group.id);
@@ -3109,6 +3337,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   useEffect(()=>{
     loadToday();loadRanking();loadStreak();loadMembers();loadReactions();loadWeekDays();
     loadWeekLeaders();loadProfileData();loadSmartBets();loadRecords();
+    if((groupInit as any).power_holder_id===user.id)loadPowerUsage();
     registerPush(user.id,group.id);
     setConfigHabits(group.active_habits||QUESTIONS.map(q=>q.id));
     // Detect current push permission state
@@ -3725,6 +3954,19 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
             );
           })()}
 
+          {isPowerHolder&&(
+            <div className="powers-card" onClick={()=>{loadPowerUsage();setPowersOpen(true);}}>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{fontSize:28}}>⚡</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:14,fontWeight:700,color:"var(--amber)"}}>Poderes de Campeón</div>
+                  <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>Silenciar · Renombrar · Cambiar emoji · Pinear</div>
+                </div>
+                <div style={{color:"var(--amber)",fontSize:16}}>›</div>
+              </div>
+            </div>
+          )}
+
           <div className="invite">
             <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Código — {group.name}</div>
             <div className="invite-code">{group.invite_code}</div>
@@ -4105,6 +4347,13 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
 
       {/* DISPUTES PANEL */}
       {showDisputes&&<DisputesPanel user={user} group={group} disputes={disputes} votes={disputeVotes} members={members} totalMembers={totalMembers} onClose={()=>setShowDisputes(false)} onVote={castVote} proofUrls={disputeProofUrls}/>}
+
+      {/* POWERS MODAL */}
+      {powersOpen&&isPowerHolder&&<PowersModal
+        user={user} group={group} members={members} powerUsage={powerUsage}
+        onSilence={usePowerSilence} onRename={usePowerRename} onEmoji={usePowerEmoji} onPin={usePowerPin}
+        onClose={()=>setPowersOpen(false)}
+      />}
     </div>
   );
 }
