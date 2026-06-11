@@ -1786,8 +1786,9 @@ function TodayBanner({weekPts,streak,saved,done,onApuntar,myPos,weekDays}:{weekP
 
 /* ══════════════════════════════════════════ APUNTAR MODAL */
 const SPORT_HABIT_IDS=["gym","running","sport"];
-function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits,userId,groupId,blockedHabits,existingProofUrl}:{done:Record<string,boolean>;saved:boolean;saving:boolean;onToggle:(id:string)=>void;onSave:(proofUrl?:string)=>void;onClose:()=>void;groupHabits:typeof QUESTIONS;userId:string;groupId:string;blockedHabits?:Set<string>;existingProofUrl?:string|null}){
-  const pts=groupHabits.reduce((s,q)=>done[q.id]?s+q.pts:s,0);
+function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits,userId,groupId,blockedHabits,existingProofUrl,comebackDaysLeft}:{done:Record<string,boolean>;saved:boolean;saving:boolean;onToggle:(id:string)=>void;onSave:(proofUrl?:string)=>void;onClose:()=>void;groupHabits:typeof QUESTIONS;userId:string;groupId:string;blockedHabits?:Set<string>;existingProofUrl?:string|null;comebackDaysLeft?:number}){
+  const basePts=groupHabits.reduce((s,q)=>done[q.id]?s+q.pts:s,0);
+  const pts=comebackDaysLeft&&comebackDaysLeft>0?Math.floor(basePts*1.5):basePts;
   const anyDone=groupHabits.some(q=>done[q.id]);
   const sportSelected=SPORT_HABIT_IDS.some(id=>done[id]);
   const hasExistingPhoto=!!existingProofUrl;
@@ -1893,8 +1894,13 @@ function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits,use
             📷 <span>Foto <b>obligatoria</b> para hábitos de deporte. Adjunta una imagen para continuar.</span>
           </div>
         )}
+        {comebackDaysLeft&&comebackDaysLeft>0?(
+          <div style={{background:"rgba(240,168,50,.12)",border:"1px solid rgba(240,168,50,.35)",borderRadius:10,padding:"9px 13px",marginBottom:10,fontSize:12,color:"var(--amber)",display:"flex",alignItems:"center",gap:8,fontWeight:600}}>
+            🔄 <span>Comeback activo · ×1.5 pts hoy · {comebackDaysLeft} día{comebackDaysLeft!==1?"s":""} restante{comebackDaysLeft!==1?"s":""}</span>
+          </div>
+        ):null}
         <button className="btn" disabled={!anyDone||saving||uploading||(photoRequired&&!proofFile)} onClick={handleSave}>
-          {uploading?"Subiendo foto...":(saving?"Guardando...":(photoRequired&&!proofFile?"📷 Añade foto para guardar":`${saved?"Actualizar":"Guardar"} · +${Math.max(0,pts)} pts${proofFile?" 📷":""}`))}
+          {uploading?"Subiendo foto...":(saving?"Guardando...":(photoRequired&&!proofFile?"📷 Añade foto para guardar":`${saved?"Actualizar":"Guardar"} · +${Math.max(0,pts)} pts${comebackDaysLeft&&comebackDaysLeft>0?" 🔄":""}${proofFile?" 📷":""}`))}
         </button>
       </div>
     </div>
@@ -2441,6 +2447,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   const [done,setDone]=useState<Record<string,boolean>>({});
   const [saved,setSaved]=useState(false);
   const [saving,setSaving]=useState(false);
+  const [comebackDaysLeft,setComebackDaysLeft]=useState(0);
   const [ranking,setRanking]=useState<any[]>([]);
   const [streak,setStreak]=useState(0);
   const [loadingRank,setLR]=useState(false);
@@ -2872,6 +2879,13 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     QUESTIONS.forEach(q=>{if((data as any)[q.id])d[q.id]=true;});
     setDone(d);
     setTodayProofUrl((data as any).proof_photo_url||null);
+    // Load comeback state
+    const{data:uRow}=await sb.from("users").select("comeback_ends_at").eq("id",user.id).single();
+    if(uRow?.comeback_ends_at&&todayStr()<=uRow.comeback_ends_at){
+      const today=new Date(todayStr()+"T12:00:00");
+      const ends=new Date(uRow.comeback_ends_at+"T12:00:00");
+      setComebackDaysLeft(Math.round((ends.getTime()-today.getTime())/86400000)+1);
+    }
   }
   function getWeekMonday(dateStr:string){const d=new Date(dateStr+"T12:00:00");const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);return localDate(d);}
 
@@ -2919,7 +2933,25 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   async function saveDay(proofUrl?:string){
     const anyDone=Object.values(done).some(Boolean);
     if(!anyDone||saving)return; setSaving(true);
-    const actualPts=groupHabits.reduce((s,q)=>done[q.id]?s+q.pts:s,0);
+    // ── Comeback Bonus ──────────────────────────────────────────
+    let comebackActive=comebackDaysLeft>0;
+    if(!comebackActive){
+      const{data:prevLog}=await sb.from("daily_logs").select("date").eq("user_id",user.id).eq("group_id",group.id).lt("date",todayStr()).order("date",{ascending:false}).limit(1).maybeSingle();
+      if(prevLog?.date){
+        const gap=Math.round((new Date(todayStr()+"T12:00:00").getTime()-new Date(prevLog.date+"T12:00:00").getTime())/86400000);
+        if(gap>=3){
+          comebackActive=true;
+          const bonusDays=Math.floor(gap/2);
+          const endsDate=new Date(todayStr()+"T12:00:00");endsDate.setDate(endsDate.getDate()+bonusDays-1);
+          const endsAt=endsDate.toISOString().slice(0,10);
+          await sb.from("users").update({comeback_ends_at:endsAt}).eq("id",user.id);
+          setComebackDaysLeft(bonusDays);
+        }
+      }
+    }
+    // ────────────────────────────────────────────────────────────
+    let actualPts=groupHabits.reduce((s,q)=>done[q.id]?s+q.pts:s,0);
+    if(comebackActive)actualPts=Math.floor(actualPts*1.5);
     const payload:any={user_id:user.id,group_id:group.id,date:todayStr(),total_pts:actualPts};
     QUESTIONS.forEach(q=>{payload[q.id]=!!done[q.id];});
     if(proofUrl!==undefined)payload.proof_photo_url=proofUrl;
@@ -2927,6 +2959,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     setSaving(false);
     if(error){alert("Error: "+error.message);return;}
     if(proofUrl)setTodayProofUrl(proofUrl);
+    if(comebackDaysLeft>0)setComebackDaysLeft(d=>Math.max(0,d-1));
     setSaved(true); setShowApuntar(false);
     loadRanking(); loadStreak(); loadWeekDays();
   }
@@ -3202,6 +3235,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                         {p.penalty>0&&<span className="rr-penalty">−{p.penalty}pts disputa</span>}
                         {p.challengerDelta>0&&<span style={{fontSize:10,color:"var(--green)",marginLeft:6}}>+{p.challengerDelta}pts detective</span>}
                         {p.challengerDelta<0&&<span style={{fontSize:10,color:"#F2667A",marginLeft:6}}>{p.challengerDelta}pts disputa fallida</span>}
+                        {p.user_id===user.id&&comebackDaysLeft>0&&<span style={{fontSize:10,color:"var(--amber)",marginLeft:6}}>🔄 comeback ×1.5 · {comebackDaysLeft}d</span>}
                       </div>
                       <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:3}}>{getAmbitoBadges(p.user_id).map((b,i)=><span key={i} className={"ambito-chip"+(b.leader?" leader":" second")} style={{background:b.color+"22",borderColor:b.color+"55",color:b.color}}>{b.icon} {b.leader?"#1 ":""}{b.label}</span>)}</div>
                     </div>
@@ -3986,7 +4020,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       </nav>
 
       {/* APUNTAR MODAL */}
-      {showApuntar&&<ApuntarModal done={done} saved={saved} saving={saving} onToggle={toggle} onSave={saveDay} onClose={()=>setShowApuntar(false)} groupHabits={groupHabits} userId={user.id} groupId={group.id} blockedHabits={myBlockedHabits} existingProofUrl={todayProofUrl}/>}
+      {showApuntar&&<ApuntarModal done={done} saved={saved} saving={saving} onToggle={toggle} onSave={saveDay} onClose={()=>setShowApuntar(false)} groupHabits={groupHabits} userId={user.id} groupId={group.id} blockedHabits={myBlockedHabits} existingProofUrl={todayProofUrl} comebackDaysLeft={comebackDaysLeft}/>}
 
       {/* GROUP SWITCHER */}
       {showGroupSwitcher&&(
