@@ -4410,7 +4410,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       )}
 
       {/* CHAT */}
-      {tab==="chat"&&<ChatTab user={user} group={group} profile={profile} sharedEvent={sharedEvent} onClearShared={()=>setSharedEvent(null)} onGoToFeed={()=>setTab("feed")}/>}
+      {tab==="chat"&&<ChatTab user={user} group={group} profile={profile} sharedEvent={sharedEvent} onClearShared={()=>setSharedEvent(null)} onGoToFeed={()=>setTab("hoy")}/>}
 
       {/* PERFIL */}
       {tab==="perfil"&&(
