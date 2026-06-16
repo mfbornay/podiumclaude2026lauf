@@ -1873,8 +1873,9 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
                   {m.text&&(()=>{
                     const refMatch=m.text.match(/^\[(.+?)\]\n?([\s\S]*)$/);
                     if(refMatch){return(<div className="msg-bubble" style={{padding:0,overflow:"hidden"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(240,168,50,.1)",borderBottom:"1px solid rgba(240,168,50,.18)",padding:"6px 10px"}}>
-                        <span style={{fontSize:11,color:"var(--text)",fontWeight:600,flex:1,lineHeight:1.4}}>{refMatch[1]}</span>
+                      <div onClick={()=>onGoToFeed&&onGoToFeed()} style={{display:"flex",alignItems:"center",gap:6,background:"rgba(240,168,50,.1)",borderBottom:"1px solid rgba(240,168,50,.18)",padding:"7px 10px",cursor:onGoToFeed?"pointer":"default"}}>
+                        <span style={{fontSize:12,color:"var(--text)",fontWeight:600,flex:1,lineHeight:1.4}}>{refMatch[1]}</span>
+                        {onGoToFeed&&<span style={{fontSize:10,color:"var(--amber)",fontWeight:700,flexShrink:0}}>Feed ›</span>}
                       </div>
                       {refMatch[2]&&<div style={{padding:"8px 10px",fontSize:13}}>{refMatch[2]}</div>}
                     </div>);}
@@ -3930,8 +3931,8 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     let text="";let color="var(--amber)";
     if(item.type==="log"){
       const who=members[(item as FeedLogItem).user_id]||{name:"?",avatar:"👤"};
-      const habits=(item as FeedLogItem).habits.map(h=>h.icon+" "+h.name).join(" · ");
-      text=`${who.avatar||"👤"} ${who.name} registró ${(item as FeedLogItem).pts} pts${habits?` · ${habits}`:""}`;
+      const habEmojis=(item as FeedLogItem).habits.map(h=>h.icon).join(" ");
+      text=`${who.avatar||"👤"} ${who.name} · +${(item as FeedLogItem).pts}pts${habEmojis?" · "+habEmojis:""}`;
       color="var(--amber)";
     } else if(item.type==="streak"){
       const who=members[(item as FeedStreakItem).user_id]||{name:"?",avatar:"👤"};
@@ -4612,7 +4613,16 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
           <div className="invite">
             <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Código — {group.name}</div>
             <div className="invite-code">{group.invite_code}</div>
-            <div className="invite-sub">Invita a tus amigos</div>
+            <div style={{display:"flex",gap:8,marginTop:10,justifyContent:"center"}}>
+              <button onClick={()=>{navigator.clipboard.writeText(window.location.origin+"?invite="+group.invite_code);alert("✅ Enlace copiado");}}
+                style={{flex:1,background:"var(--amber)",border:"none",borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:800,color:"#000",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+                🔗 Copiar enlace
+              </button>
+              <button onClick={()=>{navigator.clipboard.writeText(group.invite_code);alert("✅ Código copiado");}}
+                style={{flex:1,background:"var(--s3)",border:"1px solid var(--border)",borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:700,color:"var(--muted)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+                Copiar código
+              </button>
+            </div>
           </div>
           <div onClick={pushLoading?undefined:togglePush} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--s2)",border:"1px solid var(--border)",borderRadius:14,padding:"14px 16px",cursor:pushLoading?"default":"pointer",marginBottom:10,opacity:pushLoading?.6:1,transition:"opacity .2s"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
