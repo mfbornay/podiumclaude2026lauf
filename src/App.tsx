@@ -1286,6 +1286,34 @@ html,body{background:var(--bg);height:100%;color:var(--text)}
 
   /* Topbar border */
   .topbar { border-bottom-color: var(--border); }
+
+  /* Chat input bar */
+  .chat-input-bar {
+    background: rgba(240,228,192,.96);
+    border-top-color: rgba(130,90,10,.18);
+  }
+
+  /* Modal/overlay backdrops — warm amber-tinted dim instead of black */
+  .overlay { background: rgba(70,48,8,.45); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+  .powers-modal-overlay { background: rgba(70,48,8,.4); }
+
+  /* Today hero banner */
+  .today-banner {
+    background: linear-gradient(150deg,#F0E5C2 0%,#E9D9A8 60%,#E2CF9A 100%);
+    border-color: rgba(130,90,10,.22);
+  }
+
+  /* Ranking hero card */
+  .rank-hero {
+    background: linear-gradient(160deg,#EFE3BE,#E6D5A5);
+    border-color: rgba(130,90,10,.18);
+  }
+
+  /* Streak feed card */
+  .feed-card.streak-card {
+    background: linear-gradient(135deg,#F0E5C2,#EAD9A8,#E2CF9A);
+    border-color: rgba(160,110,20,.3);
+  }
 }
 
 `;
