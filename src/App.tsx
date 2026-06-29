@@ -11,7 +11,7 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,900&family=DM+Sans:wght@300;400;500;600;700&display=swap');
 
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;font-family:'DM Sans',sans-serif}
-html,body{background:#0A0703;height:100%;color:var(--text)}
+html,body{background:var(--bg);height:100%;color:var(--text)}
 
 :root{
   --bg:#0A0703;
@@ -1238,6 +1238,55 @@ html,body{background:#0A0703;height:100%;color:var(--text)}
 .power-member-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
 .power-member-row:last-child{border-bottom:none}
 .power-pin-pinned{background:rgba(240,168,50,.08);border:1px solid rgba(240,168,50,.3);border-radius:12px;padding:10px 14px;margin-bottom:10px;font-size:13px;color:var(--text)}
+
+/* ─── LIGHT MODE (prefers-color-scheme: light) ─── */
+@media (prefers-color-scheme: light) {
+  html,body { background: #FAF3E0; }
+
+  :root {
+    --bg:    #FAF3E0;
+    --s1:    #F3E9CA;
+    --s2:    #EADDB0;
+    --s3:    #DDD09A;
+    --s4:    #CCBF84;
+    --border:  rgba(130,90,10,.13);
+    --border2: rgba(130,90,10,.26);
+    --amber:     #B06C08;
+    --amber-dim: rgba(150,88,8,.55);
+    --text:   #1A1006;
+    --muted:  #7A6030;
+    --muted2: #DDD09A;
+    --glow-amber:    0 0 20px rgba(170,100,8,.13);
+    --glow-amber-lg: 0 0 40px rgba(170,100,8,.09);
+  }
+
+  /* Soften ambient glow for light bg */
+  .app::before {
+    background: radial-gradient(ellipse at center, rgba(200,130,10,.05) 0%, transparent 70%);
+  }
+  /* Reduce grain on light bg */
+  .app::after { opacity: .012; }
+
+  /* Floating nav — frosted cream */
+  .nav {
+    background: rgba(245,236,205,.93);
+    border-color: rgba(130,90,10,.18);
+    box-shadow: 0 8px 32px rgba(80,50,5,.1), 0 1px 0 rgba(210,165,50,.25) inset;
+  }
+
+  /* Bottom sheets — warm cream frosted */
+  .sheet {
+    background: rgba(242,232,200,.97);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  /* Nav active pill */
+  .nbp { background: var(--amber); }
+
+  /* Topbar border */
+  .topbar { border-bottom-color: var(--border); }
+}
 
 `;
 
