@@ -54,6 +54,13 @@ async function refundAllStakes(betId: string) {
   }
 }
 
+// Group members are all in Spain — derive calendar-day boundaries in their
+// timezone so the bet window matches the days they actually logged for
+// client-side (client uses browser-local time, not UTC).
+function madridDateStr(d: Date): string {
+  return d.toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+}
+
 export default async function handler(req: any, res: any) {
   const auth = (req.headers["authorization"] as string) || "";
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -78,8 +85,8 @@ export default async function handler(req: any, res: any) {
 
   for (const bet of expiredBets) {
     const metric = bet.metric || "total";
-    const from = (bet.created_at || "").slice(0, 10);
-    const to = (bet.ends_at || "").slice(0, 10);
+    const from = bet.created_at ? madridDateStr(new Date(bet.created_at)) : "";
+    const to = bet.ends_at ? madridDateStr(new Date(bet.ends_at)) : "";
     const betType = bet.bet_type || "duel_ambito";
 
     let winnerSide: 1 | 2 | null = null;

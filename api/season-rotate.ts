@@ -5,12 +5,18 @@ const sb = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Group members are all in Spain — compute "today" in their timezone, not
+// server UTC, so a season doesn't cut off up to ~2h early/late for everyone.
+function madridDateStr(d: Date = new Date()): string {
+  return d.toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+}
+
 export default async function handler(req: any, res: any) {
   const auth = (req.headers["authorization"] as string) || "";
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).send("Unauthorized");
   }
-  const today = new Date().toISOString().slice(0, 10);
+  const today = madridDateStr();
 
   // Find groups whose season_end_date has passed
   const { data: groups, error: fetchErr } = await sb
@@ -42,12 +48,13 @@ export default async function handler(req: any, res: any) {
       status: "closed",
     });
 
-    // Compute new end date
-    const newEnd = new Date();
-    newEnd.setDate(newEnd.getDate() + durationDays);
+    // Compute new end date (fixed UTC-anchored arithmetic — avoids DST edge cases)
+    const newEnd = new Date(today + "T00:00:00Z");
+    newEnd.setUTCDate(newEnd.getUTCDate() + durationDays);
     const newEndStr = newEnd.toISOString().slice(0, 10);
 
-    // Apply next config to active
+    // Apply next config to active — start_date resets so group_ranking (which
+    // sums points from start_date onward) only counts the new season
     const { error: updateErr } = await sb
       .from("groups")
       .update({
@@ -55,6 +62,7 @@ export default async function handler(req: any, res: any) {
         season_name: cfg?.name || "Nueva temporada",
         next_season_config: null,
         season_end_date: newEndStr,
+        start_date: today,
       })
       .eq("id", group.id);
 

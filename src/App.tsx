@@ -1042,7 +1042,8 @@ html,body{background:var(--bg);height:100%;color:var(--text)}
 }
 .bets-chip:hover{background:rgba(240,168,50,.18);box-shadow:0 0 10px rgba(240,168,50,.2)}
 .bets-chip-ico{font-size:12px}
-.bets-chip-n{font-size:11px;font-weight:700;color:var(--amber)}
+.bets-chip-lbl{font-size:11px;font-weight:700;color:var(--amber);letter-spacing:.2px}
+.bets-chip-n{font-size:11px;font-weight:700;color:#0A0703;background:var(--amber);border-radius:8px;padding:0 5px;min-width:15px;text-align:center;line-height:15px}
 
 /* ─── BET RESULT STORIES ─── */
 .brs-overlay{
@@ -1393,6 +1394,16 @@ function calcPts(done:Record<string,boolean>){ return QUESTIONS.reduce((s,q)=>do
 function relTime(iso:string){ const m=Math.floor((Date.now()-new Date(iso).getTime())/60000);if(m<1)return"ahora";if(m<60)return`${m}m`;const h=Math.floor(m/60);if(h<24)return`${h}h`;return`${Math.floor(h/24)}d`; }
 function getWeekNum(d=new Date()){const jan1=new Date(d.getFullYear(),0,1);return Math.ceil(((d.getTime()-jan1.getTime())/86400000+jan1.getDay()+1)/7);}
 function getMondayStr(){const d=new Date();const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);return localDate(d);}
+function friendlyAuthError(msg:string):string{
+  const m=(msg||"").toLowerCase();
+  if(m.includes("invalid login credentials"))return"Email/usuario o contraseña incorrectos.";
+  if(m.includes("already registered")||m.includes("already exists")||m.includes("duplicate"))return"Ya existe una cuenta con ese email.";
+  if(m.includes("email not confirmed"))return"Confirma tu email antes de iniciar sesión.";
+  if(m.includes("rate limit")||m.includes("security purposes"))return"Demasiados intentos. Espera un momento y vuelve a intentarlo.";
+  if(m.includes("password"))return"La contraseña debe tener al menos 6 caracteres.";
+  if(m.includes("network")||m.includes("fetch"))return"Sin conexión. Revisa tu internet e inténtalo de nuevo.";
+  return"Algo salió mal. Inténtalo de nuevo.";
+}
 
 /* ══════════════════════════════════════════ PODIUM LOGO */
 function PodiumLogo({size=20}:{size?:number}){
@@ -1415,7 +1426,7 @@ function Loading({text="Cargando..."}:{text?:string}){
 }
 
 /* ══════════════════════════════════════════ AUTH */
-function AuthScreen({onAuth,bootError,newUser}:{onAuth:(u:any)=>void;bootError?:string;newUser?:any}){
+function AuthScreen({onAuth,bootError,newUser,invitePreview}:{onAuth:(u:any)=>void;bootError?:string;newUser?:any;invitePreview?:any}){
   const [phase,setPhase]=useState<"login"|"register"|"profile"|"reset">(newUser?"profile":"login");
   const [email,setEmail]=useState("");
   const [loginInput,setLoginInput]=useState(""); // email o @username
@@ -1466,7 +1477,7 @@ function AuthScreen({onAuth,bootError,newUser}:{onAuth:(u:any)=>void;bootError?:
     }
     const{error}=await sb.auth.resetPasswordForEmail(resolvedEmail,{redirectTo:"https://podiumclaude2026lauf.vercel.app"});
     setBusy(false);
-    if(error){setErr(error.message);return;}
+    if(error){console.error("resetPassword:",error);setErr(friendlyAuthError(error.message));return;}
     setOk("✅ Te hemos enviado un email con el enlace para cambiar la contraseña.");
     setPhase("login");
   }
@@ -1477,12 +1488,12 @@ function AuthScreen({onAuth,bootError,newUser}:{onAuth:(u:any)=>void;bootError?:
     if(profStep===0){setProfStep(1);return;}
     setBusy(true);setErr("");
     const{data,error}=await sb.auth.signUp({email:email.trim().toLowerCase(),password});
-    if(error){setBusy(false);setErr(error.message);return;}
+    if(error){console.error("register/signUp:",error);setBusy(false);setErr(friendlyAuthError(error.message));return;}
     const u=data.user;
-    if(!u){setBusy(false);setErr("Error al crear cuenta.");return;}
+    if(!u){setBusy(false);setErr("No se pudo crear la cuenta. Inténtalo de nuevo.");return;}
     const{error:pErr}=await sb.from("users").insert({id:u.id,email:email.toLowerCase().trim(),username:uname.replace("@","").toLowerCase().trim(),name:name.trim(),avatar,role:"user"});
     setBusy(false);
-    if(pErr&&!pErr.message.includes("duplicate")){setErr(pErr.message);return;}
+    if(pErr&&!pErr.message.includes("duplicate")){console.error("register/profile:",pErr);setErr("No se pudo crear tu perfil. Revisa que el @usuario no esté ya en uso.");return;}
     setVerifiedUser(u);
     onAuth(u);
   }
@@ -1491,6 +1502,12 @@ function AuthScreen({onAuth,bootError,newUser}:{onAuth:(u:any)=>void;bootError?:
     <div className="page">
       <Logo/>
       <div className="tagline">Compite con tus amigos. Mejora cada día.</div>
+      {invitePreview&&!invitePreview.error&&(
+        <div style={{background:"rgba(240,168,50,.1)",border:"1px solid rgba(240,168,50,.3)",borderRadius:14,padding:"12px 14px",marginBottom:16,fontSize:13,textAlign:"center"}}>
+          Te invitaron a <b>{invitePreview.emoji} {invitePreview.name}</b> · {invitePreview.member_count} {invitePreview.member_count===1?"miembro":"miembros"}
+          <div style={{fontSize:11,color:"var(--muted)",marginTop:3}}>Inicia sesión o crea una cuenta para unirte</div>
+        </div>
+      )}
       {bootError&&<div className="err">⚠️ {bootError}</div>}
       {err&&<div className="err">{err}</div>}
       {ok&&<div className="ok">{ok}</div>}
@@ -1538,6 +1555,11 @@ function AuthScreen({onAuth,bootError,newUser}:{onAuth:(u:any)=>void;bootError?:
     <div className="page">
       <Logo/>
       <div className="tagline">{profStep===0?"Crea tu cuenta":"Elige tu avatar"}</div>
+      {invitePreview&&!invitePreview.error&&profStep===0&&(
+        <div style={{background:"rgba(240,168,50,.1)",border:"1px solid rgba(240,168,50,.3)",borderRadius:14,padding:"12px 14px",marginBottom:16,fontSize:13,textAlign:"center"}}>
+          Te unes a <b>{invitePreview.emoji} {invitePreview.name}</b> al terminar de registrarte
+        </div>
+      )}
       <div className="prog">{[0,1].map(i=><div key={i} className="prog-dot" style={{background:i<=profStep?"var(--amber)":"var(--s3)"}}/>)}</div>
       {err&&<div className="err">{err}</div>}
       {profStep===0&&<>
@@ -1601,7 +1623,7 @@ function AuthScreen({onAuth,bootError,newUser}:{onAuth:(u:any)=>void;bootError?:
         setBusy(true);setErr("");
         const{error}=await sb.from("users").insert({id:verifiedUser.id,email:verifiedUser.email||"",username:uname.replace("@","").toLowerCase().trim(),name:name.trim(),avatar,role:"user"});
         setBusy(false);
-        if(error&&!error.message.includes("duplicate")){setErr(error.message);return;}
+        if(error&&!error.message.includes("duplicate")){console.error("profile/insert:",error);setErr("No se pudo crear tu perfil. Revisa que el @usuario no esté ya en uso.");return;}
         onAuth(verifiedUser);
       }}>
         {busy?"Creando perfil...":profStep===0?"Siguiente →":"¡Empezar!"}
@@ -1616,24 +1638,29 @@ function JoinScreen({userId,onJoin}:{userId:string;onJoin:(g:any)=>void}){
   const urlCode=new URLSearchParams(window.location.search).get("invite")||"";
   const [code,setCode]=useState(urlCode.toUpperCase()); const [gname,setGname]=useState("");
   const [creating,setC]=useState(false); const [err,setErr]=useState(""); const [busy,setBusy]=useState(false);
+  const [preview,setPreview]=useState<any>(null);
+  useEffect(()=>{
+    if(!urlCode)return;
+    sb.rpc("preview_group_by_invite",{invite:urlCode}).then(({data})=>{if(data&&!data.error)setPreview(data);});
+  },[urlCode]);
   async function join(){
     if(code.length<4)return; setBusy(true);setErr("");
     const{data,error}=await sb.rpc("join_group_by_invite",{invite:code.toUpperCase().trim()});
-    if(error){setErr(error.message);setBusy(false);return;}
+    if(error){console.error("join:",error);setErr("No se pudo unir al grupo. Inténtalo de nuevo.");setBusy(false);return;}
     if(data?.error){setErr(data.error);setBusy(false);return;}
     onJoin(data);
   }
   async function create(){
     if(!gname.trim())return; setBusy(true);setErr("");
     const{data:group,error}=await sb.from("groups").insert({name:gname.trim(),created_by:userId,emoji:"🏆",color:"#F0A832",season_weeks:8}).select().single();
-    if(error){setErr(error.message);setBusy(false);return;}
+    if(error){console.error("create group:",error);setErr("No se pudo crear el grupo. Inténtalo de nuevo.");setBusy(false);return;}
     await sb.from("group_members").insert({group_id:group.id,user_id:userId});
     onJoin(group);
   }
   return(
     <div className="page">
       <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}><svg width="28" height="22" viewBox="0 0 20 16" fill="none"><rect x="6" y="3" width="8" height="13" rx="2" fill="var(--amber)"/><rect x="0" y="7" width="6" height="9" rx="2" fill="#9B9B9B" opacity=".9"/><rect x="14" y="9" width="6" height="7" rx="2" fill="#CD7F32"/></svg><span style={{fontFamily:"'Playfair Display',serif",fontStyle:"italic",fontWeight:900,fontSize:32,color:"var(--text)"}}>Podium</span></div>
-      <div className="tagline">Únete a un grupo o crea uno nuevo.</div>
+      <div className="tagline">{preview?<>Uniéndote a <b style={{color:"var(--text)"}}>{preview.emoji} {preview.name}</b> · {preview.member_count} {preview.member_count===1?"miembro":"miembros"}</>:"Únete a un grupo o crea uno nuevo."}</div>
       {err&&<div className="err">{err}</div>}
       <label className="lbl">Código de invitación</label>
       <input className="code-inp" placeholder="ABC123" maxLength={6} value={code} onChange={e=>setCode(e.target.value.toUpperCase())} onKeyDown={e=>e.key==="Enter"&&join()}/>
@@ -1683,7 +1710,7 @@ function DisputeModal({user,group,disputedUserId,onClose,onCreated,members}:{use
     if(!selHabit||saving)return; setSaving(true);
     const{data,error}=await sb.from("disputes").insert({group_id:group.id,disputed_user:disputedUserId,challenger:user.id,day:targetDate,habit_id:selHabit,reason:reason.trim()||null}).select().single();
     setSaving(false);
-    if(error){if(error.code==="23505")alert("Ya existe una disputa para ese hábito.");else alert("Error: "+error.message);return;}
+    if(error){if(error.code==="23505")alert("Ya existe una disputa para ese hábito.");else{console.error(error);alert("No se pudo crear la disputa. Inténtalo de nuevo.");}return;}
     onCreated(data as Dispute); onClose();
   }
   const who=members[disputedUserId]||{name:"?",avatar:"👤"};
@@ -1778,7 +1805,7 @@ function DisputesPanel({user,group,disputes,votes,members,totalMembers,onClose,o
           <div style={{fontSize:16,fontWeight:700}}>⚖️ Disputas del grupo</div>
           <button onClick={onClose} style={{background:"none",border:"none",color:"var(--muted)",fontSize:18,cursor:"pointer"}}>✕</button>
         </div>
-        {sorted.length===0&&<div className="dispute-empty">No hay disputas todavía.</div>}
+        {sorted.length===0&&<div className="dispute-empty">No hay disputas todavía.<div style={{fontSize:12,color:"var(--muted)",marginTop:6,lineHeight:1.5}}>Si crees que alguien ha marcado un hábito que no hizo, puedes disputarlo desde su registro en el feed. El grupo vota y decide.</div></div>}
         {sorted.map(d=>{
           const vs=votes.filter(v=>v.dispute_id===d.id);
           const st=computeDisputeStatus(d,vs,totalMembers);
@@ -1871,7 +1898,7 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
     const load=async()=>{
       const{data,error}=await sb.from("chat_messages").select("*").eq("group_id",group.id).order("created_at",{ascending:true}).limit(200);
       if(cancelled)return;
-      if(error){setLoadErr(error.message);return;}
+      if(error){console.error("loadChat:",error);setLoadErr("No se pudo cargar el chat.");return;}
       setMsgs((data||[]) as ChatMsg[]); scrollDown();
     };
     load();
@@ -1887,7 +1914,7 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
     const fullText=sharedEvent?`[${sharedEvent.text}]\n${t}`:t;
     const{data,error}=await sb.from("chat_messages").insert({group_id:group.id,user_id:user.id,text:fullText}).select().single();
     setSending(false);
-    if(error){alert("Error: "+error.message);return;}
+    if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;}
     setText(""); onClearShared(); if(data)addMsg(data as ChatMsg);
   }
   async function sendPhoto(file:File){
@@ -1896,10 +1923,10 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
       const ext=(file.name.split(".").pop()||"jpg").toLowerCase();
       const path=group.id+"/"+user.id+"-"+Date.now()+"."+ext;
       const{error:upErr}=await sb.storage.from("chat-photos").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type||"image/jpeg"});
-      if(upErr){alert("Error subiendo foto: "+upErr.message);return;}
+      if(upErr){console.error(upErr);alert("No se pudo subir la foto. Inténtalo de nuevo.");return;}
       const{data:pub}=sb.storage.from("chat-photos").getPublicUrl(path);
       const{data:ins,error:insErr}=await sb.from("chat_messages").insert({group_id:group.id,user_id:user.id,photo_url:pub.publicUrl}).select().single();
-      if(insErr){alert("Error: "+insErr.message);return;}
+      if(insErr){console.error(insErr);alert("Algo salió mal. Inténtalo de nuevo.");return;}
       if(ins)addMsg(ins as ChatMsg);
     }finally{setUploading(false);if(fileRef.current)fileRef.current.value="";}
   }
@@ -1915,13 +1942,13 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
   async function sendGif(url:string){
     setGifOpen(false);setGifQuery("");setGifResults([]);
     const{data,error}=await sb.from("chat_messages").insert({group_id:group.id,user_id:user.id,photo_url:url}).select().single();
-    if(error){alert("Error: "+error.message);return;}
+    if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;}
     if(data)addMsg(data as ChatMsg);
   }
   async function clearChat(){
     if(!window.confirm("¿Vaciar todo el chat?"))return;
     const{error}=await sb.from("chat_messages").delete().eq("group_id",group.id);
-    if(error){alert("Error: "+error.message);return;} setMsgs([]);
+    if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;} setMsgs([]);
   }
   const isAdmin=profile?.role==="admin";
   return(
@@ -2278,7 +2305,7 @@ function SmartBetCard({bet,userId,myPts,weekAmbitoPts,weekHabitCounts,adjRanking
   const propCount=bet.bet_type==="prop"&&bet.target_user_id?(bet.metric==="total"?(adjRanking.find(r=>r.user_id===bet.target_user_id)?.total_pts||0):(weekHabitCounts[bet.target_user_id]?.[bet.metric]||0)):0;
   const propAchieved=bet.bet_type==="prop"&&(bet.condition==="top_n"?(adjRanking.findIndex(r=>r.user_id===bet.target_user_id)+1)<=(bet.target_value||3):propCount>=(bet.target_value||0));
   const label=bet.label||smartBetAutoLabel(bet,bet.p1Name,bet.p2Name,bet.targetName);
-  const typeBadge=bet.bet_type==="prop"?"🎯 PROP":bet.bet_type==="duel_habit"?"⚔️ HÁBITO":"⚔️ ÁMBITO";
+  const typeBadge=bet.bet_type==="prop"?"🎯 Predicción":bet.bet_type==="duel_habit"?"⚔️ Duelo hábito":"⚔️ Duelo categoría";
   const s1label=bet.bet_type==="prop"?"✅ Sí":bet.p1Name;
   const s2label=bet.bet_type==="prop"?"❌ No":bet.p2Name;
   const s1avi=bet.bet_type==="prop"?(bet.targetAvi||"🎯"):bet.p1Avi;
@@ -2661,7 +2688,7 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
 
         {/* Puntos por ámbito */}
         {!loadingLogs&&Object.keys(ambitoTotals).length>0&&<>
-          <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",marginBottom:8}}>Puntos por ámbito</div>
+          <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",marginBottom:8}}>Puntos por ámbito (categoría de hábitos)</div>
           {AMBITOS.map(a=>{
             const total=ambitoTotals[a.id]||0;
             return(<div key={a.id} className="ambito-bar-wrap">
@@ -2895,12 +2922,19 @@ type Playoff={active:boolean;round:"qf"|"sf"|"final"|"done";round_starts:string;
 const PO_ROUND_LABELS:Record<string,string>={qf:"Cuartos de final",sf:"Semifinales",final:"Gran Final",done:"Finalizado"};
 
 function PlayoffBracket({playoff,members,scores}:{playoff:Playoff;members:Record<string,{name:string;avatar:string}>;scores:Record<string,number>}){
+  const[showInfo,setShowInfo]=React.useState(false);
   const rounds:("qf"|"sf"|"final")[]=["qf","sf","final"];
   const visible=rounds.filter(r=>playoff.matches[r]?.length>0);
   const daysLeft=Math.max(0,Math.ceil((new Date(playoff.round_ends+"T23:59:59").getTime()-Date.now())/86400000));
   return(
     <div className="po-wrap">
-      <div className="po-title">🏆 Playoffs</div>
+      <div style={{display:"flex",alignItems:"center",gap:6}}>
+        <div className="po-title">🏆 Playoffs</div>
+        <span onClick={()=>setShowInfo(v=>!v)} style={{fontSize:11,color:"var(--amber)",cursor:"pointer",fontWeight:600}}>{showInfo?"✕":"¿Cómo funciona?"}</span>
+      </div>
+      {showInfo&&<div style={{fontSize:12,color:"var(--muted)",lineHeight:1.5,margin:"6px 0 10px",background:"var(--s2)",border:"1px solid var(--border)",borderRadius:10,padding:"10px 12px"}}>
+        Los 8 mejores de la temporada se enfrentan en un bracket de eliminatorias (cuartos → semis → final), una ronda por semana. Gana quien más puntos sume esa semana.
+      </div>}
       <div className="po-sub">{playoff.round==="done"?"Temporada decidida":`${PO_ROUND_LABELS[playoff.round]} · ${daysLeft} día${daysLeft!==1?"s":""} restante${daysLeft!==1?"s":""}`}</div>
       {visible.map(r=>(
         <div key={r}>
@@ -3194,10 +3228,63 @@ function PowersModal({user,group,members,powerUsage,onSilence,onRename,onEmoji,o
   );
 }
 
+/* ══════════════════════════════════════════ ONBOARDING INTRO */
+const ONBOARDING_SLIDES=[
+  {ico:"✅",title:"Marca lo que has hecho",body:"Cada día, marca los hábitos que has cumplido (gym, leer, comer bien…). Cada hábito vale unos puntos — cuantos más cumplas, más sumas."},
+  {ico:"🏆",title:"Compite por el ranking",body:"Tus hábitos se agrupan en ámbitos (Deporte, Social, Salud, Cultura). Compites contra tu grupo durante toda la temporada — al terminar, el marcador se resetea y empieza una nueva."},
+  {ico:"⚡",title:"Apuesta tus puntos",body:"En la pestaña Apuestas puedes retar a tus amigos: ¿quién hace más gym esta semana? ¿cumplirás tu objetivo? Si aciertas, ganas puntos suyos."},
+  {ico:"💬",title:"Todo en un mismo sitio",body:"Chatea con el grupo, sube una foto de prueba al marcar un hábito, y disputa un registro si crees que alguien se lo ha inventado. ¡Vamos allá!"},
+];
+function OnboardingIntro({onDone}:{onDone:()=>void}){
+  const[i,setI]=useState(0);
+  const s=ONBOARDING_SLIDES[i];
+  const last=i===ONBOARDING_SLIDES.length-1;
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:500,background:"var(--bg)",display:"flex",flexDirection:"column",justifyContent:"center",padding:"40px 28px",textAlign:"center"}}>
+      <div style={{fontSize:56,marginBottom:22}}>{s.ico}</div>
+      <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:24,color:"var(--text)",marginBottom:12}}>{s.title}</div>
+      <div style={{fontSize:14,color:"var(--muted)",lineHeight:1.6,marginBottom:30}}>{s.body}</div>
+      <div style={{display:"flex",justifyContent:"center",gap:6,marginBottom:26}}>
+        {ONBOARDING_SLIDES.map((_,d)=><div key={d} style={{width:d===i?18:6,height:6,borderRadius:3,background:d===i?"var(--amber)":"var(--s3)",transition:"all .2s"}}/>)}
+      </div>
+      <button className="btn" onClick={()=>last?onDone():setI(v=>v+1)}>{last?"¡Empezar! →":"Siguiente →"}</button>
+      {!last&&<button className="btn-ghost" style={{marginTop:10}} onClick={onDone}>Saltar</button>}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════ INSTALL BANNER (add to home screen) */
+function InstallBanner(){
+  const[show,setShow]=useState(false);
+  const[deferredPrompt,setDeferredPrompt]=useState<any>(null);
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  useEffect(()=>{
+    const isStandalone=window.matchMedia("(display-mode: standalone)").matches||(navigator as any).standalone===true;
+    if(isStandalone||localStorage.getItem("installBannerDismissed"))return;
+    if(isIOS){setShow(true);return;}
+    const handler=(e:any)=>{e.preventDefault();setDeferredPrompt(e);setShow(true);};
+    window.addEventListener("beforeinstallprompt",handler);
+    return()=>window.removeEventListener("beforeinstallprompt",handler);
+  },[]);
+  function dismiss(){localStorage.setItem("installBannerDismissed","1");setShow(false);}
+  if(!show)return null;
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:10,background:"rgba(240,168,50,.1)",border:"1px solid rgba(240,168,50,.3)",borderRadius:14,padding:"10px 12px",margin:"10px 14px 0",fontSize:12,lineHeight:1.4}}>
+      <span style={{fontSize:18,flexShrink:0}}>📲</span>
+      {isIOS
+        ?<span style={{flex:1}}>Añade Podium a tu pantalla de inicio: toca <b>compartir</b> (⬆️) y luego <b>"Añadir a pantalla de inicio"</b>.</span>
+        :<button onClick={async()=>{deferredPrompt?.prompt();await deferredPrompt?.userChoice;dismiss();}} style={{flex:1,textAlign:"left",background:"none",border:"none",color:"var(--text)",fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Instala Podium en tu pantalla de inicio →</button>
+      }
+      <button onClick={dismiss} style={{background:"none",border:"none",color:"var(--muted)",fontSize:14,cursor:"pointer",flexShrink:0}}>✕</button>
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════ MAIN APP */
 function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGroup,onSignOut,onProfileUpdate,onJoinNew}:{user:any;profile:any;group:any;allGroups:any[];onSwitchGroup:(g:any)=>void;onSignOut:()=>void;onProfileUpdate?:(p:any)=>void;onJoinNew?:()=>void}){
   const [profile,setLocalProfile]=useState<any>(profileInit);
   const [group,setGroupLocal]=useState<any>(groupInit);
+  const [showOnboarding,setShowOnboarding]=useState(()=>!localStorage.getItem("onboarded_"+user.id));
   const [tab,setTab]=useState("hoy");
   const [done,setDone]=useState<Record<string,boolean>>({});
   const [saved,setSaved]=useState(false);
@@ -3368,7 +3455,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   }
   async function usePowerSilence(targetId:string){
     const{error}=await sb.from("users").update({silenced_until:todayStr()}).eq("id",targetId);
-    if(error){alert("No se pudo silenciar: "+error.message+"\n(Revisa las políticas RLS — ver supabase_premios_poder_migration.sql)");return;}
+    if(error){console.error("usePowerSilence:",error);alert("No se pudo silenciar a este jugador. Inténtalo de nuevo.");return;}
     await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"silence",target_user_id:targetId});
     await loadPowerUsage();await loadMembers();
   }
@@ -3376,19 +3463,19 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const endsDate=new Date(todayStr()+"T12:00:00");endsDate.setDate(endsDate.getDate()+6);
     const endsAt=endsDate.toISOString().slice(0,10);
     const{error}=await sb.from("users").update({renamed_to:newName,renamed_until:endsAt}).eq("id",targetId);
-    if(error){alert("No se pudo renombrar: "+error.message+"\n(Revisa las políticas RLS — ver supabase_premios_poder_migration.sql)");return;}
+    if(error){console.error("usePowerRename:",error);alert("No se pudo renombrar a este jugador. Inténtalo de nuevo.");return;}
     await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"rename",target_user_id:targetId});
     await loadPowerUsage();await loadMembers();
   }
   async function usePowerEmoji(targetId:string,emoji:string){
     const{error}=await sb.from("users").update({avatar:emoji}).eq("id",targetId);
-    if(error){alert("No se pudo cambiar el emoji: "+error.message+"\n(Revisa las políticas RLS — ver supabase_premios_poder_migration.sql)");return;}
+    if(error){console.error("usePowerEmoji:",error);alert("No se pudo cambiar el emoji de este jugador. Inténtalo de nuevo.");return;}
     await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"emoji",target_user_id:targetId});
     await loadMembers();
   }
   async function usePowerPin(message:string){
     const{error}=await sb.from("groups").update({pinned_message:message,pin_used:true}).eq("id",group.id);
-    if(error){alert("No se pudo fijar el mensaje: "+error.message);return;}
+    if(error){console.error(error);alert("No se pudo fijar el mensaje. Inténtalo de nuevo.");return;}
     await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"pin"});
     setGroupLocal((g:any)=>({...g,pinned_message:message,pin_used:true}));
     await loadPowerUsage();
@@ -3414,7 +3501,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       :{active:true,round:"sf",round_starts:today,round_ends:endsStr,matches:{qf:[],sf:[mk(0,3),mk(1,2)],final:[]}};
     const{error}=await sb.from("groups").update({playoff:po}).eq("id",group.id);
     setStartingPlayoffs(false);
-    if(error){alert("Error: "+error.message+"\n¿Ejecutaste supabase_playoffs_migration.sql?");return;}
+    if(error){console.error("startPlayoffs:",error);alert("No se pudieron iniciar los playoffs. Inténtalo de nuevo.");return;}
     setGroupLocal((g:any)=>({...g,playoff:po}));
     loadPlayoffScores(po);
   }
@@ -3600,7 +3687,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       return[...without,{dispute_id:disputeId,voter_id:user.id,vote:v,created_at:new Date().toISOString()}];
     });
     const{error}=await sb.from("dispute_votes").upsert({dispute_id:disputeId,voter_id:user.id,vote:v},{onConflict:"dispute_id,voter_id"});
-    if(error){alert("No se pudo votar: "+error.message);loadDisputes();}
+    if(error){console.error(error);alert("No se pudo registrar tu voto. Inténtalo de nuevo.");loadDisputes();}
     else loadDisputes();
   }
 
@@ -3686,7 +3773,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     setAdminSavingLiga(true);
     const{error}=await sb.from("groups").update({name:adminGroupName.trim(),emoji:adminGroupEmoji}).eq("id",group.id);
     setAdminSavingLiga(false);
-    if(error){alert("Error: "+error.message);return;}
+    if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;}
     setGroupLocal((g:any)=>({...g,name:adminGroupName.trim(),emoji:adminGroupEmoji}));
   }
 
@@ -3695,7 +3782,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const cfg={name:adminNextName,active_habits:adminNextHabits.length===QUESTIONS.length?null:adminNextHabits};
     const{error}=await sb.from("groups").update({next_season_config:cfg}).eq("id",group.id);
     setAdminSavingNext(false);
-    if(error){alert("Error: "+error.message);return;}
+    if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;}
     setGroupLocal((g:any)=>({...g,next_season_config:cfg}));
   }
 
@@ -3703,7 +3790,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     setAdminSavingSeasonDates(true);
     const{error}=await sb.from("groups").update({season_duration_days:adminSeasonDuration||56,season_end_date:adminSeasonEndDate||null}).eq("id",group.id);
     setAdminSavingSeasonDates(false);
-    if(error){alert("Error: "+error.message);return;}
+    if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;}
     setGroupLocal((g:any)=>({...g,season_duration_days:adminSeasonDuration,season_end_date:adminSeasonEndDate}));
     alert("✅ Fechas de temporada guardadas.");
   }
@@ -3737,7 +3824,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     }
     const{error}=await sb.from("groups").update({habit_pts:Object.keys(diff).length?diff:null}).eq("id",group.id);
     setAdminSavingHabitos(false);
-    if(error){alert("Error: "+error.message);return;}
+    if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;}
     setGroupLocal((g:any)=>({...g,habit_pts:Object.keys(diff).length?diff:null}));
   }
   async function adminSaveBadges(){
@@ -3745,7 +3832,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const allSelected=adminVisibleBadges.length===HOF_BADGES.length;
     const{error}=await sb.from("groups").update({visible_badges:allSelected?null:adminVisibleBadges}).eq("id",group.id);
     setAdminSavingBadges(false);
-    if(error){alert("Error: "+error.message);return;}
+    if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;}
     setGroupLocal((g:any)=>({...g,visible_badges:allSelected?null:adminVisibleBadges}));
   }
   async function adminSaveHabitos(){
@@ -3753,20 +3840,20 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const habitsToSave=configHabits.length===QUESTIONS.length?null:configHabits;
     const{error}=await sb.from("groups").update({active_habits:habitsToSave}).eq("id",group.id);
     setAdminSavingHabitos(false);
-    if(error){alert("Error: "+error.message);return;}
+    if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;}
     setGroupLocal((g:any)=>({...g,active_habits:habitsToSave}));
   }
 
   async function adminSetRole(userId:string,newRole:string){
     const{error}=await sb.from("users").update({role:newRole}).eq("id",userId);
-    if(error){alert("Error: "+error.message);return;}
+    if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;}
     setAdminMembers(prev=>prev.map(m=>m.id===userId?{...m,role:newRole}:m));
   }
 
   async function adminKickMember(userId:string){
     if(!window.confirm("¿Eliminar a este miembro del grupo?"))return;
     const{error}=await sb.from("group_members").delete().eq("group_id",group.id).eq("user_id",userId);
-    if(error){alert("Error: "+error.message);return;}
+    if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;}
     setAdminMembers(prev=>prev.filter(m=>m.id!==userId));
   }
 
@@ -3775,7 +3862,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const habitsToSave=configHabits.length===QUESTIONS.length?null:configHabits;
     const{error}=await sb.from("groups").update({active_habits:habitsToSave}).eq("id",group.id);
     setSavingConfig(false);
-    if(error){alert("Error guardando configuración: "+error.message);return;}
+    if(error){console.error(error);alert("No se pudo guardar la configuración. Inténtalo de nuevo.");return;}
     setGroupLocal(g=>({...g,active_habits:habitsToSave}));
     setShowGroupConfig(false);
   }
@@ -3874,7 +3961,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     if(proofUrl!==undefined)payload.proof_photo_url=proofUrl;
     const{error}=await sb.from("daily_logs").upsert(payload,{onConflict:"user_id,date"});
     setSaving(false);
-    if(error){alert("Error: "+error.message);return;}
+    if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;}
     if(proofUrl)setTodayProofUrl(proofUrl);
     if(comebackDaysLeft>0)setComebackDaysLeft(d=>Math.max(0,d-1));
     setSaved(true); setShowApuntar(false);
@@ -4084,6 +4171,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
 
   return(
     <div className="app">
+      {showOnboarding&&<OnboardingIntro onDone={()=>{localStorage.setItem("onboarded_"+user.id,"1");setShowOnboarding(false);}}/>}
       {/* TOPBAR */}
       <div className="tb">
         <div className="tb-logo">
@@ -4096,9 +4184,11 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
             <span className="gname">{group.emoji} {group.name}</span>
             {allGroups.length>1&&<span style={{fontSize:9,color:"var(--muted)",marginLeft:1}}>▾</span>}
           </div>
-          <div className="bets-chip" onClick={()=>setTab("bets")}><span className="bets-chip-ico">⚡</span>{smartBets.filter(b=>b.status==="betting"||b.status==="locked").length>0&&<span className="bets-chip-n">{smartBets.filter(b=>b.status==="betting"||b.status==="locked").length}</span>}</div>
+          <div className="bets-chip" onClick={()=>setTab("bets")}><span className="bets-chip-ico">⚡</span><span className="bets-chip-lbl">Apuestas</span>{smartBets.filter(b=>b.status==="betting"||b.status==="locked").length>0&&<span className="bets-chip-n">{smartBets.filter(b=>b.status==="betting"||b.status==="locked").length}</span>}</div>
         </div>
       </div>
+
+      <InstallBanner/>
 
       {/* HOY */}
       {tab==="hoy"&&(
@@ -4419,6 +4509,11 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                     <button key={t} onClick={()=>setNewBetType(t)} style={{flex:1,padding:"7px 4px",fontSize:11,fontWeight:700,borderRadius:9,border:`1px solid ${newBetType===t?"var(--amber)":"var(--border)"}`,background:newBetType===t?"rgba(240,168,50,.15)":"var(--s3)",color:newBetType===t?"var(--amber)":"var(--muted)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>{l}</button>
                   ))}
                 </div>
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:6,lineHeight:1.4}}>
+                  {newBetType==="duel_ambito"&&"Dos jugadores compiten a ver quién suma más puntos en una categoría (ej: Deporte) esta semana."}
+                  {newBetType==="duel_habit"&&"Dos jugadores compiten a ver quién repite más veces un hábito concreto (ej: Gym) esta semana."}
+                  {newBetType==="prop"&&"Se apuesta a que sí/no un jugador cumplirá un objetivo (ej: ir al gym 3 veces) esta semana."}
+                </div>
               </div>
               <div style={{marginBottom:8}}>
                 <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>{newBetType==="duel_habit"||newBetType==="prop"?"Hábito":"Ámbito"}</div>
@@ -4482,7 +4577,14 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
           {(betsTab==="activas"
             ?smartBets.filter(b=>b.status==="betting"||b.status==="locked")
             :smartBets.filter(b=>b.status==="won"||b.status==="cancelled")
-          ).length===0&&<div className="empty">{betsTab==="activas"?"No hay apuestas activas.":"No hay historial todavía."}</div>}
+          ).length===0&&(
+            <div className="empty">
+              {betsTab==="activas"?"No hay apuestas activas.":"No hay historial todavía."}
+              <div style={{fontSize:12,color:"var(--muted)",marginTop:6,lineHeight:1.5}}>
+                Aquí puedes apostar tus puntos a que un amigo (o tú) cumple un reto esta semana. {isAdmin?"Pulsa \"+ Nueva\" para crear la primera.":"Pídele al admin que cree una."}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -4530,7 +4632,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
           </div>
 
           {/* PUNTOS POR ÁMBITO */}
-          <span className="section-lbl" style={{display:"block",marginTop:14}}>Puntos por ámbito</span>
+          <span className="section-lbl" style={{display:"block",marginTop:14}}>Puntos por ámbito (categoría de hábitos)</span>
           {AMBITOS.map(a=>{
             const total=ambitoTotals[a.id]||0;
             const maxPossible=Math.max(...Object.values(ambitoTotals),1);
@@ -5215,7 +5317,7 @@ function ResetPasswordScreen({onDone}:{onDone:()=>void}){
     setSaving(true);setMsg("");
     const{error}=await sb.auth.updateUser({password:pw});
     setSaving(false);
-    if(error){setMsg("Error: "+error.message);return;}
+    if(error){console.error(error);setMsg(friendlyAuthError(error.message));return;}
     setOk(true);
     setTimeout(onDone,2000);
   }
@@ -5263,6 +5365,13 @@ export default function Root(){
   const [allGroups,setAllGroups]=useState<any[]>([]);
   const [bootError,setBootError]=useState("");
   const [newUserAuth,setNewUserAuth]=useState<any>(null);
+  const [invitePreview,setInvitePreview]=useState<any>(null);
+
+  useEffect(()=>{
+    const code=new URLSearchParams(window.location.search).get("invite");
+    if(!code)return;
+    sb.rpc("preview_group_by_invite",{invite:code}).then(({data})=>{if(data)setInvitePreview(data);});
+  },[]);
 
   useEffect(()=>{
     const{data:{subscription}}=sb.auth.onAuthStateChange((event,session)=>{
@@ -5282,17 +5391,16 @@ export default function Root(){
     try{
       const{data:prof,error:profErr}=await sb.from("users").select("*").eq("id",user.id).maybeSingle();
       if(profErr){
-        const msg=profErr.message.includes("permission")||profErr.code==="42501"
-          ?"Sin permisos para leer tu perfil (RLS). Detalle: "+profErr.message
-          :"Error cargando perfil: "+profErr.message;
-        setBootError(msg);setAuthUser(null);await sb.auth.signOut();setPhase("auth");return;
+        console.error("loadUserData/profile:",profErr);
+        setBootError("No se pudo cargar tu perfil. Vuelve a intentarlo en unos segundos.");
+        setAuthUser(null);await sb.auth.signOut();setPhase("auth");return;
       }
       setAuthUser(user);
       if(!prof){setNewUserAuth(user);setAuthUser(user);setBootError("");setPhase("auth");return;}
       setProfile(prof);
       // Cargar TODAS las ligas del usuario
       const{data:memberships,error:memErr}=await sb.from("group_members").select("group_id, groups(*)").eq("user_id",user.id);
-      if(memErr){setBootError("Error cargando ligas: "+memErr.message);setPhase("join");return;}
+      if(memErr){console.error("loadUserData/memberships:",memErr);setBootError("No se pudieron cargar tus ligas. Vuelve a intentarlo.");setPhase("join");return;}
       const groups=(memberships||[]).map((m:any)=>m.groups).filter(Boolean);
       setAllGroups(groups);
       if(!groups.length){setPhase("join");return;}
@@ -5302,7 +5410,8 @@ export default function Root(){
       localStorage.setItem("lastGroupId",activeGroup.id);
       setGroup(activeGroup);setPhase("app");
     }catch(e:any){
-      setBootError("Error inesperado: "+(e?.message||String(e)));
+      console.error("loadUserData:",e);
+      setBootError("Algo salió mal al iniciar. Inténtalo de nuevo.");
       await sb.auth.signOut();setPhase("auth");
     }
   }
@@ -5321,7 +5430,7 @@ export default function Root(){
       <div className="app">
         {phase==="loading"&&<Loading text="Iniciando Podium…"/>}
         {phase==="reset"&&<ResetPasswordScreen onDone={()=>setPhase("auth")}/>}
-        {phase==="auth"&&<AuthScreen onAuth={handleAuth} bootError={bootError} newUser={newUserAuth}/>}
+        {phase==="auth"&&<AuthScreen onAuth={handleAuth} bootError={bootError} newUser={newUserAuth} invitePreview={invitePreview}/>}
         {phase==="join"&&authUser&&<JoinScreen userId={authUser.id} onJoin={handleJoin}/>}
         {phase==="app"&&authUser&&profile&&group&&(
           <MainApp
