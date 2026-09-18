@@ -1,15 +1,15 @@
 {
-  "name": "react-ts",
+  "name": "podium",
   "version": "0.0.0",
   "private": true,
   "dependencies": {
-    "@supabase/supabase-js": "^2.103.0",
-    "@types/node": "^25.6.0",
+    "@supabase/supabase-js": "2.103.0",
+    "@types/node": "25.6.0",
     "@types/react": "18.0.8",
     "@types/react-dom": "18.0.2",
     "react": "18.1.0",
     "react-dom": "18.1.0",
-    "typescript": "^6.0.3"
+    "typescript": "6.0.3"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -18,10 +18,10 @@
     "eject": "react-scripts eject"
   },
   "devDependencies": {
-    "@types/web-push": "^3.6.4",
+    "@types/web-push": "3.6.4",
     "react-scripts": "5.0.1",
-    "sharp": "^0.34.5",
-    "web-push": "^3.6.7"
+    "sharp": "0.34.5",
+    "web-push": "3.6.7"
   },
   "engines": {
     "node": "20.x"

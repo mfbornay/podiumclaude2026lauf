@@ -1,5 +1,6 @@
 import webpush from "web-push";
 import { createClient } from "@supabase/supabase-js";
+import { localDate, addDays, parseDay } from "../src/habits";
 
 const sb = createClient(
   process.env.SUPABASE_URL!,
@@ -84,7 +85,9 @@ export default async function handler(req: any, res: any) {
   }
 
   const now = new Date();
-  const today = now.toISOString().split("T")[0];
+  // Día natural español: con la fecha UTC, el aviso nocturno podía compararse contra
+  // el día equivocado respecto al que registran los usuarios.
+  const today = localDate(now);
 
   // ── Monday 7am cron (?weekly=1): send weekly summary only ──────────────
   if (req.query?.weekly === "1") {
@@ -261,26 +264,12 @@ async function sendWeeklySummary(today: string) {
 }
 
 // ─── Date helpers ─────────────────────────────────────────────────────────
-function localDate(d = new Date()) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-function getWeekMonday(dateStr: string) {
-  const d = new Date(dateStr + "T12:00:00");
-  const dow = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - dow);
-  return localDate(d);
-}
 function getPrevMonday(dateStr: string) {
-  const d = new Date(dateStr + "T12:00:00");
-  d.setDate(d.getDate() - 7);
-  const dow = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - dow);
-  return localDate(d);
+  const d = parseDay(addDays(dateStr, -7));
+  return addDays(addDays(dateStr, -7), -((d.getDay() + 6) % 7));
 }
 function getDayBefore(dateStr: string) {
-  const d = new Date(dateStr + "T12:00:00");
-  d.setDate(d.getDate() - 1);
-  return localDate(d);
+  return addDays(dateStr, -1);
 }
 function getWeekNum(d = new Date()) {
   const jan1 = new Date(d.getFullYear(), 0, 1);
