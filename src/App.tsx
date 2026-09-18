@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
+import {
+  QUESTIONS, AMBITOS, STREAK_HABITS,
+  habitPoints, calcPoints,
+  localDate, todayStr, yesterdayStr, parseDay, addDays, daysBetween, calcStreak,
+} from "./habits";
 
 const sb = createClient(
   "https://lrnmvdmlrdhpzgwjbeoc.supabase.co",
@@ -33,6 +38,31 @@ html,body{background:var(--bg);height:100%;color:var(--text)}
   --muted2:#2E2410;
   --glow-amber:0 0 20px rgba(240,168,50,.35);
   --glow-amber-lg:0 0 40px rgba(240,168,50,.25);
+
+  /* Escala tipográfica: un único juego de tamaños para toda la app.
+     Antes cada pantalla elegía su 9/10/11/12px a ojo y nada acababa alineado. */
+  --t-micro:10px;   /* etiquetas en mayúsculas */
+  --t-xs:12px;      /* texto secundario, chips */
+  --t-sm:13px;      /* texto de apoyo */
+  --t-md:15px;      /* cuerpo, botones */
+  --t-lg:19px;      /* títulos de sección */
+  --t-xl:24px;      /* cifras secundarias */
+  --t-2xl:32px;     /* cifras destacadas */
+  --t-hero:72px;    /* la cifra protagonista */
+
+  /* Espaciado en múltiplos de 4 */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
+  --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-10:40px;
+
+  /* Radios y curvas */
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:22px; --r-pill:999px;
+  --ease:cubic-bezier(.22,1,.36,1);
+  --dur-fast:.15s; --dur:.28s; --dur-slow:.5s;
+}
+
+/* Quien prefiera menos animación, menos animación */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
 }
 
 /* ─── APP WRAPPER + AMBIENT DEPTH ─── */
@@ -1240,6 +1270,103 @@ html,body{background:var(--bg);height:100%;color:var(--text)}
 .power-member-row:last-child{border-bottom:none}
 .power-pin-pinned{background:rgba(240,168,50,.08);border:1px solid rgba(240,168,50,.3);border-radius:12px;padding:10px 14px;margin-bottom:10px;font-size:13px;color:var(--text)}
 
+/* ══════════════════════════════════════════════════════════════════
+   SISTEMA VISUAL — utilidades, jerarquía y microinteracciones
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Etiqueta de sección: sustituye a los estilos sueltos de 9/10/11px en mayúsculas */
+.eyebrow{
+  font-size:var(--t-micro);letter-spacing:1.6px;text-transform:uppercase;
+  color:var(--muted);font-weight:700;line-height:1;
+}
+.eyebrow--amber{color:var(--amber)}
+.eyebrow--center{text-align:center}
+
+/* Las cifras usan cifras de ancho fijo: al animarse no bailan */
+.hero-pts,.stat-val,.rpts,.ppts{font-variant-numeric:tabular-nums}
+
+.hero-pts{font-size:var(--t-hero)}
+.hero-lbl{font-size:var(--t-xs)}
+.stat-val{font-size:var(--t-xl)}
+.stat-lbl{font-size:var(--t-micro);letter-spacing:1.2px}
+
+/* Feedback táctil común a todo lo pulsable */
+.press{transition:transform var(--dur-fast) var(--ease)}
+.press:active{transform:scale(.97)}
+
+/* ─── Marcar un hábito: que se note ─── */
+@keyframes habit-pop{
+  0%{transform:scale(1)}
+  40%{transform:scale(1.045)}
+  100%{transform:scale(1)}
+}
+@keyframes check-pop{
+  0%{transform:scale(.4);opacity:0}
+  60%{transform:scale(1.15);opacity:1}
+  100%{transform:scale(1);opacity:1}
+}
+.qi{transition:border-color var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease),box-shadow var(--dur) var(--ease),transform var(--dur-fast) var(--ease)}
+.qi:active:not(.locked){transform:scale(.97)}
+.qi.on{animation:habit-pop var(--dur) var(--ease)}
+.qi.on .qi-chk{animation:check-pop var(--dur) var(--ease)}
+.qi-icon{transition:transform var(--dur) var(--ease)}
+.qi.on .qi-icon{transform:scale(1.12)}
+
+/* ─── Racha ─── */
+@keyframes streak-breathe{
+  0%,100%{box-shadow:0 0 12px rgba(240,168,50,.15)}
+  50%{box-shadow:0 0 22px rgba(240,168,50,.4)}
+}
+.streak{display:inline-flex;align-items:center;gap:6px}
+.streak.alive{animation:streak-breathe 3.2s ease-in-out infinite}
+/* Racha viva pero pendiente de hoy: se muestra apagada, no a cero */
+.streak.pending{
+  background:rgba(240,168,50,.07);
+  border-color:rgba(240,168,50,.2);
+  color:var(--amber-dim);
+  animation:none;
+}
+.streak-hint{font-size:var(--t-micro);font-weight:600;letter-spacing:.3px;opacity:.85}
+
+/* ─── Entrada escalonada del feed ─── */
+@keyframes rise{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:none}
+}
+.stagger>*{animation:rise var(--dur) var(--ease) both}
+.stagger>*:nth-child(1){animation-delay:.02s}
+.stagger>*:nth-child(2){animation-delay:.06s}
+.stagger>*:nth-child(3){animation-delay:.1s}
+.stagger>*:nth-child(4){animation-delay:.14s}
+.stagger>*:nth-child(5){animation-delay:.18s}
+.stagger>*:nth-child(6){animation-delay:.22s}
+.stagger>*:nth-child(n+7){animation-delay:.26s}
+
+/* ─── Estados de carga: esqueleto en vez de "Cargando..." ─── */
+@keyframes sk-shimmer{
+  0%{background-position:-220px 0}
+  100%{background-position:220px 0}
+}
+.sk{
+  background:linear-gradient(90deg,var(--s1) 0%,var(--s2) 40%,var(--s1) 80%);
+  background-size:220px 100%;
+  animation:sk-shimmer 1.3s linear infinite;
+  border-radius:var(--r-md);
+}
+.sk-line{height:12px;margin-bottom:var(--sp-2)}
+.sk-line.w-60{width:60%}
+.sk-line.w-40{width:40%}
+.sk-hero{height:132px;border-radius:var(--r-xl);margin-bottom:var(--sp-3)}
+.sk-row{height:54px;border-radius:var(--r-lg);margin-bottom:var(--sp-2)}
+
+/* ─── Cifra que sube al ganar puntos ─── */
+@keyframes pts-bump{
+  0%{transform:scale(1)}
+  35%{transform:scale(1.08);text-shadow:0 0 50px rgba(240,168,50,.55)}
+  100%{transform:scale(1)}
+}
+.hero-pts.bump{animation:pts-bump var(--dur-slow) var(--ease)}
+
 /* ─── LIGHT MODE (prefers-color-scheme: light) ─── */
 @media (prefers-color-scheme: light) {
   html,body { background: #FAF3E0; }
@@ -1323,7 +1450,7 @@ html,body{background:var(--bg);height:100%;color:var(--text)}
 /* ══════════════════════════════════════════ CONSTANTS */
 const AVATARS = [
   "🐺","🦁","🐻","🦊","🐯","🦅","🐬","🦋","🐉","🦈","🐆","🦉",
-  "🦒","🐘","🦏","🦍","🐊","🦜","🦩","🦚","🐺","🦇","🐝","🦋",
+  "🦒","🐘","🦏","🦍","🐊","🦜","🦩","🦚","🦌","🦇","🐝","🐢",
   "🧠","👾","🤖","👻","🎭","🔥","⚡","🌊","🌪","🎯","💎","🏔",
   "🚀","🛸","🌙","☀️","⭐","🌈","🎪","🎨","🎸","🎺","🥊","🏹",
 ];
@@ -1340,29 +1467,6 @@ const ALL_REACTION_EMOJIS = [
   "👨‍🚒","🪖","💂","🧑‍✈️","⚓","🦺",
   // Animales fuertes / grandes
   "🦁","🐻","🦊","🦅","🐺","🦈","🐗","🦏","🦍","🐅","🦬","🐉","🦂","🦖",
-];
-const QUESTIONS = [
-  { id:"gym",icon:"💪",name:"Gym / Fuerza",pts:10 },
-  { id:"running",icon:"🏃",name:"Running",pts:8 },
-  { id:"sport",icon:"🎾",name:"Deporte grupo",pts:6 },
-  { id:"quedada",icon:"🍻",name:"Quedada amigos",pts:5 },
-  { id:"familia",icon:"🏠",name:"Plan familiar",pts:4 },
-  { id:"food",icon:"🥗",name:"Comida limpia",pts:4 },
-  { id:"screen_good",icon:"📵",name:"Redes sociales <2h",pts:4 },
-  { id:"no_alcohol",icon:"🍺",name:"Sin alcohol (finde)",pts:2 },
-  { id:"sin_movil",icon:"🌅",name:"Sin móvil al despertar",pts:1 },
-  { id:"vitamina_d",icon:"☀️",name:"Tomar el sol 20'",pts:1 },
-  { id:"pareja",icon:"❤️",name:"Plan de pareja",pts:3 },
-  { id:"book",icon:"📚",name:"Lectura 30min",pts:3 },
-  { id:"course",icon:"📖",name:"Estudio/Curso",pts:4 },
-  { id:"podcast",icon:"🎧",name:"Podcast educ.",pts:2 },
-  { id:"meditation",icon:"😴",name:"Sueño +8h",pts:3 },
-];
-const AMBITOS=[
-  {id:"deporte",label:"Deporte",icon:"💪",color:"#F0A832",habits:["gym","running","sport"]},
-  {id:"social",label:"Social",icon:"🍻",color:"#F2667A",habits:["quedada","familia","pareja"]},
-  {id:"salud",label:"Salud",icon:"🥗",color:"#5DC98A",habits:["food","screen_good","no_alcohol","sin_movil","vitamina_d","meditation"]},
-  {id:"cultura",label:"Cultura",icon:"📚",color:"#5B8DEF",habits:["book","course","podcast"]},
 ];
 const REACTION_EMOJIS = ALL_REACTION_EMOJIS.slice(0,5); // primeros 5 como "defaults" para streak cards, etc.
 const STREAK_MILESTONES = [3,7,14,21,30];
@@ -1386,11 +1490,20 @@ type FeedDisputeItem = { type:"dispute";ref:string;dispute:Dispute;created_at:st
 type FeedItem = FeedLogItem|FeedStreakItem|FeedBetItem|FeedDisputeItem;
 
 /* ══════════════════════════════════════════ UTILS */
-function localDate(d=new Date()){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
-function todayStr(){ return localDate(); }
-function yesterdayStr(){ const d=new Date();d.setDate(d.getDate()-1);return localDate(d); }
-function disputePenalty(habitId:string,habitPtsOverride?:Record<string,number>){ const q=QUESTIONS.find(x=>x.id===habitId);if(!q)return 0;return habitPtsOverride?.[habitId]??q.pts; }
-function calcPts(done:Record<string,boolean>){ return QUESTIONS.reduce((s,q)=>done[q.id]?s+q.pts:s,0); }
+/* El @usuario se traduce a email en el servidor (/api/resolve-username), con límite de
+   intentos por IP. La función equivalente de Postgres era pública y sin protección. */
+async function resolveEmailFromUsername(raw:string):Promise<string|null>{
+  const uname=raw.replace("@","").toLowerCase().trim();
+  if(!uname)return null;
+  try{
+    const r=await fetch(`/api/resolve-username?u=${encodeURIComponent(uname)}`);
+    if(!r.ok)return null;
+    const j=await r.json();
+    return j?.email||null;
+  }catch(e){console.error("resolve-username:",e);return null;}
+}
+function disputePenalty(habitId:string,habitPtsOverride?:Record<string,number>){ return habitPoints(habitId,habitPtsOverride); }
+function calcPts(done:Record<string,boolean>,override?:Record<string,number>|null){ return calcPoints(done,override); }
 function relTime(iso:string){ const m=Math.floor((Date.now()-new Date(iso).getTime())/60000);if(m<1)return"ahora";if(m<60)return`${m}m`;const h=Math.floor(m/60);if(h<24)return`${h}h`;return`${Math.floor(h/24)}d`; }
 function getWeekNum(d=new Date()){const jan1=new Date(d.getFullYear(),0,1);return Math.ceil(((d.getTime()-jan1.getTime())/86400000+jan1.getDay()+1)/7);}
 function getMondayStr(){const d=new Date();const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);return localDate(d);}
@@ -1425,6 +1538,46 @@ function Loading({text="Cargando..."}:{text?:string}){
   return <div className="loading"><div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}><svg width="28" height="22" viewBox="0 0 20 16" fill="none"><rect x="6" y="3" width="8" height="13" rx="2" fill="var(--amber)"/><rect x="0" y="7" width="6" height="9" rx="2" fill="#9B9B9B" opacity=".9"/><rect x="14" y="9" width="6" height="7" rx="2" fill="#CD7F32"/></svg><span style={{fontFamily:"'Playfair Display',serif",fontStyle:"italic",fontWeight:900,fontSize:30,color:"var(--text)"}}>Podium</span></div><div className="spin"/><div className="loading-txt">{text}</div></div>;
 }
 
+/* Esqueleto de la pantalla de inicio: se ve la forma de lo que va a llegar,
+   en vez de un "Cargando..." que no dice nada. */
+function HomeSkeleton(){
+  return(
+    <div style={{padding:"0 2px"}}>
+      <div className="sk sk-hero"/>
+      <div className="sk sk-line w-40" style={{marginTop:18}}/>
+      <div className="sk sk-row"/><div className="sk sk-row"/><div className="sk sk-row"/>
+    </div>
+  );
+}
+
+/* Cifra que sube hasta su valor: da sensación de progreso al sumar puntos. */
+function CountUp({value,className,duration=600}:{value:number;className?:string;duration?:number}){
+  const [shown,setShown]=useState(value);
+  const fromRef=useRef(value);
+  const [bump,setBump]=useState(false);
+  useEffect(()=>{
+    const from=fromRef.current;
+    if(from===value){setShown(value);return;}
+    const sinAnimacion=(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches)||document.hidden;
+    if(sinAnimacion){fromRef.current=value;setShown(value);return;}
+    const start=performance.now();
+    let raf=0;
+    const step=(t:number)=>{
+      const p=Math.min(1,(t-start)/duration);
+      const eased=1-Math.pow(1-p,3);
+      setShown(Math.round(from+(value-from)*eased));
+      if(p<1)raf=requestAnimationFrame(step);
+      else{fromRef.current=value;if(value>from){setBump(true);setTimeout(()=>setBump(false),500);}}
+    };
+    raf=requestAnimationFrame(step);
+    // Si la pestaña se oculta a mitad, requestAnimationFrame se pausa: este respaldo
+    // garantiza que la cifra acabe mostrando el valor real y no se quede congelada.
+    const failsafe=setTimeout(()=>{fromRef.current=value;setShown(value);},duration+500);
+    return()=>{cancelAnimationFrame(raf);clearTimeout(failsafe);};
+  },[value,duration]);
+  return <div className={`${className||""}${bump?" bump":""}`}>{shown}</div>;
+}
+
 /* ══════════════════════════════════════════ AUTH */
 function AuthScreen({onAuth,bootError,newUser,invitePreview}:{onAuth:(u:any)=>void;bootError?:string;newUser?:any;invitePreview?:any}){
   const [phase,setPhase]=useState<"login"|"register"|"profile"|"reset">(newUser?"profile":"login");
@@ -1454,8 +1607,7 @@ function AuthScreen({onAuth,bootError,newUser,invitePreview}:{onAuth:(u:any)=>vo
     let resolvedEmail=raw.toLowerCase();
     // Si no tiene @ es un username — buscar el email
     if(!raw.includes("@")){
-      const uname=raw.replace("@","").toLowerCase();
-      const{data:found}=await sb.rpc("get_email_by_username",{uname});
+      const found=await resolveEmailFromUsername(raw);
       if(!found){setBusy(false);setErr("No encontramos ese usuario. ¿Tienes cuenta?");return;}
       resolvedEmail=found;
     }
@@ -1471,7 +1623,7 @@ function AuthScreen({onAuth,bootError,newUser,invitePreview}:{onAuth:(u:any)=>vo
     setBusy(true);setErr("");
     let resolvedEmail=raw.toLowerCase();
     if(!raw.includes("@")){
-      const{data:found}=await sb.rpc("get_email_by_username",{uname:raw.replace("@","").toLowerCase()});
+      const found=await resolveEmailFromUsername(raw);
       if(!found){setBusy(false);setErr("No encontramos ese usuario.");return;}
       resolvedEmail=found;
     }
@@ -1652,9 +1804,11 @@ function JoinScreen({userId,onJoin}:{userId:string;onJoin:(g:any)=>void}){
   }
   async function create(){
     if(!gname.trim())return; setBusy(true);setErr("");
-    const{data:group,error}=await sb.from("groups").insert({name:gname.trim(),created_by:userId,emoji:"🏆",color:"#F0A832",season_weeks:8}).select().single();
-    if(error){console.error("create group:",error);setErr("No se pudo crear el grupo. Inténtalo de nuevo.");setBusy(false);return;}
-    await sb.from("group_members").insert({group_id:group.id,user_id:userId});
+    // El grupo y su primer miembro se crean juntos en el servidor. Hacerlo desde el
+    // cliente fallaba: al pedir de vuelta la fila recién insertada, la policy de
+    // lectura exige ser miembro del grupo y todavía no lo eras.
+    const{data:group,error}=await sb.rpc("create_group",{p_name:gname.trim()});
+    if(error||!group){console.error("create group:",error);setErr(error?.message||"No se pudo crear el grupo. Inténtalo de nuevo.");setBusy(false);return;}
     onJoin(group);
   }
   return(
@@ -1751,12 +1905,12 @@ function DisputeModal({user,group,disputedUserId,onClose,onCreated,members}:{use
         {yLog&&habitsDone.length>0&&<>
           {yProofUrl&&(
             <div style={{marginBottom:12}}>
-              <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:"var(--amber)",fontWeight:700,marginBottom:6}}>📷 Prueba del disputado</div>
+              <div className="eyebrow eyebrow--amber" style={{marginBottom:6}}>📷 Prueba del disputado</div>
               <img src={yProofUrl} alt="prueba" style={{width:"100%",maxHeight:200,objectFit:"cover",borderRadius:12,border:"1px solid rgba(240,168,50,.3)",cursor:"pointer"}} onClick={()=>window.open(yProofUrl,"_blank")}/>
             </div>
           )}
           {!yProofUrl&&<div style={{fontSize:11,color:"var(--muted)",background:"var(--s2)",borderRadius:8,padding:"7px 10px",marginBottom:10}}>⚠️ Sin foto de prueba adjunta para este día.</div>}
-          <div style={{fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginBottom:10,fontWeight:700}}>¿Qué hábito quieres disputar?</div>
+          <div className="eyebrow" style={{marginBottom:10}}>¿Qué hábito quieres disputar?</div>
           <div className="dispute-grid">
             {habitsDone.map(q=>(
               <div key={q.id} className={"dispute-grid-card"+(selHabit===q.id?" sel":"")} onClick={()=>setSelHabit(q.id)}>
@@ -2047,7 +2201,7 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
 }
 
 /* ══════════════════════════════════════════ TODAY BANNER */
-function TodayBanner({weekPts,streak,saved,done,onApuntar,myPos,weekDays}:{weekPts:number;streak:number;saved:boolean;done:Record<string,boolean>;onApuntar:()=>void;myPos:number;weekDays:boolean[]}){
+function TodayBanner({weekPts,streak,streakPending,saved,done,onApuntar,myPos,weekDays}:{weekPts:number;streak:number;streakPending?:boolean;saved:boolean;done:Record<string,boolean>;onApuntar:()=>void;myPos:number;weekDays:boolean[]}){
   const now=new Date();
   const dow=(now.getDay()+6)%7; // 0=Mon
   const dayName=now.toLocaleDateString("es-ES",{weekday:"long"}).replace(/^./,c=>c.toUpperCase());
@@ -2058,14 +2212,19 @@ function TodayBanner({weekPts,streak,saved,done,onApuntar,myPos,weekDays}:{weekP
     <div className="today-banner">
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
         <div>
-          <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:4}}>Semana {weekNum} · {dayName}</div>
-          <div className="hero-pts">{Math.max(0,weekPts)}</div>
+          <div className="eyebrow" style={{marginBottom:6}}>Semana {weekNum} · {dayName}</div>
+          <CountUp className="hero-pts" value={Math.max(0,weekPts)}/>
           <div className="hero-lbl">pts esta semana</div>
         </div>
         <div style={{textAlign:"right"}}>
-          <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:2}}>Posición</div>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:30,fontWeight:900,color:"var(--text)",lineHeight:1}}>#{myPos||"—"}</div>
-          {streak>0&&<div className="streak" style={{marginTop:5,display:"inline-block"}}>🔥 {streak} días deporte</div>}
+          <div className="eyebrow" style={{marginBottom:4}}>Posición</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:"var(--t-2xl)",fontWeight:900,color:"var(--text)",lineHeight:1}}>#{myPos||"—"}</div>
+          {streak>0&&(
+            <div className={`streak ${streakPending?"pending":"alive"}`} style={{marginTop:8}}>
+              <span>🔥 {streak}</span>
+              <span className="streak-hint">{streakPending?"sigue hoy":"días deporte"}</span>
+            </div>
+          )}
         </div>
       </div>
       <div className="day-grid">
@@ -2081,11 +2240,11 @@ function TodayBanner({weekPts,streak,saved,done,onApuntar,myPos,weekDays}:{weekP
         })}
       </div>
       {saved
-        ?<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginTop:10}}>
-           <span style={{fontSize:12,color:"var(--green)",fontWeight:700,letterSpacing:.5}}>✓ +{todayPts} pts guardados</span>
-           <button onClick={onApuntar} style={{fontSize:11,background:"none",border:"1px solid var(--border)",borderRadius:8,color:"var(--muted)",padding:"3px 10px",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Editar</button>
+        ?<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginTop:12}}>
+           <span style={{fontSize:"var(--t-xs)",color:"var(--green)",fontWeight:700,letterSpacing:.5}}>✓ +{todayPts} pts guardados</span>
+           <button className="press" onClick={onApuntar} style={{fontSize:"var(--t-xs)",background:"none",border:"1px solid var(--border)",borderRadius:"var(--r-sm)",color:"var(--muted)",padding:"4px 10px",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Editar</button>
          </div>
-        :<button className="apuntar-btn" onClick={onApuntar} style={{marginTop:10}}>＋ Apuntar día</button>}
+        :<button className="apuntar-btn press" onClick={onApuntar} style={{marginTop:12}}>＋ Apuntar día</button>}
     </div>
   );
 }
@@ -2134,8 +2293,12 @@ function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits,use
       <div className="sheet" style={{maxHeight:"88vh"}} onClick={e=>e.stopPropagation()}>
         <div className="handle"/>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:"var(--text)"}}>¿Qué has hecho hoy?</div>
-          {anyDone&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:900,color:"var(--amber)"}}>+{pts} pts</div>}
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:"var(--t-lg)",fontWeight:900,color:"var(--text)"}}>¿Qué has hecho hoy?</div>
+          {anyDone&&(
+            <div style={{display:"flex",alignItems:"baseline",gap:4,fontFamily:"'Playfair Display',serif",fontSize:"var(--t-xl)",fontWeight:900,color:"var(--amber)"}}>
+              <span>+</span><CountUp value={pts} duration={400}/><span style={{fontSize:"var(--t-sm)"}}>pts</span>
+            </div>
+          )}
         </div>
         {AMBITOS.map(a=>{
           const aHabits=groupHabits.filter(q=>a.habits.includes(q.id as any));
@@ -2147,7 +2310,7 @@ function ApuntarModal({done,saved,saving,onToggle,onSave,onClose,groupHabits,use
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
                   <div style={{width:8,height:8,borderRadius:"50%",background:a.color}}/>
-                  <span style={{fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:a.color}}>{a.icon} {a.label}</span>
+                  <span className="eyebrow" style={{color:a.color}}>{a.icon} {a.label}</span>
                 </div>
                 <span style={{fontSize:11,color:"var(--muted)"}}>{earnedPts} / {maxPts} pts</span>
               </div>
@@ -2417,7 +2580,7 @@ function SmartBetCard({bet,userId,myPts,weekAmbitoPts,weekHabitCounts,adjRanking
       {/* Admin controls */}
       {isAdmin&&(isLocked||isBetting)&&onAdminResolve&&(
         <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--border)"}}>
-          <div style={{fontSize:9,color:"var(--amber)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>⚙️ Admin — resolver</div>
+          <div className="eyebrow eyebrow--amber" style={{marginBottom:6}}>⚙️ Admin — resolver</div>
           <div style={{display:"flex",gap:6}}>
             <button className="bet-btn" style={{borderColor:"rgba(93,201,138,.3)",color:"var(--green)"}} onClick={()=>onAdminResolve(bet.id,1)}>✓ Gana {s1label}</button>
             <button className="bet-btn" style={{borderColor:"rgba(93,201,138,.3)",color:"var(--green)"}} onClick={()=>onAdminResolve(bet.id,2)}>✓ Gana {s2label}</button>
@@ -2497,7 +2660,7 @@ function FeedCard({item,userId,members,reactions,onReact,disputeVotes,totalMembe
         <div className="feed-head">
           <div className="feed-avi">{who.avatar}</div>
           <div style={{flex:1,minWidth:0}}><div className="feed-name">{isMe?"Tú":who.name}</div><div className="feed-when">{relTime(item.created_at)}</div></div>
-          <div style={{background:"rgba(240,168,50,.15)",border:"1px solid rgba(240,168,50,.3)",borderRadius:20,padding:"3px 10px",fontSize:10,fontWeight:700,color:"var(--amber)",letterSpacing:1,textTransform:"uppercase",flexShrink:0}}>Racha</div>
+          <div className="eyebrow eyebrow--amber" style={{background:"rgba(240,168,50,.15)",border:"1px solid rgba(240,168,50,.3)",borderRadius:20,padding:"3px 10px",flexShrink:0}}>Racha</div>
         </div>
         <div className="feed-streak-wrap">
           <div className="feed-streak-num">🔥{item.streak}</div>
@@ -2607,11 +2770,11 @@ function Feed({user,group,members,disputes,disputeVotes,smartBets,reactions,onRe
   }
   items.sort((a,b)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime());
 
-  if(loading)return <div style={{textAlign:"center",padding:"28px 0",color:"var(--muted)",fontSize:13}}>Cargando actividad…</div>;
+  if(loading)return <div className="feed"><div className="sk sk-row"/><div className="sk sk-row"/><div className="sk sk-row"/></div>;
   if(items.length===0)return <div className="feed-empty">No hay actividad reciente.<br/>¡Apunta tu primer día y aparecerás aquí!</div>;
   return(
-    <div className="feed">
-      <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",fontWeight:500,marginBottom:2}}>Actividad reciente</div>
+    <div className="feed stagger">
+      <div className="eyebrow" style={{marginBottom:2}}>Actividad reciente</div>
       {items.map(item=>(
         <FeedCard key={item.ref} item={item} userId={user.id} members={members} reactions={reactions} onReact={onReact} disputeVotes={disputeVotes} totalMembers={totalMembers} onSendToChat={onSendToChat} onVote={onVote} onDispute={onDispute} myPts={myPts}/>
       ))}
@@ -2688,7 +2851,7 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
 
         {/* Puntos por ámbito */}
         {!loadingLogs&&Object.keys(ambitoTotals).length>0&&<>
-          <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",marginBottom:8}}>Puntos por ámbito (categoría de hábitos)</div>
+          <div className="eyebrow" style={{marginBottom:8}}>Puntos por ámbito (categoría de hábitos)</div>
           {AMBITOS.map(a=>{
             const total=ambitoTotals[a.id]||0;
             return(<div key={a.id} className="ambito-bar-wrap">
@@ -2708,7 +2871,7 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
 
         {/* Récords — solo si tiene alguno */}
         {!loadingLogs&&hasRecords&&<>
-          <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",margin:"12px 0 6px"}}>📊 Récords</div>
+          <div className="eyebrow" style={{margin:"12px 0 6px"}}>📊 Récords</div>
           {[...CARDIO_REC,...GYM_REC].filter(r=>userRecs[r.key]).map(r=>(
             <div key={r.key} className="records-row">
               <div className="records-label">{r.label}</div>
@@ -2727,7 +2890,7 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
           });
           if(!myMedals.length)return null;
           return(<>
-            <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",margin:"14px 0 8px"}}>🏆 Legado</div>
+            <div className="eyebrow" style={{margin:"14px 0 8px"}}>🏆 Legado</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:4}}>
               {myMedals.map((m,i)=>(
                 <div key={i} style={{background:"var(--s2)",border:`1px solid ${m.pos===1?"rgba(240,168,50,.3)":m.pos===2?"rgba(180,180,180,.25)":"rgba(200,120,50,.2)"}`,borderRadius:10,padding:"8px 12px",display:"flex",alignItems:"center",gap:8}}>
@@ -2742,7 +2905,7 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
           </>);
         })()}
         {isMe&&<div className="invite" style={{marginTop:16}}>
-          <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:4}}>Código — {group.name}</div>
+          <div className="eyebrow" style={{marginBottom:4}}>Código — {group.name}</div>
           <div className="invite-code">{group.invite_code}</div>
           <div className="invite-sub">Comparte con tus amigos</div>
         </div>}
@@ -2969,7 +3132,7 @@ function PlayoffBracket({playoff,members,scores}:{playoff:Playoff;members:Record
         <div style={{textAlign:"center",marginTop:12,padding:"12px",background:"rgba(240,168,50,.1)",border:"1px solid rgba(240,168,50,.4)",borderRadius:14}}>
           <div style={{fontSize:34}}>{members[playoff.champion]?.avatar||"👑"}</div>
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:"var(--amber)"}}>{members[playoff.champion]?.name||"?"}</div>
-          <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",marginTop:2}}>Campeón de la temporada</div>
+          <div className="eyebrow" style={{marginTop:2}}>Campeón de la temporada</div>
         </div>
       )}
     </div>
@@ -3208,7 +3371,7 @@ function PowersModal({user,group,members,powerUsage,onSilence,onRename,onEmoji,o
                   <div>
                     {pinUsed&&(group as any).pinned_message&&(
                       <div className="power-pin-pinned">
-                        <div style={{fontSize:10,color:"var(--amber)",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>📌 Mensaje fijado actual</div>
+                        <div className="eyebrow eyebrow--amber" style={{marginBottom:4}}>📌 Mensaje fijado actual</div>
                         {(group as any).pinned_message}
                       </div>
                     )}
@@ -3292,6 +3455,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   const [comebackDaysLeft,setComebackDaysLeft]=useState(0);
   const [ranking,setRanking]=useState<any[]>([]);
   const [streak,setStreak]=useState(0);
+  const [streakPending,setStreakPending]=useState(false);
   const [loadingRank,setLR]=useState(false);
   const [smartBets,setSmartBets]=useState<SmartBet[]>([]);
   const [betsTab,setBT]=useState<"activas"|"historial">("activas");
@@ -3453,30 +3617,31 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const{data}=await sb.from("power_usage").select("*").eq("holder_id",user.id).eq("group_id",group.id);
     setPowerUsage(data||[]);
   }
+  // Los poderes pasan por apply_power: la función comprueba en el servidor que quien
+  // los usa es el campeón del grupo y solo toca los campos del poder concreto. Antes
+  // eran UPDATE directos amparados en una policy que permitía escribir cualquier
+  // columna de cualquier compañero.
+  async function usePower(power:"silence"|"rename"|"emoji"|"pin",targetId:string|null,text?:string,until?:string){
+    const{error}=await sb.rpc("apply_power",{
+      p_group_id:group.id,p_target:targetId,p_power:power,p_text:text??null,p_until:until??null
+    });
+    if(error){console.error("apply_power:",error);alert(error.message||"No se pudo usar el poder. Inténtalo de nuevo.");return false;}
+    return true;
+  }
   async function usePowerSilence(targetId:string){
-    const{error}=await sb.from("users").update({silenced_until:todayStr()}).eq("id",targetId);
-    if(error){console.error("usePowerSilence:",error);alert("No se pudo silenciar a este jugador. Inténtalo de nuevo.");return;}
-    await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"silence",target_user_id:targetId});
+    if(!await usePower("silence",targetId,undefined,todayStr()))return;
     await loadPowerUsage();await loadMembers();
   }
   async function usePowerRename(targetId:string,newName:string){
-    const endsDate=new Date(todayStr()+"T12:00:00");endsDate.setDate(endsDate.getDate()+6);
-    const endsAt=endsDate.toISOString().slice(0,10);
-    const{error}=await sb.from("users").update({renamed_to:newName,renamed_until:endsAt}).eq("id",targetId);
-    if(error){console.error("usePowerRename:",error);alert("No se pudo renombrar a este jugador. Inténtalo de nuevo.");return;}
-    await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"rename",target_user_id:targetId});
+    if(!await usePower("rename",targetId,newName,addDays(todayStr(),6)))return;
     await loadPowerUsage();await loadMembers();
   }
   async function usePowerEmoji(targetId:string,emoji:string){
-    const{error}=await sb.from("users").update({avatar:emoji}).eq("id",targetId);
-    if(error){console.error("usePowerEmoji:",error);alert("No se pudo cambiar el emoji de este jugador. Inténtalo de nuevo.");return;}
-    await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"emoji",target_user_id:targetId});
-    await loadMembers();
+    if(!await usePower("emoji",targetId,emoji))return;
+    await loadPowerUsage();await loadMembers();
   }
   async function usePowerPin(message:string){
-    const{error}=await sb.from("groups").update({pinned_message:message,pin_used:true}).eq("id",group.id);
-    if(error){console.error(error);alert("No se pudo fijar el mensaje. Inténtalo de nuevo.");return;}
-    await sb.from("power_usage").insert({holder_id:user.id,group_id:group.id,power:"pin"});
+    if(!await usePower("pin",null,message))return;
     setGroupLocal((g:any)=>({...g,pinned_message:message,pin_used:true}));
     await loadPowerUsage();
   }
@@ -3646,7 +3811,10 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
 
   async function loadDisputes(){
     if(!group?.id)return;
-    const since=new Date(Date.now()-48*3600*1000).toISOString();
+    // Las penalizaciones por disputa se recalculan aquí en cada carga, así que la
+    // ventana debe cubrir la temporada entera: con las 48h anteriores, el castigo
+    // desaparecía del ranking a los dos días aunque la disputa siguiera perdida.
+    const since=`${group.start_date||addDays(todayStr(),-365)}T00:00:00`;
     const{data:ds}=await sb.from("disputes").select("*").eq("group_id",group.id).gte("created_at",since).order("created_at",{ascending:false});
     setDisputes((ds||[]) as Dispute[]);
     if(ds&&ds.length){
@@ -3845,8 +4013,11 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   }
 
   async function adminSetRole(userId:string,newRole:string){
-    const{error}=await sb.from("users").update({role:newRole}).eq("id",userId);
-    if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;}
+    // El cambio de rol pasa por el servidor (valida que eres admin de ESTE grupo y
+    // lo deja registrado en admin_audit). Escribir users.role desde el cliente ya no
+    // está permitido: cualquiera podía hacerse admin con una llamada directa.
+    const{error}=await sb.rpc("set_member_role",{p_group_id:group.id,p_user:userId,p_role:newRole});
+    if(error){console.error("set_member_role:",error);alert(error.message||"Algo salió mal. Inténtalo de nuevo.");return;}
     setAdminMembers(prev=>prev.map(m=>m.id===userId?{...m,role:newRole}:m));
   }
 
@@ -3878,18 +4049,24 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
 
   async function loadToday(){
     const{data}=await sb.from("daily_logs").select("*").eq("user_id",user.id).eq("date",todayStr()).maybeSingle();
-    if(!data)return; setSaved(true);
-    const d:Record<string,boolean>={};
-    QUESTIONS.forEach(q=>{if((data as any)[q.id])d[q.id]=true;});
-    setDone(d);
-    setTodayProofUrl((data as any).proof_photo_url||null);
-    // Load comeback state
-    const{data:uRow}=await sb.from("users").select("comeback_ends_at").eq("id",user.id).single();
-    if(uRow?.comeback_ends_at&&todayStr()<=uRow.comeback_ends_at){
-      const today=new Date(todayStr()+"T12:00:00");
-      const ends=new Date(uRow.comeback_ends_at+"T12:00:00");
-      setComebackDaysLeft(Math.round((ends.getTime()-today.getTime())/86400000)+1);
+    if(data){
+      setSaved(true);
+      const d:Record<string,boolean>={};
+      QUESTIONS.forEach(q=>{if((data as any)[q.id])d[q.id]=true;});
+      setDone(d);
+      setTodayProofUrl((data as any).proof_photo_url||null);
     }
+    // El estado del comeback se carga siempre, también si hoy aún no has apuntado
+    // (antes el return temprano lo dejaba sin cargar justo cuando hacía falta verlo).
+    await refreshProfile();
+  }
+  async function refreshProfile(){
+    const{data:uRow}=await sb.from("users").select("*").eq("id",user.id).maybeSingle();
+    if(!uRow)return;
+    setLocalProfile((p:any)=>({...p,...uRow}));
+    const today=todayStr();
+    setComebackDaysLeft(uRow.comeback_ends_at&&today<=uRow.comeback_ends_at
+      ?Math.max(0,daysBetween(today,uRow.comeback_ends_at)+1):0);
   }
   function getWeekMonday(dateStr:string){const d=new Date(dateStr+"T12:00:00");const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);return localDate(d);}
 
@@ -3925,45 +4102,34 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     setLR(false);
   }
   async function loadStreak(){
-    // Racha solo cuenta días con al menos 1 hábito de Deporte (gym, running, sport)
-    const{data}=await sb.from("daily_logs").select("date,gym,running,sport").eq("user_id",user.id).order("date",{ascending:false}).limit(90);
-    if(!data?.length)return;
-    const deporteDays=data.filter((r:any)=>r.gym||r.running||r.sport);
-    let s=0; const today=new Date();today.setHours(0,0,0,0);
-    const dates=deporteDays.map((r:any)=>{const d=new Date(r.date);d.setHours(0,0,0,0);return d.getTime();});
-    for(let i=0;i<90;i++){const exp=new Date(today);exp.setDate(today.getDate()-i);if(dates.includes(exp.getTime()))s++;else break;}
-    setStreak(s);
+    // Racha = días consecutivos con al menos 1 hábito de Deporte (gym, running, sport).
+    // Si hoy aún no has apuntado, la racha sigue viva y se marca como pendiente.
+    const{data}=await sb.from("daily_logs").select("date,gym,running,sport").eq("user_id",user.id).order("date",{ascending:false}).limit(400);
+    const dias=new Set<string>((data||[]).filter((r:any)=>STREAK_HABITS.some(h=>r[h])).map((r:any)=>r.date as string));
+    const{days,pendingToday}=calcStreak(dias);
+    setStreak(days); setStreakPending(pendingToday);
   }
   async function saveDay(proofUrl?:string){
     const anyDone=Object.values(done).some(Boolean);
     if(!anyDone||saving)return; setSaving(true);
-    // ── Comeback Bonus ──────────────────────────────────────────
-    let comebackActive=comebackDaysLeft>0;
-    if(!comebackActive){
-      const{data:prevLog}=await sb.from("daily_logs").select("date").eq("user_id",user.id).eq("group_id",group.id).lt("date",todayStr()).order("date",{ascending:false}).limit(1).maybeSingle();
-      if(prevLog?.date){
-        const gap=Math.round((new Date(todayStr()+"T12:00:00").getTime()-new Date(prevLog.date+"T12:00:00").getTime())/86400000);
-        if(gap>=3){
-          comebackActive=true;
-          const bonusDays=Math.floor(gap/2);
-          const endsDate=new Date(todayStr()+"T12:00:00");endsDate.setDate(endsDate.getDate()+bonusDays-1);
-          const endsAt=endsDate.toISOString().slice(0,10);
-          await sb.from("users").update({comeback_ends_at:endsAt}).eq("id",user.id);
-          setComebackDaysLeft(bonusDays);
-        }
-      }
-    }
-    // ────────────────────────────────────────────────────────────
+    // El bonus de comeback lo decide y activa el servidor en una sola operación
+    // (antes era leer-calcular-escribir desde el cliente, sobre una columna que
+    // además no existía en la tabla, así que nunca llegaba a guardarse).
+    const today=todayStr();
+    let comebackEnds:string|null=null;
+    const{data:cb}=await sb.rpc("comeback_check",{p_group_id:group.id});
+    if(typeof cb==="string")comebackEnds=cb;
+    const comebackActive=!!comebackEnds&&today<=comebackEnds;
     let actualPts=groupHabits.reduce((s,q)=>done[q.id]?s+q.pts:s,0);
     if(comebackActive)actualPts=Math.floor(actualPts*1.5);
-    const payload:any={user_id:user.id,group_id:group.id,date:todayStr(),total_pts:actualPts};
+    const payload:any={user_id:user.id,group_id:group.id,date:today,total_pts:actualPts};
     QUESTIONS.forEach(q=>{payload[q.id]=!!done[q.id];});
     if(proofUrl!==undefined)payload.proof_photo_url=proofUrl;
     const{error}=await sb.from("daily_logs").upsert(payload,{onConflict:"user_id,date"});
     setSaving(false);
     if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;}
     if(proofUrl)setTodayProofUrl(proofUrl);
-    if(comebackDaysLeft>0)setComebackDaysLeft(d=>Math.max(0,d-1));
+    setComebackDaysLeft(comebackEnds?Math.max(0,daysBetween(today,comebackEnds)+1):0);
     setSaved(true); setShowApuntar(false);
     loadRanking(); loadStreak(); loadWeekDays();
   }
@@ -3992,7 +4158,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   async function loadSmartBets(){
     const{data}=await sb.from("bets").select("*,bet_stakes(*)").eq("group_id",group.id).order("created_at",{ascending:false});
     if(!data?.length){setSmartBets([]);return;}
-    const uids=[...new Set(data.flatMap((b:any)=>[b.p1_id,b.p2_id,b.target_user_id].filter(Boolean)))];
+    const uids=[...new Set(data.flatMap((b:any)=>[b.player1_id,b.player2_id,b.target_user_id].filter(Boolean)))];
     const{data:us}=await sb.from("users").select("id,name,avatar").in("id",uids as string[]);
     const um:Record<string,any>={};(us||[]).forEach((u:any)=>{um[u.id]=u;});
     const now=new Date();
@@ -4003,13 +4169,13 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       return{
         id:b.id,group_id:b.group_id,bet_type:(b.bet_type||"duel_ambito") as SmartBetType,
         label:b.label,metric:b.metric||"total",
-        p1_id:b.p1_id,p2_id:b.p2_id,
+        p1_id:b.player1_id,p2_id:b.player2_id,
         target_user_id:b.target_user_id,target_value:b.target_value,condition:b.condition||"gte",
         betting_closes_at:b.betting_closes_at,ends_at:b.ends_at,
         status:(b.status||"betting") as SmartBetStatus,winner_side:b.winner_side,
         created_at:b.created_at,
-        p1Name:um[b.p1_id]?.name||"?",p1Avi:um[b.p1_id]?.avatar||"👤",
-        p2Name:um[b.p2_id]?.name||"?",p2Avi:um[b.p2_id]?.avatar||"👤",
+        p1Name:um[b.player1_id]?.name||"?",p1Avi:um[b.player1_id]?.avatar||"👤",
+        p2Name:um[b.player2_id]?.name||"?",p2Avi:um[b.player2_id]?.avatar||"👤",
         targetName:b.target_user_id?(um[b.target_user_id]?.name||"?"):undefined,
         targetAvi:b.target_user_id?(um[b.target_user_id]?.avatar||"👤"):undefined,
         stakes,stakesVisible
@@ -4023,19 +4189,21 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     if(unseen.length>0){setBetStories(unseen);setBetStoriesOpen(true);}
   }
   async function placeSmartStake(betId:string,side:1|2,amount:number){
-    const myPts=myRow?.total_pts||0;
+    // Saldo apostable = users.total_pts (el mismo del que descuenta y al que paga el
+    // servidor). Antes se validaba contra los puntos del ranking, que es otro número.
+    const myPts=profile?.total_pts||0;
     const capped=Math.min(Math.max(1,amount),5);
     if(capped>myPts){alert(`No tienes suficientes puntos. Tienes ${myPts} pts.`);return;}
     const bet=smartBets.find(b=>b.id===betId);
     if(bet?.stakes.some(s=>s.user_id===user.id)){alert("Ya has apostado en esta apuesta.");return;}
     setStakingSmart(true);
-    await sb.from("bet_stakes").insert({bet_id:betId,user_id:user.id,side,amount:capped});
-    // Deduct staked points immediately
-    const{data:u}=await sb.from("users").select("total_pts").eq("id",user.id).single();
-    await sb.from("users").update({total_pts:Math.max(0,(u?.total_pts||0)-capped)}).eq("id",user.id);
-    await loadSmartBets();
-    loadRanking();
+    // El stake y el descuento de puntos van juntos en el servidor: antes eran dos
+    // llamadas separadas y el saldo se podía quedar a medias (o manipular a mano).
+    const{error}=await sb.rpc("bet_place_stake",{p_bet_id:betId,p_side:side,p_amount:capped});
     setStakingSmart(false);
+    if(error){console.error("bet_place_stake:",error);alert(error.message||"No se pudo registrar tu apuesta.");return;}
+    await loadSmartBets();
+    loadRanking(); refreshProfile();
   }
   async function createSmartBet(){
     if(!newBetP1||(newBetType!=="prop"&&(!newBetP2||newBetP1===newBetP2)))return;
@@ -4050,13 +4218,16 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       members[p2]?.name||"?",
       targetUser?members[targetUser]?.name||"?":undefined
     );
-    await sb.from("bets").insert({
-      group_id:group.id,label,bet_type:newBetType,metric:newBetMetric,
-      p1_id:newBetP1,p2_id:p2,
+    // Los nombres de columna son player1_id/player2_id (la tabla se rediseñó en su día
+    // y el cliente seguía escribiendo p1_id/p2_id, que ya no existen).
+    const{error:betErr}=await sb.from("bets").insert({
+      group_id:group.id,created_by:user.id,label,bet_type:newBetType,metric:newBetMetric,
+      player1_id:newBetP1,player2_id:p2,
       target_user_id:targetUser||null,target_value:newBetTargetValue,condition:newBetCondition,
       betting_closes_at:closesAt.toISOString(),ends_at:newBetEnds||null,
       status:"betting"
     });
+    if(betErr){console.error("createSmartBet:",betErr);alert(betErr.message||"No se pudo crear la apuesta.");setSavingBet(false);return;}
     await loadSmartBets();
     setNewBetP1("");setNewBetP2("");setNewBetTargetUser("");setNewBetTargetValue(4);
     const d=new Date();d.setDate(d.getDate()+7);setNewBetEnds(d.toISOString().slice(0,10));
@@ -4065,21 +4236,11 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   async function adminResolveSmartBet(betId:string,winnerSide:1|2){
     const bet=smartBets.find(b=>b.id===betId);if(!bet)return;
     if(bet.status==="won"||bet.status==="cancelled")return;
-    // Compare-and-set: only transitions if not already resolved — prevents double payout
-    const{data:upd}=await sb.from("bets").update({status:"won",winner_side:winnerSide}).eq("id",betId).neq("status","won").neq("status","cancelled").select("id");
-    if(!upd?.length){await loadSmartBets();return;}
-    const winners=bet.stakes.filter(s=>s.side===winnerSide);
-    const losers=bet.stakes.filter(s=>s.side!==winnerSide);
-    const loserPool=losers.reduce((s,x)=>s+x.amount,0);
-    const winnerPool=winners.reduce((s,x)=>s+x.amount,0);
-    // Return stake + proportional share of losing pool to each winner
-    for(const w of winners){
-      const share=winnerPool>0?Math.round((w.amount/winnerPool)*loserPool):0;
-      const{data:u}=await sb.from("users").select("total_pts").eq("id",w.user_id).single();
-      await sb.from("users").update({total_pts:(u?.total_pts||0)+w.amount+share}).eq("id",w.user_id);
-    }
-    // Losers already had pts deducted at stake time — nothing to do
-    await loadSmartBets();loadRanking();
+    // Marcar ganador y pagar a los apostantes se hace en una sola operación en el
+    // servidor (antes: un update + N escrituras sueltas sobre otros usuarios).
+    const{error}=await sb.rpc("bet_resolve",{p_bet_id:betId,p_winner_side:winnerSide});
+    if(error){console.error("bet_resolve:",error);alert(error.message||"No se pudo resolver la apuesta.");return;}
+    await loadSmartBets();loadRanking();refreshProfile();
   }
   async function saveProfile(){
     if(!editName.trim())return;
@@ -4193,7 +4354,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       {/* HOY */}
       {tab==="hoy"&&(
         <div className="content" key="hoy">
-          <TodayBanner weekPts={myWeekPts} streak={streak} saved={saved} done={done} onApuntar={()=>setShowApuntar(true)} myPos={myPos} weekDays={weekDays}/>
+          <TodayBanner weekPts={myWeekPts} streak={streak} streakPending={streakPending} saved={saved} done={done} onApuntar={()=>setShowApuntar(true)} myPos={myPos} weekDays={weekDays}/>
           <Feed user={user} group={group} members={members} disputes={disputes} disputeVotes={disputeVotes} smartBets={smartBets} reactions={reactions} onReact={handleReact} totalMembers={totalMembers} onSendToChat={handleSendToChat} onVote={castVote} onDispute={(uid)=>{setProfileModal(null);setDisputeModal(uid);}} myPts={myRow?.total_pts||0}/>
         </div>
       )}
@@ -4221,7 +4382,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                   <button className="rh-btn" onClick={loadRanking}>{loadingRank?"...":"↻"}</button>
                 </div>
               </div>
-              {loadingRank&&<div style={{textAlign:"center",padding:20}}><div className="spin" style={{margin:"0 auto"}}/></div>}
+              {loadingRank&&<div style={{padding:"4px 0"}}><div className="sk sk-row"/><div className="sk sk-row"/><div className="sk sk-row"/></div>}
               {!loadingRank&&ranking.length===0&&<div className="empty">Nadie ha registrado actividad todavía.<br/>¡Guarda tu primer día!</div>}
               {!loadingRank&&top3.length>0&&(
                 <div className="podium-row">
@@ -4288,7 +4449,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
             const shortMon=(s:string)=>{const d=new Date(s+"T12:00:00");return`${d.getDate()}/${d.getMonth()+1}`;};
             return(
               <div>
-                <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>Puntos por semana — últimas 8 semanas</div>
+                <div className="eyebrow" style={{marginBottom:10}}>Puntos por semana — últimas 8 semanas</div>
                 <div style={{background:"var(--s1)",border:"1px solid var(--border)",borderRadius:16,padding:"14px 8px 10px",overflowX:"auto"}}>
                   <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",maxWidth:W,display:"block"}}>
                     {/* Grid lines */}
@@ -4380,7 +4541,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
             const PODIUM_TEXT=["var(--amber)","#b8b8b8","#c8783a"];
             return(
               <div>
-                <div style={{fontSize:11,color:"var(--amber)",letterSpacing:2,textTransform:"uppercase",marginBottom:14,fontWeight:700,textAlign:"center"}}>🏛️ Hall of Fame</div>
+                <div className="eyebrow eyebrow--amber" style={{marginBottom:14,textAlign:"center"}}>🏛️ Hall of Fame</div>
                 {records.map((r,i)=>(
                   <div key={i} style={{background:i===0?"linear-gradient(135deg,#1E1608,#2A1C08)":"var(--s1)",border:`1px solid ${i===0?"rgba(240,168,50,.3)":"var(--border)"}`,borderRadius:16,padding:"14px 16px",marginBottom:10,display:"flex",alignItems:"center",gap:14}}>
                     <div style={{fontSize:28,flexShrink:0}}>{r.icon}</div>
@@ -4399,7 +4560,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                 ))}
                 {/* ── Rey de Categoría ── */}
                 {ambitoKings.length>0&&<>
-                  <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1.5,textTransform:"uppercase",fontWeight:700,marginTop:18,marginBottom:10}}>👑 Reyes de Categoría</div>
+                  <div className="eyebrow" style={{marginTop:18,marginBottom:10}}>👑 Reyes de Categoría</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
                     {ambitoKings.map(r=>(
                       <div key={r.id} style={{background:"var(--s2)",border:"1px solid var(--border)",borderRadius:14,padding:"12px",display:"flex",flexDirection:"column",gap:6,alignItems:"center",textAlign:"center"}}>
@@ -4414,7 +4575,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                 </>}
                 {/* ── Legado de Temporadas ── */}
                 {seasons.length>0&&<>
-                  <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1.5,textTransform:"uppercase",fontWeight:700,marginTop:4,marginBottom:10}}>🏆 Legado de Temporadas</div>
+                  <div className="eyebrow" style={{marginTop:4,marginBottom:10}}>🏆 Legado de Temporadas</div>
                   {seasons.map((s:any)=>{
                     const podium:(typeof s.podium extends any[]?any[]:any[])=s.podium||[];
                     if(!podium.length)return(
@@ -4479,16 +4640,16 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
               <div style={{display:"flex",gap:20}}>
                 <div style={{textAlign:"center"}}>
                   <div style={{fontSize:22,fontWeight:800,color:"var(--green)",lineHeight:1}}>{ptsWon}</div>
-                  <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginTop:3}}>Ganados</div>
+                  <div className="eyebrow" style={{marginTop:3}}>Ganados</div>
                 </div>
                 <div style={{textAlign:"center"}}>
                   <div style={{fontSize:22,fontWeight:800,color:"var(--red)",lineHeight:1}}>{ptsLost}</div>
-                  <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginTop:3}}>Perdidos</div>
+                  <div className="eyebrow" style={{marginTop:3}}>Perdidos</div>
                 </div>
               </div>
               <div style={{textAlign:"center",background:"var(--bg)",borderRadius:12,padding:"10px 18px",border:`1px solid ${balBorder}`}}>
                 <div style={{fontSize:28,fontWeight:900,color:balColor,lineHeight:1}}>{balance>0?"+":""}{balance}</div>
-                <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",marginTop:3}}>Saldo pts</div>
+                <div className="eyebrow" style={{marginTop:3}}>Saldo pts</div>
               </div>
             </div>);
           })()}
@@ -4503,7 +4664,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
             <div style={{background:"var(--s2)",border:"1px solid var(--border)",borderRadius:14,padding:"14px",marginBottom:14}}>
               <div style={{fontSize:12,fontWeight:800,color:"var(--amber)",marginBottom:10,letterSpacing:.5}}>⚔️ Crear apuesta</div>
               <div style={{marginBottom:8}}>
-                <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Tipo</div>
+                <div className="eyebrow" style={{marginBottom:4}}>Tipo</div>
                 <div style={{display:"flex",gap:6}}>
                   {([["duel_ambito","🏆 Ámbito"],["duel_habit","💪 Hábito"],["prop","🎯 Prop"]] as [SmartBetType,string][]).map(([t,l])=>(
                     <button key={t} onClick={()=>setNewBetType(t)} style={{flex:1,padding:"7px 4px",fontSize:11,fontWeight:700,borderRadius:9,border:`1px solid ${newBetType===t?"var(--amber)":"var(--border)"}`,background:newBetType===t?"rgba(240,168,50,.15)":"var(--s3)",color:newBetType===t?"var(--amber)":"var(--muted)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>{l}</button>
@@ -4516,7 +4677,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                 </div>
               </div>
               <div style={{marginBottom:8}}>
-                <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>{newBetType==="duel_habit"||newBetType==="prop"?"Hábito":"Ámbito"}</div>
+                <div className="eyebrow" style={{marginBottom:4}}>{newBetType==="duel_habit"||newBetType==="prop"?"Hábito":"Ámbito"}</div>
                 <select value={newBetMetric} onChange={e=>setNewBetMetric(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif"}}>
                   {newBetType==="duel_habit"||newBetType==="prop"
                     ?QUESTIONS.map(q=><option key={q.id} value={q.id}>{q.icon} {q.name}</option>)
@@ -4526,31 +4687,31 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
                 <div>
-                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>{newBetType==="prop"?"Sobre quién":"Jugador 1"}</div>
+                  <div className="eyebrow" style={{marginBottom:4}}>{newBetType==="prop"?"Sobre quién":"Jugador 1"}</div>
                   <select value={newBetP1} onChange={e=>setNewBetP1(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif"}}>
                     <option value="">Elegir…</option>
                     {Object.entries(members).map(([id,m])=><option key={id} value={id}>{m.avatar} {m.name}</option>)}
                   </select>
                 </div>
                 {newBetType!=="prop"&&<div>
-                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Jugador 2</div>
+                  <div className="eyebrow" style={{marginBottom:4}}>Jugador 2</div>
                   <select value={newBetP2} onChange={e=>setNewBetP2(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif"}}>
                     <option value="">Elegir…</option>
                     {Object.entries(members).filter(([id])=>id!==newBetP1).map(([id,m])=><option key={id} value={id}>{m.avatar} {m.name}</option>)}
                   </select>
                 </div>}
                 {newBetType==="prop"&&<div>
-                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Mín. de veces</div>
+                  <div className="eyebrow" style={{marginBottom:4}}>Mín. de veces</div>
                   <input type="number" min={1} value={newBetTargetValue} onChange={e=>setNewBetTargetValue(+e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box"}}/>
                 </div>}
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
                 <div>
-                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Fecha cierre apostadores</div>
+                  <div className="eyebrow" style={{marginBottom:4}}>Fecha cierre apostadores</div>
                   <div style={{fontSize:11,color:"var(--amber)",padding:"8px",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9}}>⏱ 24h automático</div>
                 </div>
                 <div>
-                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>Termina</div>
+                  <div className="eyebrow" style={{marginBottom:4}}>Termina</div>
                   <input type="date" value={newBetEnds} onChange={e=>setNewBetEnds(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box",colorScheme:"dark"}}/>
                 </div>
               </div>
@@ -4605,19 +4766,19 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
               <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
                 <div style={{textAlign:"right"}}>
                   <div style={{fontFamily:"'Playfair Display',serif",fontSize:30,fontWeight:900,color:"var(--amber)",lineHeight:1}}>{myPos||"—"}</div>
-                  <div style={{fontSize:10,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase"}}>posición</div>
+                  <div className="eyebrow">posición</div>
                 </div>
                 <button onClick={()=>{if(!editingProfile){setEditAvatar(profile?.avatar||"🐺");setEditName(profile?.name||"");setEditingProfile(true);}else setEditingProfile(false);}} style={{background:"var(--s2)",border:"1px solid var(--border)",borderRadius:8,padding:"4px 10px",fontSize:11,color:"var(--muted)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>{editingProfile?"✕ Cancelar":"✏️ Editar"}</button>
               </div>
             </div>
             {editingProfile&&(
               <div style={{marginTop:12,borderTop:"1px solid var(--border)",paddingTop:12}}>
-                <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:8,fontWeight:700}}>Nombre</div>
+                <div className="eyebrow" style={{marginBottom:8}}>Nombre</div>
                 <input value={editName} onChange={e=>setEditName(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:10,padding:"9px 12px",fontSize:14,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",marginBottom:12,boxSizing:"border-box"}} placeholder="Tu nombre"/>
-                <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:8,fontWeight:700}}>Avatar</div>
+                <div className="eyebrow" style={{marginBottom:8}}>Avatar</div>
                 <div className="avi-grid" style={{gridTemplateColumns:"repeat(8,1fr)"}}>{AVATARS.map(a=><div key={a} className={`avi-opt${editAvatar===a?" sel":""}`} onClick={()=>setEditAvatar(a)}>{a}</div>)}</div>
                 <div style={{marginTop:8}}>
-                  <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:6,fontWeight:700}}>O cualquier emoji</div>
+                  <div className="eyebrow" style={{marginBottom:6}}>O cualquier emoji</div>
                   <input className="inp" placeholder="🎃 ✍️ pega aquí" maxLength={4} style={{textAlign:"center",fontSize:28,letterSpacing:6,marginBottom:0}}
                     value={AVATARS.includes(editAvatar)?"":editAvatar} onChange={e=>{const v=[...e.target.value.trim()].slice(0,2).join("");if(v)setEditAvatar(v);}}/>
                 </div>
@@ -4790,7 +4951,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
           )}
 
           <div className="invite">
-            <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Código — {group.name}</div>
+            <div className="eyebrow" style={{marginBottom:6}}>Código — {group.name}</div>
             <div className="invite-code">{group.invite_code}</div>
             <div style={{display:"flex",gap:8,marginTop:10,justifyContent:"center"}}>
               <button onClick={()=>{navigator.clipboard.writeText(window.location.origin+"?invite="+group.invite_code);alert("✅ Enlace copiado");}}
@@ -4865,7 +5026,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                 </button>
               </div>
               <div className="card">
-                <div style={{fontSize:11,color:"var(--muted)",letterSpacing:1,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>Código de invitación</div>
+                <div className="eyebrow" style={{marginBottom:10}}>Código de invitación</div>
                 <div style={{fontFamily:"'Playfair Display',serif",fontSize:34,fontWeight:900,color:"var(--amber)",letterSpacing:8,textAlign:"center",margin:"8px 0"}}>{group.invite_code}</div>
                 <div style={{fontSize:12,color:"var(--muted)",textAlign:"center"}}>Comparte este código para que otros se unan</div>
               </div>
@@ -4893,12 +5054,12 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                 <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:10}}>⏳ Duración y fin de temporada</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
                   <div>
-                    <div style={{fontSize:10,color:"var(--muted)",marginBottom:5,letterSpacing:1,textTransform:"uppercase"}}>Duración (días)</div>
+                    <div className="eyebrow" style={{marginBottom:5}}>Duración (días)</div>
                     <input type="number" min={7} max={365} value={adminSeasonDuration} onChange={e=>setAdminSeasonDuration(Math.max(7,Number(e.target.value)))} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box"}}/>
                     <div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>{Math.round(adminSeasonDuration/7)} semanas</div>
                   </div>
                   <div>
-                    <div style={{fontSize:10,color:"var(--muted)",marginBottom:5,letterSpacing:1,textTransform:"uppercase"}}>Fecha fin actual</div>
+                    <div className="eyebrow" style={{marginBottom:5}}>Fecha fin actual</div>
                     <input type="date" value={adminSeasonEndDate} onChange={e=>setAdminSeasonEndDate(e.target.value)} style={{width:"100%",background:"var(--s3)",border:"1px solid var(--border)",borderRadius:9,padding:"8px",fontSize:13,color:"var(--text)",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box",colorScheme:"dark"}}/>
                   </div>
                 </div>
@@ -4962,7 +5123,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                 return(
                   <div key={a.id} style={{marginBottom:14}}>
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-                      <span style={{fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:a.color}}>{a.icon} {a.label}</span>
+                      <span className="eyebrow" style={{color:a.color}}>{a.icon} {a.label}</span>
                       <button onClick={()=>{if(allOn)setConfigHabits(p=>p.filter(id=>!aHabits.map(q=>q.id).includes(id)));else setConfigHabits(p=>[...new Set([...p,...aHabits.map(q=>q.id)])]);}} style={{fontSize:10,background:"none",border:`1px solid ${a.color}55`,borderRadius:8,padding:"2px 8px",color:a.color,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>
                         {allOn?"Desmarcar":"Todos"}
                       </button>
@@ -5001,7 +5162,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
               </div>
               {/* ── BADGES HOF ── */}
               <div style={{height:1,background:"var(--border)",margin:"20px 0 14px"}}/>
-              <div style={{fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",fontWeight:700,marginBottom:8}}>🎖️ Récords del Hall of Fame</div>
+              <div className="eyebrow" style={{marginBottom:8}}>🎖️ Récords del Hall of Fame</div>
               <div style={{fontSize:12,color:"var(--muted)",marginBottom:12,lineHeight:1.5}}>Elige qué récords aparecen en la pestaña Ranking → Hall of Fame.</div>
               {HOF_BADGES.map(b=>{
                 const on=adminVisibleBadges.includes(b.id);
@@ -5018,7 +5179,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                 {adminSavingBadges?"Guardando...":"💾 Guardar badges"}
               </button>
               <div style={{height:1,background:"var(--border)",margin:"20px 0 14px"}}/>
-              <div style={{fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"var(--muted)",fontWeight:700,marginBottom:10}}>🔮 Próxima temporada</div>
+              <div className="eyebrow" style={{marginBottom:10}}>🔮 Próxima temporada</div>
               <div style={{fontSize:12,color:"var(--muted)",marginBottom:10,lineHeight:1.5}}>Configura los hábitos que tendrá la siguiente temporada sin afectar a la actual.</div>
               {AMBITOS.map(a=>{
                 const aHabits=QUESTIONS.filter(q=>a.habits.includes(q.id as any));
@@ -5026,7 +5187,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                 return(
                   <div key={`next-${a.id}`} style={{marginBottom:14}}>
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-                      <span style={{fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:a.color,opacity:.7}}>{a.icon} {a.label}</span>
+                      <span className="eyebrow" style={{color:a.color,opacity:.7}}>{a.icon} {a.label}</span>
                       <button onClick={()=>{if(allOn)setAdminNextHabits(p=>p.filter(id=>!aHabits.map(q=>q.id).includes(id)));else setAdminNextHabits(p=>[...new Set([...p,...aHabits.map(q=>q.id)])]);}} style={{fontSize:10,background:"none",border:`1px solid ${a.color}44`,borderRadius:8,padding:"2px 8px",color:a.color,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontWeight:600,opacity:.7}}>
                         {allOn?"Desmarcar":"Todos"}
                       </button>
@@ -5146,7 +5307,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
               return(
                 <div key={a.id} style={{marginBottom:14}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-                    <span style={{fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:a.color}}>{a.icon} {a.label}</span>
+                    <span className="eyebrow" style={{color:a.color}}>{a.icon} {a.label}</span>
                     <button onClick={()=>{
                       if(allOn)setConfigHabits(p=>p.filter(id=>!aHabits.map(q=>q.id).includes(id)));
                       else setConfigHabits(p=>[...new Set([...p,...aHabits.map(q=>q.id)])]);
@@ -5258,7 +5419,7 @@ function CalHeatmap({logs,today}:{logs:{date:string;pts:number}[];today:string})
   }
   return(<div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-      <span style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)"}}>{monthName}</span>
+      <span className="eyebrow">{monthName}</span>
       <span style={{fontSize:11,color:"var(--amber)",fontWeight:700}}>{totalMonth} pts este mes</span>
     </div>
     <div className="cal-hm-lbl">
