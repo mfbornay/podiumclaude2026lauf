@@ -79,7 +79,7 @@ export default async function handler(req: any, res: any) {
           winnerSide = pos > 0 && pos <= (bet.target_value || 3) ? 1 : 2;
         } else {
           const { data: logs } = await sb.from("daily_logs").select("*")
-            .eq("user_id", bet.target_user_id).eq("group_id", bet.group_id)
+            .eq("user_id", bet.target_user_id)
             .gte("date", from).lte("date", to);
           const { count } = scoreLogs(logs || [], metric, override);
           const achieved = bet.condition === "lte" ? count <= (bet.target_value || 0) : count >= (bet.target_value || 0);
@@ -95,7 +95,7 @@ export default async function handler(req: any, res: any) {
           continue;
         }
         const { data: logs } = await sb.from("daily_logs").select("*")
-          .in("user_id", [p1, p2]).eq("group_id", bet.group_id)
+          .in("user_id", [p1, p2])
           .gte("date", from).lte("date", to);
         const s1 = scoreLogs((logs || []).filter((l: any) => l.user_id === p1), metric, override);
         const s2 = scoreLogs((logs || []).filter((l: any) => l.user_id === p2), metric, override);

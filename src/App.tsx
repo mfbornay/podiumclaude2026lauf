@@ -1367,6 +1367,33 @@ html,body{background:var(--bg);height:100%;color:var(--text)}
 }
 .hero-pts.bump{animation:pts-bump var(--dur-slow) var(--ease)}
 
+/* ─── Clasificación: jerarquía más marcada entre puesto, nombre y puntos ─── */
+.rrow{transition:transform var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease)}
+.rrow:active{transform:scale(.99)}
+.rn{font-size:var(--t-md)}
+.rrow.me .rn{color:var(--amber)}
+.rname{font-size:var(--t-sm)}
+.rdetail{font-size:var(--t-xs)}
+.rpts{font-size:var(--t-xl);line-height:1}
+/* Las tres primeras posiciones se distinguen por el color del número, no por más ruido */
+.rrow:nth-child(1) .rn{color:var(--amber)}
+.rrow:nth-child(2) .rn{color:#9A9A9A}
+.rrow:nth-child(3) .rn{color:#CD7F32}
+.rr-sub{font-size:var(--t-micro);color:var(--muted);letter-spacing:.6px;text-transform:uppercase;font-weight:600}
+
+/* ─── Saldo apostable ─── */
+.saldo{
+  display:inline-flex;align-items:baseline;gap:6px;
+  background:rgba(240,168,50,.08);border:1px solid rgba(240,168,50,.22);
+  border-radius:var(--r-pill);padding:5px 12px;
+}
+.saldo-n{font-family:'Playfair Display',serif;font-size:var(--t-lg);font-weight:900;color:var(--amber);line-height:1;font-variant-numeric:tabular-nums}
+.saldo-lbl{font-size:var(--t-micro);letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);font-weight:700}
+
+/* ─── Estados vacíos con algo de vida ─── */
+.empty,.feed-empty{font-size:var(--t-sm);line-height:1.7}
+.empty-ico{font-size:34px;display:block;margin-bottom:var(--sp-2);opacity:.75}
+
 /* ─── LIGHT MODE (prefers-color-scheme: light) ─── */
 @media (prefers-color-scheme: light) {
   html,body { background: #FAF3E0; }
@@ -2019,7 +2046,7 @@ function DisputesPanel({user,group,disputes,votes,members,totalMembers,onClose,o
 /* ══════════════════════════════════════════ CHAT */
 type ChatMsg={id:number;group_id:string;user_id:string;text:string|null;photo_url:string|null;created_at:string};
 type SharedEvent={text:string;color:string;ref?:string};
-function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user:any;group:any;profile:any;sharedEvent:SharedEvent|null;onClearShared:()=>void;onGoToFeed?:()=>void}){
+function ChatTab({user,group,profile,isAdmin,sharedEvent,onClearShared,onGoToFeed}:{user:any;group:any;profile:any;isAdmin:boolean;sharedEvent:SharedEvent|null;onClearShared:()=>void;onGoToFeed?:()=>void}){
   const [msgs,setMsgs]=useState<ChatMsg[]>([]);
   const [members,setMembers]=useState<Record<string,{name:string;avatar:string}>>({});
   const [text,setText]=useState("");
@@ -2104,7 +2131,6 @@ function ChatTab({user,group,profile,sharedEvent,onClearShared,onGoToFeed}:{user
     const{error}=await sb.from("chat_messages").delete().eq("group_id",group.id);
     if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;} setMsgs([]);
   }
-  const isAdmin=profile?.role==="admin";
   return(
     <div className="content" key="chat" style={{paddingBottom:0,display:"flex",flexDirection:"column",height:"calc(100vh - 112px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))"}}>
 
@@ -2771,7 +2797,7 @@ function Feed({user,group,members,disputes,disputeVotes,smartBets,reactions,onRe
   items.sort((a,b)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime());
 
   if(loading)return <div className="feed"><div className="sk sk-row"/><div className="sk sk-row"/><div className="sk sk-row"/></div>;
-  if(items.length===0)return <div className="feed-empty">No hay actividad reciente.<br/>¡Apunta tu primer día y aparecerás aquí!</div>;
+  if(items.length===0)return <div className="feed-empty"><span className="empty-ico">🌱</span>Aún no hay movimiento.<br/>Apunta tu día y abre la veda.</div>;
   return(
     <div className="feed stagger">
       <div className="eyebrow" style={{marginBottom:2}}>Actividad reciente</div>
@@ -2783,7 +2809,7 @@ function Feed({user,group,members,disputes,disputeVotes,smartBets,reactions,onRe
 }
 
 /* ══════════════════════════════════════════ USER PROFILE MODAL */
-function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,weekLeaders,weekAmbitoPts,profile,seasons,onClose,onDispute,onSignOut}:{userId:string;currentUserId:string;group:any;members:Record<string,{name:string;avatar:string}>;adjRanking:any[];streak:number;weekLeaders:Record<string,string>;weekAmbitoPts:Record<string,Record<string,number>>;profile:any;seasons:any[];onClose:()=>void;onDispute?:()=>void;onSignOut?:()=>void}){
+function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,weekLeaders,weekAmbitoPts,profile,isAdmin,seasons,onClose,onDispute,onSignOut}:{userId:string;currentUserId:string;group:any;isAdmin?:boolean;members:Record<string,{name:string;avatar:string}>;adjRanking:any[];streak:number;weekLeaders:Record<string,string>;weekAmbitoPts:Record<string,Record<string,number>>;profile:any;seasons:any[];onClose:()=>void;onDispute?:()=>void;onSignOut?:()=>void}){
   const isMe=userId===currentUserId;
   const who=isMe?{name:profile?.name||"?",avatar:profile?.avatar||"👤"}:(members[userId]||{name:"?",avatar:"👤"});
   const rankRow=adjRanking.find(r=>r.user_id===userId);
@@ -2839,7 +2865,7 @@ function UserProfileModal({userId,currentUserId,group,members,adjRanking,streak,
             <div className="pm-name">{who.name}{isMe?" · Tú":""}{rankRow?.isRata&&<span style={{marginLeft:6,fontSize:18}}>🐀</span>}</div>
             {rankRow?.isRata&&<div style={{fontSize:11,color:"#F2667A",fontWeight:600,marginBottom:2}}>Badge: Rata 🐀 · 3+ disputas perdidas</div>}
             {profile?.username&&<div className="pm-sub">@{profile.username}</div>}
-            {isMe&&profile?.role==="admin"&&<div className="admin-badge" style={{marginTop:4}}>⚙️ Admin</div>}
+            {isMe&&isAdmin&&<div className="admin-badge" style={{marginTop:4}}>⚙️ Admin</div>}
             {pos>0&&<div style={{fontSize:12,color:"var(--amber)",fontWeight:600,marginTop:4}}>#{pos} en el ranking</div>}
           </div>
         </div>
@@ -3557,16 +3583,20 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   const [champOverlay,setChampOverlay]=useState(false);
   const [wrappedStats,setWrappedStats]=useState<WrappedStats|null>(null);
   const [startingPlayoffs,setStartingPlayoffs]=useState(false);
+  const [myRole,setMyRole]=useState<string>("member");
 
   const pts=calcPts(done);
-  const isAdmin=profile?.role==="admin";
+  // Ser admin es algo de CADA grupo (group_members.role), no una etiqueta global del
+  // usuario: administrar tu liga ya no te da poderes en las de los demás.
+  const isAdmin=myRole==="admin";
   const isPowerHolder=(group as any).power_holder_id===user.id;
   const myPos=ranking.findIndex(r=>r.user_id===user.id)+1;
   const myRow=ranking.find(r=>r.user_id===user.id);
 
   async function loadMembers(){
-    const{data:gm}=await sb.from("group_members").select("user_id").eq("group_id",group.id);
+    const{data:gm}=await sb.from("group_members").select("user_id,role").eq("group_id",group.id);
     const ids=(gm||[]).map((r:any)=>r.user_id);
+    setMyRole((gm||[]).find((r:any)=>r.user_id===user.id)?.role||"member");
     if(!ids.length)return;
     const today=todayStr();
     const{data:us}=await sb.from("users").select("id,name,avatar,silenced_until,renamed_to,renamed_until").in("id",ids);
@@ -3674,7 +3704,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const playoff:Playoff|null=po||(group as any).playoff;
     if(!playoff?.active)return;
     const ids=playoffParticipants(playoff);
-    const{data}=await sb.from("daily_logs").select("user_id,total_pts").in("user_id",ids).eq("group_id",group.id).gte("date",playoff.round_starts).lte("date",playoff.round_ends);
+    const{data}=await sb.from("daily_logs").select("user_id,total_pts").in("user_id",ids).gte("date",playoff.round_starts).lte("date",playoff.round_ends);
     const sc:Record<string,number>={};
     (data||[]).forEach((l:any)=>{sc[l.user_id]=(sc[l.user_id]||0)+(l.total_pts||0);});
     setPlayoffScores(sc);
@@ -3718,7 +3748,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     const durDays=(group as any).season_duration_days||56;
     const since=new Date();since.setDate(since.getDate()-durDays);
     const sinceStr=since.toISOString().slice(0,10);
-    const{data:logs}=await sb.from("daily_logs").select("*").eq("user_id",user.id).eq("group_id",group.id).gte("date",sinceStr).order("date",{ascending:true});
+    const{data:logs}=await sb.from("daily_logs").select("*").eq("user_id",user.id).gte("date",sinceStr).order("date",{ascending:true});
     const rows=logs||[];
     const totalPts=rows.reduce((s:number,l:any)=>s+(l.total_pts||0),0);
     // Longest streak
@@ -3800,7 +3830,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   async function loadWeekDays(){
     try{
       const mon=getMondayStr();
-      const{data}=await sb.from("daily_logs").select("date,total_pts").eq("user_id",user.id).eq("group_id",group.id).gte("date",mon);
+      const{data}=await sb.from("daily_logs").select("date,total_pts").eq("user_id",user.id).gte("date",mon);
       const days=[false,false,false,false,false,false,false];
       let wpts=0;
       (data||[]).forEach((r:any)=>{const d=new Date(r.date+"T12:00:00");const idx=(d.getDay()+6)%7;if(idx>=0&&idx<7)days[idx]=true;wpts+=(r.total_pts||0);});
@@ -3925,12 +3955,14 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
   }
 
   async function loadAdminData(){
-    // Load members with full profile
-    const{data:gm}=await sb.from("group_members").select("user_id").eq("group_id",group.id);
+    // El rol que importa es el del grupo, no el del perfil
+    const{data:gm}=await sb.from("group_members").select("user_id,role").eq("group_id",group.id);
     const ids=(gm||[]).map((r:any)=>r.user_id);
     if(ids.length){
-      const{data:us}=await sb.from("users").select("id,name,username,avatar,role").in("id",ids);
-      setAdminMembers(us||[]);
+      const{data:us}=await sb.from("users").select("id,name,username,avatar").in("id",ids);
+      const roles:Record<string,string>={};
+      (gm||[]).forEach((r:any)=>{roles[r.user_id]=r.role||"member";});
+      setAdminMembers((us||[]).map((u:any)=>({...u,role:roles[u.id]||"member"})));
     }
     // Load seasons if table exists
     const{data:seas}=await sb.from("seasons").select("*").eq("group_id",group.id).order("created_at",{ascending:false}).limit(10);
@@ -4023,9 +4055,11 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
 
   async function adminKickMember(userId:string){
     if(!window.confirm("¿Eliminar a este miembro del grupo?"))return;
-    const{error}=await sb.from("group_members").delete().eq("group_id",group.id).eq("user_id",userId);
-    if(error){console.error(error);alert("Algo salió mal. Inténtalo de nuevo.");return;}
+    // El servidor comprueba que eres admin del grupo y que no lo dejas sin ninguno
+    const{error}=await sb.rpc("remove_member",{p_group_id:group.id,p_user:userId});
+    if(error){console.error("remove_member:",error);alert(error.message||"Algo salió mal. Inténtalo de nuevo.");return;}
     setAdminMembers(prev=>prev.filter(m=>m.id!==userId));
+    loadMembers();loadRanking();
   }
 
   async function saveGroupConfig(){
@@ -4074,7 +4108,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     if(weeklyLoaded)return;
     const start=new Date();start.setDate(start.getDate()-55);
     const startStr=localDate(start);
-    const{data}=await sb.from("daily_logs").select("user_id,date,total_pts").eq("group_id",group.id).gte("date",startStr);
+    const{data}=await sb.from("daily_logs").select("user_id,date,total_pts").in("user_id",Object.keys(members)).gte("date",startStr);
     if(!data)return;
     const byUser:Record<string,Record<string,number>>={};
     for(const log of data){
@@ -4189,9 +4223,9 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
     if(unseen.length>0){setBetStories(unseen);setBetStoriesOpen(true);}
   }
   async function placeSmartStake(betId:string,side:1|2,amount:number){
-    // Saldo apostable = users.total_pts (el mismo del que descuenta y al que paga el
-    // servidor). Antes se validaba contra los puntos del ranking, que es otro número.
-    const myPts=profile?.total_pts||0;
+    // Apostar sale de los puntos de la clasificación: es el mismo saldo que valida y
+    // mueve el servidor, así que lo que ves en el ranking es lo que puedes jugarte.
+    const myPts=myRow?.total_pts||0;
     const capped=Math.min(Math.max(1,amount),5);
     if(capped>myPts){alert(`No tienes suficientes puntos. Tienes ${myPts} pts.`);return;}
     const bet=smartBets.find(b=>b.id===betId);
@@ -4383,7 +4417,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
                 </div>
               </div>
               {loadingRank&&<div style={{padding:"4px 0"}}><div className="sk sk-row"/><div className="sk sk-row"/><div className="sk sk-row"/></div>}
-              {!loadingRank&&ranking.length===0&&<div className="empty">Nadie ha registrado actividad todavía.<br/>¡Guarda tu primer día!</div>}
+              {!loadingRank&&ranking.length===0&&<div className="empty"><span className="empty-ico">🏁</span>La temporada está en blanco.<br/>El primero que apunte, manda.</div>}
               {!loadingRank&&top3.length>0&&(
                 <div className="podium-row">
                   {top3[1]&&<div className="pc" onClick={()=>setProfileModal(top3[1].user_id)}>
@@ -4440,7 +4474,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
             const mondays:string[]=[];
             for(let w=7;w>=0;w--){const d=new Date();const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow-w*7);mondays.push(localDate(d));}
             const userIds=Object.keys(weeklyHistory);
-            if(!userIds.length)return<div className="empty">Sin datos históricos aún.<br/>Empieza a apuntar días para ver la evolución.</div>;
+            if(!userIds.length)return<div className="empty"><span className="empty-ico">📈</span>Todavía no hay historial.<br/>En unos días verás aquí tu evolución.</div>;
             const allPts=mondays.flatMap(m=>userIds.map(uid=>weeklyHistory[uid]?.[m]||0));
             const maxPts=Math.max(...allPts,10);
             const W=370,H=180,PL=10,PR=10,PT=10,PB=28;
@@ -4653,6 +4687,14 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
               </div>
             </div>);
           })()}
+          {/* Lo que te puedes jugar son tus puntos de la clasificación: si apuestas, salen de ahí */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginBottom:12}}>
+            <div className="saldo">
+              <span className="saldo-n">{myRow?.total_pts||0}</span>
+              <span className="saldo-lbl">pts para apostar</span>
+            </div>
+            <span style={{fontSize:"var(--t-xs)",color:"var(--muted)",textAlign:"right",lineHeight:1.35}}>lo que apuestes<br/>sale del ranking</span>
+          </div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
             <span className="section-lbl" style={{margin:0}}>⚔️ Apuestas</span>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -4750,7 +4792,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       )}
 
       {/* CHAT */}
-      {tab==="chat"&&<ChatTab user={user} group={group} profile={profile} sharedEvent={sharedEvent} onClearShared={()=>setSharedEvent(null)} onGoToFeed={()=>setTab("hoy")}/>}
+      {tab==="chat"&&<ChatTab user={user} group={group} profile={profile} isAdmin={isAdmin} sharedEvent={sharedEvent} onClearShared={()=>setSharedEvent(null)} onGoToFeed={()=>setTab("hoy")}/>}
 
       {/* PERFIL */}
       {tab==="perfil"&&(
@@ -5341,7 +5383,7 @@ function MainApp({user,profile:profileInit,group:groupInit,allGroups,onSwitchGro
       {profileModal&&<UserProfileModal
         userId={profileModal} currentUserId={user.id}
         group={group} members={members} adjRanking={adjRanking}
-        streak={streak} profile={profile}
+        streak={streak} profile={profile} isAdmin={isAdmin}
         onClose={()=>setProfileModal(null)}
         weekLeaders={weekLeaders} weekAmbitoPts={weekAmbitoPts} seasons={seasons} onDispute={profileModal!==user.id?()=>setDisputeModal(profileModal):undefined}
         onSignOut={profileModal===user.id?onSignOut:undefined}

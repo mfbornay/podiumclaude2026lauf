@@ -198,11 +198,20 @@ async function sendWeeklySummary(today: string) {
 
   for (const group of groups) {
     try {
-      // Ranking for last week: sum daily_logs between lastMonday and lastSunday
+      // El registro diario es de la persona y cuenta en todos sus grupos, así que el
+      // resumen semanal se calcula sobre los miembros del grupo, no sobre el group_id
+      // con el que cada uno apuntó ese día.
+      const { data: miembros } = await sb
+        .from("group_members")
+        .select("user_id")
+        .eq("group_id", group.id);
+      const ids = (miembros || []).map((m: any) => m.user_id);
+      if (!ids.length) continue;
+
       const { data: logs } = await sb
         .from("daily_logs")
         .select("user_id, total_pts, gym")
-        .eq("group_id", group.id)
+        .in("user_id", ids)
         .gte("date", lastMonday)
         .lte("date", lastSunday);
 
